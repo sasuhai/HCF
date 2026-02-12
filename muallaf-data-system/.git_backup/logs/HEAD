@@ -1,0 +1,6 @@
+0000000000000000000000000000000000000000 39bb1752698d906ecf1e6051b54abe2045c3e429 Suhaidi <sasuhai0@gmail.com> 1770875704 +0800	commit (initial): Initial commit from Create Next App
+39bb1752698d906ecf1e6051b54abe2045c3e429 eaf084b4976023f2f3e5a8ff881df89d85471d9e Suhaidi <sasuhai0@gmail.com> 1770909927 +0800	commit: feat: Implement Excel-style column filters, responsive dropdowns, and compact table view
+eaf084b4976023f2f3e5a8ff881df89d85471d9e f01e1a6fc068b77918bb170736c5cd53a5402b75 Suhaidi <sasuhai0@gmail.com> 1770909963 +0800	commit (amend): feat: Implement Excel-style column filters, responsive dropdowns, and compact table view
+f01e1a6fc068b77918bb170736c5cd53a5402b75 1b7534ec9cbc9457325ec6be8725485720fa90e1 Suhaidi <sasuhai0@gmail.com> 1770910222 +0800	commit (amend): feat: Implement Excel-style column filters, responsive dropdowns, and compact table view
+1b7534ec9cbc9457325ec6be8725485720fa90e1 71a6a0c0cf3a1a9f9c4598adb9f3f6de1e8a3312 Suhaidi <sasuhai0@gmail.com> 1770910253 +0800	pull origin main --allow-unrelated-histories --no-rebase: Merge made by the 'ort' strategy.
+71a6a0c0cf3a1a9f9c4598adb9f3f6de1e8a3312 84bb9a5b85e16d4e965945670473743b14f9381c Suhaidi <sasuhai0@gmail.com> 1770919221 +0800	commit: Enhance responsive design for Senarai Rekod and implement RBAC with localized data access

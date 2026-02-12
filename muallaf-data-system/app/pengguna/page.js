@@ -1,0 +1,387 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { collection, query, getDocs, doc, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { db, firebaseConfig } from '@/lib/firebase/config';
+import Navbar from '@/components/Navbar';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { User, Plus, Search, Edit2, Trash2, Shield, MapPin, X, Check } from 'lucide-react';
+
+export default function UsersPage() {
+    const { user, role } = useAuth();
+    const router = useRouter();
+
+    const [users, setUsers] = useState([]);
+    const [locations, setLocations] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+
+    // Modal State
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState('add'); // 'add' or 'edit'
+    const [currentUser, setCurrentUser] = useState(null);
+
+    // Form State
+    const [formData, setFormData] = useState({
+        email: '',
+        password: '',
+        name: '',
+        role: 'editor',
+        assignedLocations: []
+    });
+
+    // Fetch Data
+    useEffect(() => {
+        const fetchData = async () => {
+            if (role !== 'admin') {
+                // If not admin, redirect or show unauthorized
+                // ProtectedRoute handles this usually but double check
+                return;
+            }
+
+            try {
+                // Fetch Users
+                const usersSnap = await getDocs(collection(db, 'users'));
+                const usersList = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setUsers(usersList);
+
+                // Fetch Locations from Classes
+                const classesSnap = await getDocs(query(collection(db, 'classes')));
+                const uniqueLocs = [...new Set(classesSnap.docs.map(d => d.data().lokasi).filter(l => l))].sort();
+                setLocations(uniqueLocs);
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (user && role === 'admin') {
+            fetchData();
+        }
+    }, [user, role]);
+
+    const handleOpenModal = (mode, userToEdit = null) => {
+        setModalMode(mode);
+        if (mode === 'edit' && userToEdit) {
+            setCurrentUser(userToEdit);
+            setFormData({
+                email: userToEdit.email,
+                password: '', // Password not editable directly here usually
+                name: userToEdit.name || '',
+                role: (userToEdit.role === 'user' ? 'editor' : userToEdit.role) || 'editor',
+                assignedLocations: userToEdit.assignedLocations || []
+            });
+        } else {
+            setCurrentUser(null);
+            setFormData({
+                email: '',
+                password: '',
+                name: '',
+                role: 'editor',
+                assignedLocations: []
+            });
+        }
+        setIsModalOpen(true);
+    };
+
+    const handleLocationToggle = (loc) => {
+        setFormData(prev => {
+            const current = prev.assignedLocations || [];
+            if (current.includes(loc)) {
+                return { ...prev, assignedLocations: current.filter(l => l !== loc) };
+            } else {
+                return { ...prev, assignedLocations: [...current, loc] };
+            }
+        });
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+
+        try {
+            if (modalMode === 'add') {
+                // Create User using Secondary App
+                const secondaryApp = initializeApp(firebaseConfig, "secondary");
+                const secondaryAuth = getAuth(secondaryApp);
+
+                try {
+                    const userCred = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
+                    const uid = userCred.user.uid;
+
+                    // Create User Doc in Main DB
+                    await setDoc(doc(db, 'users', uid), {
+                        email: formData.email,
+                        name: formData.name,
+                        role: formData.role,
+                        assignedLocations: formData.assignedLocations,
+                        createdAt: serverTimestamp()
+                    });
+
+                    // Cleanup secondary app
+                    await signOut(secondaryAuth);
+                    deleteApp(secondaryApp);
+
+                    // Update local state
+                    setUsers(prev => [...prev, {
+                        id: uid,
+                        email: formData.email,
+                        name: formData.name,
+                        role: formData.role,
+                        assignedLocations: formData.assignedLocations
+                    }]);
+
+                    alert("Pengguna berjaya dicipta!");
+                    setIsModalOpen(false);
+                } catch (err) {
+                    console.error("Error creating auth user:", err);
+                    alert("Ralat mencipta pengguna: " + err.message);
+                    deleteApp(secondaryApp); // Cleanup on error too
+                }
+            } else {
+                // Edit User
+                await updateDoc(doc(db, 'users', currentUser.id), {
+                    name: formData.name,
+                    role: formData.role,
+                    assignedLocations: formData.assignedLocations,
+                    updatedAt: serverTimestamp()
+                });
+
+                // Update local state
+                setUsers(prev => prev.map(u => u.id === currentUser.id ? {
+                    ...u,
+                    name: formData.name,
+                    role: formData.role,
+                    assignedLocations: formData.assignedLocations
+                } : u));
+
+                alert("Pengguna berjaya dikemaskini!");
+                setIsModalOpen(false);
+            }
+        } catch (error) {
+            console.error("Error submitting form:", error);
+            alert("Ralat memproses borang.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Filter Users
+    const filteredUsers = users.filter(u =>
+        (u.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (u.email || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (role !== 'admin') {
+        return (
+            <ProtectedRoute>
+                <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                    <div className="text-center p-8">
+                        <Shield className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                        <h1 className="text-2xl font-bold text-gray-900">Akses Ditolak</h1>
+                        <p className="text-gray-600">Hanya Admin boleh mengakses halaman ini.</p>
+                    </div>
+                </div>
+            </ProtectedRoute>
+        );
+    }
+
+    return (
+        <ProtectedRoute>
+            <div className="min-h-screen bg-gray-50">
+                <Navbar />
+
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                                <User className="h-6 w-6 mr-2 text-indigo-600" />
+                                Pengurusan Pengguna
+                            </h1>
+                            <p className="text-gray-500 text-sm mt-1">Urus akses, peranan, dan lokasi pengguna sistem.</p>
+                        </div>
+                        <button
+                            onClick={() => handleOpenModal('add')}
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-indigo-700 shadow-sm transition-colors"
+                        >
+                            <Plus className="h-5 w-5 mr-1" /> Tambah Pengguna
+                        </button>
+                    </div>
+
+                    {/* Search and Filters */}
+                    <div className="bg-white p-4 rounded-lg shadow mb-6">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                            <input
+                                type="text"
+                                placeholder="Cari nama atau emel..."
+                                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Users List */}
+                    <div className="bg-white rounded-lg shadow overflow-hidden">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama / Emel</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Peranan</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lokasi Ditugaskan</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {loading ? (
+                                    <tr><td colSpan="4" className="px-6 py-4 text-center">Loading...</td></tr>
+                                ) : filteredUsers.length === 0 ? (
+                                    <tr><td colSpan="4" className="px-6 py-4 text-center text-gray-500">Tiada pengguna dijumpai.</td></tr>
+                                ) : (
+                                    filteredUsers.map((u) => (
+                                        <tr key={u.id} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="text-sm font-medium text-gray-900">{u.name || 'Tanpa Nama'}</div>
+                                                <div className="text-sm text-gray-500">{u.email}</div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${u.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
+                                                    {u.role === 'admin' ? 'Admin' : 'Editor'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-wrap gap-1">
+                                                    {(u.assignedLocations || []).map((loc, idx) => (
+                                                        <span key={idx} className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs border border-gray-200">
+                                                            {loc}
+                                                        </span>
+                                                    ))}
+                                                    {(!u.assignedLocations || u.assignedLocations.length === 0) && (
+                                                        <span className="text-gray-400 text-xs italic">Tiada Lokasi</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <button onClick={() => handleOpenModal('edit', u)} className="text-indigo-600 hover:text-indigo-900 mr-3">
+                                                    <Edit2 className="h-4 w-4" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Modal */}
+                {isModalOpen && (
+                    <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-lg max-w-lg w-full p-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-bold text-gray-900">
+                                    {modalMode === 'add' ? 'Tambah Pengguna Baru' : 'Kemaskini Pengguna'}
+                                </h3>
+                                <button onClick={() => setIsModalOpen(false)}><X className="h-6 w-6 text-gray-400" /></button>
+                            </div>
+
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                {modalMode === 'add' && (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Emel</label>
+                                            <input
+                                                type="email"
+                                                required
+                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                value={formData.email}
+                                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Kata Laluan</label>
+                                            <input
+                                                type="password"
+                                                required
+                                                minLength={6}
+                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                value={formData.password}
+                                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                            />
+                                            <p className="text-xs text-gray-500 mt-1">Minima 6 karakter.</p>
+                                        </div>
+                                    </>
+                                )}
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Nama Penuh</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Peranan</label>
+                                    <select
+                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        value={formData.role}
+                                        onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                                    >
+                                        <option value="editor">Editor</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                    <p className="text-xs text-gray-500 mt-1">Admin boleh akses semua data. Editor hanya akses data lokasi yang ditetapkan.</p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Lokasi Ditugaskan</label>
+                                    <div className="bg-gray-50 p-3 rounded-md border border-gray-200 max-h-48 overflow-y-auto grid grid-cols-2 gap-2">
+                                        {locations.map(loc => (
+                                            <label key={loc} className="flex items-center space-x-2 text-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.assignedLocations?.includes(loc)}
+                                                    onChange={() => handleLocationToggle(loc)}
+                                                    className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                                                />
+                                                <span>{loc}</span>
+                                            </label>
+                                        ))}
+                                        {locations.length === 0 && <p className="text-sm text-gray-500 col-span-2">Tiada lokasi dijumpai. Sila tambah Kelas dahulu.</p>}
+                                    </div>
+                                </div>
+
+                                <div className="pt-4 flex justify-end space-x-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsModalOpen(false)}
+                                        className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50"
+                                    >
+                                        Batal
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={loading}
+                                        className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 flex items-center"
+                                    >
+                                        {loading ? 'Processing...' : (modalMode === 'add' ? 'Cipta Pengguna' : 'Simpan Perubahan')}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </ProtectedRoute>
+    );
+}

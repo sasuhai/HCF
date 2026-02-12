@@ -1,0 +1,13 @@
+{
+    "name": "muallaf-scripts",
+    "version": "1.0.0",
+    "description": "Migration and admin scripts for Muallaf Data System",
+    "scripts": {
+        "create-admin": "node create-admin.js",
+        "migrate": "node migrate-data.js"
+    },
+    "dependencies": {
+        "firebase-admin": "^12.0.0",
+        "csv-parser": "^3.0.0"
+    }
+}
