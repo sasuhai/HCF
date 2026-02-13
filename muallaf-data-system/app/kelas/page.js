@@ -11,7 +11,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { Search, Plus, Edit2, Trash2, MapPin, X, CheckCircle } from 'lucide-react';
 
 export default function ClassesPage() {
-    const { user, role, profile } = useAuth();
+    const { user, role, profile, loading: authLoading } = useAuth();
     const router = useRouter();
 
     const [classes, setClasses] = useState([]);
@@ -36,21 +36,15 @@ export default function ClassesPage() {
     // Fetch Locations (from Classes themselves to build unique list)
     // Actually, distinct 'lokasi' values from existing classes
     useEffect(() => {
+        if (authLoading) return;
+
         const fetchLocations = async () => {
             const snap = await getDocs(query(collection(db, 'classes')));
             const uniqueLocs = [...new Set(snap.docs.map(d => d.data().lokasi).filter(l => l))].sort();
             setLocations(uniqueLocs);
-
-            // Set default selected location
-            if (role === 'admin') {
-                if (uniqueLocs.length > 0) setSelectedLocation(uniqueLocs[0]);
-            } else if (profile?.assignedLocations?.length > 0) {
-                const validLocs = uniqueLocs.filter(l => profile.assignedLocations.includes(l));
-                if (validLocs.length > 0) setSelectedLocation(validLocs[0]);
-            }
         };
         fetchLocations();
-    }, [role, profile]);
+    }, [authLoading]);
 
 
     // Subscribe to classes collection
@@ -68,12 +62,20 @@ export default function ClassesPage() {
             // For now, rely on initial fetch or maybe update locations state here too
             const uniqueLocs = [...new Set(classList.map(d => d.lokasi).filter(l => l))].sort();
             setLocations(uniqueLocs);
+        }, (error) => {
+            console.error("Error fetching classes:", error);
+            setLoading(false);
+            if (error.code === 'resource-exhausted') {
+                alert("Kouta pangkalan data telah habis untuk hari ini temporarily. Sila cuba lagi esok. (Quota Exceeded)");
+            } else {
+                alert("Ralat memuatkan data kelas: " + error.message);
+            }
         });
 
         return () => unsubscribe();
     }, []);
 
-    const availableLocations = role === 'admin'
+    const availableLocations = (role === 'admin' || profile?.assignedLocations?.includes('All'))
         ? locations
         : locations.filter(l => profile?.assignedLocations?.includes(l));
 
@@ -145,7 +147,7 @@ export default function ClassesPage() {
             cls.lokasi.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesLocation = selectedLocation ? cls.lokasi === selectedLocation : true;
 
-        const isAccessible = role === 'admin' || (profile?.assignedLocations?.includes(cls.lokasi));
+        const isAccessible = role === 'admin' || profile?.assignedLocations?.includes('All') || (profile?.assignedLocations?.includes(cls.lokasi));
 
         return matchesSearch && matchesLocation && isAccessible;
     });

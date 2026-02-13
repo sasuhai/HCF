@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
@@ -25,19 +26,22 @@ import {
 const COLORS = ['#10B981', '#3B82F6', '#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#EF4444'];
 
 export default function DashboardPage() {
+    const { role, profile, loading: authLoading } = useAuth();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (authLoading) return;
+
         const fetchStats = async () => {
-            const { data } = await getOverallDashboardStats();
+            const { data } = await getOverallDashboardStats(role, profile);
             if (data) {
                 setStats(data);
             }
             setLoading(false);
         };
         fetchStats();
-    }, []);
+    }, [authLoading, role, profile]);
 
     // Prepare Pie Data (Mualaf by State - Top 5 + Others)
     const pieData = stats ? Object.entries(stats.mualaf.byState)

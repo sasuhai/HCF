@@ -11,7 +11,7 @@ import { Search, Plus, Edit2, Trash2, User, X, MapPin } from 'lucide-react';
 import { PETUGAS_KATEGORI_ELAUN } from '@/lib/constants';
 
 export default function WorkersPage() {
-    const { user, role, profile } = useAuth(); // Profile contains assignedLocations
+    const { user, role, profile, loading: authLoading } = useAuth(); // Profile contains assignedLocations
     const router = useRouter();
 
     // Data State
@@ -39,22 +39,15 @@ export default function WorkersPage() {
 
     // Fetch Locations (from Classes)
     useEffect(() => {
+        if (authLoading) return;
+
         const fetchLocations = async () => {
             const snap = await getDocs(query(collection(db, 'classes')));
             const uniqueLocs = [...new Set(snap.docs.map(d => d.data().lokasi).filter(l => l))].sort();
             setLocations(uniqueLocs);
-
-            // Set default selected location based on user access
-            if (role === 'admin') {
-                if (uniqueLocs.length > 0) setSelectedLocation(uniqueLocs[0]);
-            } else if (profile?.assignedLocations?.length > 0) {
-                // Determine valid locations for this user
-                const validLocs = uniqueLocs.filter(l => profile.assignedLocations.includes(l));
-                if (validLocs.length > 0) setSelectedLocation(validLocs[0]);
-            }
         };
         fetchLocations();
-    }, [role, profile]);
+    }, [authLoading]);
 
     // Subscribe to workers collection
     useEffect(() => {
@@ -66,13 +59,19 @@ export default function WorkersPage() {
             }));
             setWorkers(workerList);
             setLoading(false);
+        }, (error) => {
+            console.error("Error fetching workers:", error);
+            setLoading(false);
+            if (error.code === 'resource-exhausted') {
+                alert("Kouta pangkalan data untuk Pekerja telah habis. Sila cuba esok.");
+            }
         });
 
         return () => unsubscribe();
     }, []);
 
     // Derived: Available Locations for Current User
-    const availableLocations = role === 'admin'
+    const availableLocations = (role === 'admin' || profile?.assignedLocations?.includes('All'))
         ? locations
         : locations.filter(l => profile?.assignedLocations?.includes(l));
 
@@ -154,7 +153,7 @@ export default function WorkersPage() {
         // However, if they haven't selected a location, show all valid ones?
         // UI enforces selection via dropdown.
         // Also ensure worker.lokasi is in availableLocations
-        const isAccessible = role === 'admin' || (worker.lokasi && profile?.assignedLocations?.includes(worker.lokasi));
+        const isAccessible = role === 'admin' || profile?.assignedLocations?.includes('All') || (worker.lokasi && profile?.assignedLocations?.includes(worker.lokasi));
 
         return matchesSearch && matchesLocation && isAccessible;
     });

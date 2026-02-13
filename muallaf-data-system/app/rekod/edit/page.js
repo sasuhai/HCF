@@ -27,7 +27,7 @@ function EditRekodContent() {
     const searchParams = useSearchParams();
     const id = searchParams.get('id');
     const router = useRouter();
-    const { user } = useAuth();
+    const { user, role, profile, loading: authLoading } = useAuth();
     const { register, handleSubmit, reset, formState: { errors } } = useForm();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -38,24 +38,45 @@ function EditRekodContent() {
     const [locations, setLocations] = useState([]);
 
     useEffect(() => {
+        if (authLoading) return;
+
         getLocations().then(({ data }) => {
-            if (data) setLocations(data);
+            if (data) {
+                // Filter locations based on access
+                const isRestricted = role !== 'admin' && !profile?.assignedLocations?.includes('All');
+                const allowed = isRestricted
+                    ? data.filter(l => profile?.assignedLocations?.includes(l))
+                    : data;
+                setLocations(allowed);
+            }
         });
-    }, []);
+    }, [role, profile, authLoading]);
 
     useEffect(() => {
+        if (authLoading) return;
+
         if (id) {
             loadSubmission();
         } else {
             setLoading(false);
             setError('Tiada ID rekod ditemui.');
         }
-    }, [id]);
+    }, [id, role, profile, authLoading]);
 
     const loadSubmission = async () => {
         const { data, error } = await getSubmission(id);
         if (!error && data) {
-            reset(data);
+            // Check Access
+            const isAccessible = role === 'admin' ||
+                profile?.assignedLocations?.includes('All') ||
+                (data.lokasi && profile?.assignedLocations?.includes(data.lokasi));
+
+            if (isAccessible) {
+                reset(data);
+            } else {
+                alert("Anda tidak mempunyai akses untuk mengedit rekod ini.");
+                router.push('/senarai');
+            }
         }
         setLoading(false);
     };

@@ -169,7 +169,7 @@ export const getStatistics = async () => {
 };
 
 // Get Overall Dashboard Stats (Mualaf, Classes, Workers, Attendance)
-export const getOverallDashboardStats = async () => {
+export const getOverallDashboardStats = async (role = 'admin', profile = {}) => {
     try {
         const stats = {
             mualaf: { total: 0, byState: {}, trend: [], recent: [] },
@@ -178,11 +178,14 @@ export const getOverallDashboardStats = async () => {
             attendance: { trend: [] }
         };
 
+        // Access Control
+        const isRestricted = role !== 'admin' && !profile?.assignedLocations?.includes('All');
+        const allowedLocations = isRestricted ? (profile?.assignedLocations || []) : null;
+
         // 1. Fetch Mualaf (Submissions)
         const mualafQuery = query(collection(db, 'submissions'), where('status', '==', 'active'), orderBy('createdAt', 'desc'));
         const mualafSnap = await getDocs(mualafQuery);
 
-        stats.mualaf.total = mualafSnap.size;
 
         const now = new Date();
         const sixMonthsAgo = new Date();
@@ -208,8 +211,14 @@ export const getOverallDashboardStats = async () => {
             };
         }
 
-        mualafSnap.docs.forEach((doc, index) => {
+        let mualafCount = 0;
+        mualafSnap.docs.forEach((doc) => {
             const data = doc.data();
+
+            // FILTER: Check Access
+            if (isRestricted && !allowedLocations.includes(data.lokasi)) return;
+
+            mualafCount++;
             const state = data.negeriCawangan || 'Lain-lain';
             stats.mualaf.byState[state] = (stats.mualaf.byState[state] || 0) + 1;
 
@@ -223,7 +232,7 @@ export const getOverallDashboardStats = async () => {
                 }
             }
 
-            if (index < 5) {
+            if (stats.mualaf.recent.length < 5) {
                 // Ensure name is present, check possible fields
                 const name = data.namaPenuh || data.nama || data.namaAsal || 'Tiada Nama';
                 stats.mualaf.recent.push({
@@ -234,33 +243,55 @@ export const getOverallDashboardStats = async () => {
                 });
             }
         });
+        stats.mualaf.total = mualafCount;
 
         // 2. Fetch Classes (All)
         const classesSnap = await getDocs(collection(db, 'classes'));
-        stats.classes.total = classesSnap.size;
+        const allowedClassIds = new Set();
+        let classesCount = 0;
 
         classesSnap.forEach(doc => {
             const data = doc.data();
+
+            // FILTER: Check Access
+            if (isRestricted && !allowedLocations.includes(data.lokasi)) return;
+
+            allowedClassIds.add(doc.id);
+            classesCount++;
+
             const state = data.negeri || 'Lain-lain';
             stats.classes.byState[state] = (stats.classes.byState[state] || 0) + 1;
         });
+        stats.classes.total = classesCount;
 
 
         // 3. Fetch Workers (From 'workers' collection)
         const workersSnap = await getDocs(collection(db, 'workers'));
-        stats.workers.total = workersSnap.size;
+        let workersCount = 0;
 
         workersSnap.forEach(doc => {
             const data = doc.data();
+
+            // FILTER: Check Access
+            // Some workers might not have 'lokasi' set if old data, handle gratefully?
+            // If restricted, strict check.
+            if (isRestricted && !allowedLocations.includes(data.lokasi)) return;
+
+            workersCount++;
             const role = data.peranan || 'Sukarelawan';
             stats.workers.byRole[role] = (stats.workers.byRole[role] || 0) + 1;
         });
+        stats.workers.total = workersCount;
 
         // 4. Attendance Trends
         const attendanceSnap = await getDocs(collection(db, 'attendance_records'));
 
         attendanceSnap.forEach(doc => {
             const data = doc.data();
+
+            // FILTER: Check if class is allowed
+            if (isRestricted && !allowedClassIds.has(data.classId)) return;
+
             let year = data.year;
             let month = data.month;
 

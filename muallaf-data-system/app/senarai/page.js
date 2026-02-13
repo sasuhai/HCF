@@ -15,19 +15,26 @@ export default function SenaraiPage() {
     const [columnFilters, setColumnFilters] = useState({});
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
     const [currentPage, setCurrentPage] = useState(1);
-    const { role } = useAuth();
+    const { role, profile, loading: authLoading } = useAuth();
     const itemsPerPage = 20; // Increased to show more data per page since we are compacting
 
     useEffect(() => {
-        loadSubmissions();
-    }, []);
+        if (!authLoading) {
+            loadSubmissions();
+        }
+    }, [authLoading, profile]);
 
     const loadSubmissions = async () => {
         setLoading(true);
         const { data, error } = await getSubmissions({});
 
         if (!error && data) {
-            setSubmissions(data);
+            if (role !== 'admin' && profile?.assignedLocations && !profile.assignedLocations.includes('All')) {
+                const allowedData = data.filter(sub => profile.assignedLocations.includes(sub.lokasi));
+                setSubmissions(allowedData);
+            } else {
+                setSubmissions(data);
+            }
         }
         setLoading(false);
     };

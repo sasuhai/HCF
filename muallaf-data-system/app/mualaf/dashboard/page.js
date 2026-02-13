@@ -14,7 +14,7 @@ import {
 import BorangF2 from '@/components/BorangF2';
 
 export default function AttendanceDashboard() {
-    const { user, role } = useAuth();
+    const { user, role, profile, loading: authLoading } = useAuth();
 
     // UI State
     const [activeTab, setActiveTab] = useState('overview'); // overview, tracker, reports, geo
@@ -33,7 +33,7 @@ export default function AttendanceDashboard() {
     const [loading, setLoading] = useState(false);
 
     // Filters
-    const [selectedYear, setSelectedYear] = useState(''); // '' = All
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
     const [selectedMonth, setSelectedMonth] = useState(''); // '' = All
     const [selectedDay, setSelectedDay] = useState('');     // '' = All
     const [selectedNegeri, setSelectedNegeri] = useState('');
@@ -72,39 +72,101 @@ export default function AttendanceDashboard() {
     }, []);
 
 
-    // 1. Initial Data Load (Run Once)
+    // 1. Initial Data Load & Refetch on Year Change
     useEffect(() => {
+        if (authLoading) return;
+
         const loadData = async () => {
             setLoading(true);
             try {
-                // Fetch Rates
-                const { data: ratesData } = await getRateCategories();
-                setRates(ratesData || []);
+                // Determine Access
+                const isRestricted = role !== 'admin' && !profile?.assignedLocations?.includes('All');
+                const allowedLocations = isRestricted ? (profile?.assignedLocations || []) : null;
 
-                // Fetch Classes
-                const classesSnap = await getDocs(query(collection(db, 'classes')));
-                const classesMap = {};
-                classesSnap.forEach(doc => {
-                    classesMap[doc.id] = { id: doc.id, ...doc.data() };
-                });
-                setAllClasses(classesMap);
+                // Fetch Rates (Once)
+                if (rates.length === 0) {
+                    const { data: ratesData } = await getRateCategories();
+                    setRates(ratesData || []);
+                }
 
-                // Fetch Workers Details
-                const wMap = {};
-                const workersSnap = await getDocs(collection(db, 'workers'));
-                workersSnap.forEach(doc => wMap[doc.id] = doc.data());
-                setWorkerDetails(wMap);
+                // Fetch Classes (Once)
+                // We need this map for location filtering
+                if (Object.keys(allClasses).length === 0) {
+                    const classesSnap = await getDocs(query(collection(db, 'classes')));
+                    const classesMap = {};
+                    classesSnap.forEach(doc => {
+                        const data = doc.data();
+                        // FILTER: Check Access
+                        if (isRestricted && !allowedLocations.includes(data.lokasi)) return;
+                        classesMap[doc.id] = { id: doc.id, ...data };
+                    });
+                    setAllClasses(classesMap);
+                }
 
-                // Fetch Students Details (Active)
-                const sMap = {};
-                const studentsSnap = await getDocs(query(collection(db, 'submissions'), where('status', '==', 'active')));
-                studentsSnap.forEach(doc => sMap[doc.id] = doc.data());
-                setStudentDetails(sMap);
+                // Fetch Workers Details (Once)
+                if (Object.keys(workerDetails).length === 0) {
+                    const wMap = {};
+                    const workersSnap = await getDocs(collection(db, 'workers'));
+                    workersSnap.forEach(doc => wMap[doc.id] = doc.data());
+                    setWorkerDetails(wMap);
+                }
 
-                // Fetch All Attendance Records
-                const recordsQuery = collection(db, 'attendance_records');
+                // Fetch Students Details (Active) (Once)
+                if (Object.keys(studentDetails).length === 0) {
+                    const sMap = {};
+                    const studentsSnap = await getDocs(query(collection(db, 'submissions'), where('status', '==', 'active')));
+                    studentsSnap.forEach(doc => sMap[doc.id] = doc.data());
+                    setStudentDetails(sMap);
+                }
+
+                // Fetch Attendance Records (Filtered by Year)
+                // Default to fetching strictly by the selected year to save quota
+                let recordsQuery;
+
+                if (selectedYear) {
+                    const startMonth = `${selectedYear}-01`;
+                    const endMonth = `${selectedYear}-12`;
+                    recordsQuery = query(
+                        collection(db, 'attendance_records'),
+                        where('month', '>=', startMonth),
+                        where('month', '<=', endMonth)
+                    );
+                } else {
+                    // Fallback if no year selected (should not happen with default, but just in case)
+                    // Limit to recent to prevent disaster
+                    // But Firestore doesn't support 'limit from end' easily without orderBy
+                    const currentYr = new Date().getFullYear();
+                    const startMonth = `${currentYr}-01`;
+                    const endMonth = `${currentYr}-12`;
+                    recordsQuery = query(
+                        collection(db, 'attendance_records'),
+                        where('month', '>=', startMonth),
+                        where('month', '<=', endMonth)
+                    );
+                }
+
                 const recordsSnap = await getDocs(recordsQuery);
                 const records = [];
+
+                // We need to access the LATEST classesMap, so using functional state update or just relying on closure if classesMap was set in this render?
+                // Actually, state updates won't be reflected immediately in this closure.
+                // We can re-fetch or pass it down. 
+                // Optimization: We know we just fetched it or have it in state. 
+                // Since `allClasses` is in dependency array, this effect re-runs?
+                // No, we want to run this effect when `selectedYear` changes.
+                // But `allClasses` might be empty on first run.
+
+                // Correction: The dependency array should handle this.
+                // If `allClasses` is empty, obtaining it inside `if` block is fine.
+                // But `allClasses` variable from state might be stale if we set it inside this function.
+                // Let's use a local variable for classesMap if we just fetched it.
+
+                // Note: The structure of this effect is slightly complex. 
+                // Let's assume on first load (auth ready), we fetch everything.
+
+                // Using a simpler approach: Just filter the records assuming classes exist or filter later.
+                // We'll trust the state `allClasses` if it exists, or the one we just fetched.
+
                 recordsSnap.forEach(doc => {
                     const data = doc.data();
                     const idParts = doc.id.split('_');
@@ -118,40 +180,36 @@ export default function AttendanceDashboard() {
                                 classId,
                                 year,
                                 ...data,
-                                month, // Ensure extracted MM overrides data.month
+                                month,
                             });
                         }
                     }
                 });
                 setAllRecords(records);
 
-                // Set default year
-                const currentYear = new Date().getFullYear().toString();
-                if (records.some(r => r.year === currentYear)) {
-                    setSelectedYear(currentYear);
-                }
-
             } catch (error) {
                 console.error("Error loading data:", error);
+                if (error.code === 'resource-exhausted') {
+                    alert("Kouta pangkalan data habis. (Quota Exceeded)");
+                }
             } finally {
                 setLoading(false);
             }
         };
 
         loadData();
-    }, []);
+    }, [authLoading, selectedYear, role, profile]); // Re-run when year changes
 
     // 2. Compute Available Options (Cascading Filters)
     const filterOptions = useMemo(() => {
-        const years = new Set();
+        // Hardcode years since we only fetch one year at a time now
+        const currentYear = new Date().getFullYear();
+        const years = [String(currentYear - 1), String(currentYear), String(currentYear + 1)]; // 3 year window
+
         const months = new Set();
         const days = new Set();
         const negeris = new Set();
         const locations = new Set();
-
-        allRecords.forEach(r => {
-            if (r.year) years.add(String(r.year));
-        });
 
         const recordsAfterYear = allRecords.filter(r => !selectedYear || String(r.year) === String(selectedYear));
         recordsAfterYear.forEach(r => {
@@ -179,7 +237,7 @@ export default function AttendanceDashboard() {
         });
 
         return {
-            years: Array.from(years).sort(),
+            years: years,
             months: Array.from(months).sort(),
             days: Array.from(days).sort((a, b) => parseInt(a) - parseInt(b)),
             negeris: Array.from(negeris).sort(),

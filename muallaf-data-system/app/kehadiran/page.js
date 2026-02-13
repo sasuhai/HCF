@@ -10,7 +10,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { Search, Save, UserPlus, FileText, CheckCircle, Trash2, Home, X, Check, Plus, Calendar, MapPin, Edit2, Copy } from 'lucide-react';
 
 export default function AttendancePage() {
-    const { user, role, profile } = useAuth();
+    const { user, role, profile, loading: authLoading } = useAuth();
 
     // Selection state
     const [selectedLocation, setSelectedLocation] = useState('');
@@ -69,33 +69,32 @@ export default function AttendancePage() {
 
     // Fetch Classes & Compute Locations
     useEffect(() => {
+        if (authLoading) return;
+
         const fetchClasses = async () => {
-            const q = query(collection(db, 'classes'));
-            const snapshot = await getDocs(q);
-            const classesList = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.nama.localeCompare(b.nama));
+            try {
+                const q = query(collection(db, 'classes'));
+                const snapshot = await getDocs(q);
+                const classesList = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.nama.localeCompare(b.nama));
 
-            // Filter classes based on user access immediately? 
-            // Better to fetch all and filter in render/logic to avoid permission refetching issues
-            // But for locations list, we need unique values
+                setClasses(classesList);
 
-            setClasses(classesList);
-
-            const uniqueLocs = [...new Set(classesList.map(c => c.lokasi).filter(l => l))].sort();
-            setLocations(uniqueLocs);
-
-            // Default Location Selection
-            if (role === 'admin') {
-                if (uniqueLocs.length > 0) setSelectedLocation(uniqueLocs[0]);
-            } else if (profile?.assignedLocations?.length > 0) {
-                const validLocs = uniqueLocs.filter(l => profile.assignedLocations.includes(l));
-                if (validLocs.length > 0) setSelectedLocation(validLocs[0]);
+                const uniqueLocs = [...new Set(classesList.map(c => c.lokasi).filter(l => l))].sort();
+                setLocations(uniqueLocs);
+            } catch (error) {
+                console.error("Error fetching classes:", error);
+                if (error.code === 'resource-exhausted') {
+                    alert("Kouta pangkalan data habis. Tidak dapat memuatkan senarai kelas.");
+                } else {
+                    alert("Ralat memuatkan kelas: " + error.message);
+                }
             }
         };
         fetchClasses();
-    }, [role, profile]);
+    }, [authLoading]);
 
     // Derived State: Available Locations & Classes
-    const availableLocations = role === 'admin'
+    const availableLocations = (role === 'admin' || profile?.assignedLocations?.includes('All'))
         ? locations
         : locations.filter(l => profile?.assignedLocations?.includes(l));
 
@@ -104,7 +103,7 @@ export default function AttendancePage() {
         if (selectedLocation && c.lokasi !== selectedLocation) return false;
 
         // Must be accessible to user
-        if (role !== 'admin' && !profile?.assignedLocations?.includes(c.lokasi)) return false;
+        if (role !== 'admin' && !profile?.assignedLocations?.includes('All') && !profile?.assignedLocations?.includes(c.lokasi)) return false;
 
         return true;
     });
@@ -403,16 +402,28 @@ export default function AttendancePage() {
 
     // Fetch lists when modals open
     const openWorkerModal = async () => {
-        // Always fetch fresh data to get updates
-        const snap = await getDocs(query(collection(db, 'workers')));
-        setAllWorkers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        if (allWorkers.length === 0) {
+            try {
+                const snap = await getDocs(query(collection(db, 'workers')));
+                setAllWorkers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            } catch (err) {
+                console.error("Error loading workers:", err);
+                alert("Gagal memuatkan senarai pekerja.");
+            }
+        }
         setIsWorkerModalOpen(true);
     };
 
     const openStudentModal = async () => {
-        // Always fetch fresh data
-        const snap = await getDocs(query(collection(db, 'submissions'), where('status', '==', 'active')));
-        setAllStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        if (allStudents.length === 0) {
+            try {
+                const snap = await getDocs(query(collection(db, 'submissions'), where('status', '==', 'active')));
+                setAllStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            } catch (err) {
+                console.error("Error loading students:", err);
+                alert("Gagal memuatkan senarai pelajar.");
+            }
+        }
         setIsStudentModalOpen(true);
     };
 

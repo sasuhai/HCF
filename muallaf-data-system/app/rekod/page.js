@@ -13,22 +13,34 @@ function RekodDetailContent() {
     const searchParams = useSearchParams();
     const id = searchParams.get('id');
     const router = useRouter();
-    const { role } = useAuth();
+    const { role, profile, loading: authLoading } = useAuth();
     const [submission, setSubmission] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (authLoading) return;
+
         if (id) {
             loadSubmission();
         } else {
             setLoading(false);
         }
-    }, [id]);
+    }, [id, role, profile, authLoading]);
 
     const loadSubmission = async () => {
         const { data, error } = await getSubmission(id);
         if (!error && data) {
-            setSubmission(data);
+            // Check Access
+            const isAccessible = role === 'admin' ||
+                profile?.assignedLocations?.includes('All') ||
+                (data.lokasi && profile?.assignedLocations?.includes(data.lokasi));
+
+            if (isAccessible) {
+                setSubmission(data);
+            } else {
+                alert("Anda tidak mempunyai akses untuk melihat rekod ini.");
+                router.push('/senarai');
+            }
         }
         setLoading(false);
     };
