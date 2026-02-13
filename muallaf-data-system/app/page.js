@@ -12,13 +12,14 @@ import {
   ShieldCheck,
   ArrowRight,
   LogIn,
-  CheckCircle2,
   Database,
-  FileText
+  FileText,
+  UserCheck,
+  DollarSign
 } from 'lucide-react';
 
 export default function LandingPage() {
-  const { user, loading } = useAuth();
+  const { user, role, loading } = useAuth();
   const [scrolled, setScrolled] = useState(false);
 
   // Handle scroll effect for navbar
@@ -38,44 +39,85 @@ export default function LandingPage() {
     );
   }
 
-  const features = [
+  // Define menu items/features with links
+  const menuItems = [
     {
-      title: "Papan Pemuka Pintar",
-      description: "Analisis dan statistik masa nyata untuk pemantauan aktiviti dakwah yang berkesan.",
-      icon: <LayoutDashboard className="w-6 h-6" />,
-      color: "from-blue-500 to-cyan-500"
-    },
-    {
-      title: "Data Mualaf Berpusat",
-      description: "Pengurusan pangkalan data mualaf yang komprehensif, selamat, dan mudah diakses.",
+      title: "Rekod Mualaf",
+      description: "Cari dan urus pangkalan data mualaf secara terperinci.",
       icon: <Database className="w-6 h-6" />,
-      color: "from-emerald-500 to-teal-500"
+      color: "from-emerald-500 to-teal-500",
+      href: "/senarai"
     },
     {
-      title: "Sistem Kehadiran",
-      description: "Perekodan kehadiran kelas dan aktiviti yang sistematik dengan pelaporan automatik.",
+      title: "Pendaftaran Baru",
+      description: "Borang pendaftaran mualaf baru ke dalam sistem.",
+      icon: <FileText className="w-6 h-6" />,
+      color: "from-blue-500 to-cyan-500",
+      href: "/borang"
+    },
+    {
+      title: "Rekod Kehadiran",
+      description: "Kemaskini kehadiran kelas dan aktiviti mingguan.",
       icon: <CalendarCheck className="w-6 h-6" />,
-      color: "from-purple-500 to-pink-500"
+      color: "from-purple-500 to-pink-500",
+      href: "/kehadiran"
+    },
+    {
+      title: "Analisis & Laporan",
+      description: "Lihat statistik dan laporan prestasi santunan.",
+      icon: <BarChart3 className="w-6 h-6" />,
+      color: "from-indigo-500 to-blue-500",
+      href: "/mualaf/dashboard"
     },
     {
       title: "Pengurusan Kelas",
-      description: "Pemetaan lokasi kelas dan pengurusan jadual yang efisien di seluruh negara.",
+      description: "Urus lokasi kelas dan jadual pengajian.",
       icon: <MapPin className="w-6 h-6" />,
-      color: "from-orange-500 to-red-500"
+      color: "from-orange-500 to-red-500",
+      href: "/kelas"
     },
     {
-      title: "Laporan & Analisis",
-      description: "Penjanaan laporan terperinci untuk membantu perancangan strategi organisasi.",
-      icon: <BarChart3 className="w-6 h-6" />,
-      color: "from-indigo-500 to-blue-500"
+      title: "Petugas & Guru",
+      description: "Senarai tenaga pengajar dan kakitangan.",
+      icon: <Users className="w-6 h-6" />,
+      color: "from-pink-500 to-rose-500",
+      href: "/pekerja"
     },
-    {
-      title: "Kawalan Akses",
-      description: "Sistem keselamatan berasaskan peranan untuk melindungi data sensitif.",
-      icon: <ShieldCheck className="w-6 h-6" />,
-      color: "from-gray-700 to-gray-900"
-    }
   ];
+
+  // Admin exclusive items
+  if (role === 'admin') {
+    menuItems.push({
+      title: "Kadar Elaun",
+      description: "Tetapan kadar elaun dan sumbangan.",
+      icon: <DollarSign className="w-6 h-6" />,
+      color: "from-yellow-500 to-orange-500",
+      href: "/kadar-elaun"
+    });
+    menuItems.push({
+      title: "Pengguna Sistem",
+      description: "Urus akaun dan akses pengguna sistem.",
+      icon: <ShieldCheck className="w-6 h-6" />,
+      color: "from-gray-600 to-gray-800",
+      href: "/pengguna"
+    });
+  }
+
+  // Add Dashboard last
+  menuItems.push({
+    title: "Dashboard Utama",
+    description: "Paparan ringkasan keseluruhan data (High Data Usage).",
+    icon: <LayoutDashboard className="w-6 h-6" />,
+    color: "from-slate-500 to-slate-700",
+    href: "/dashboard"
+  });
+
+  const scrollToMenu = () => {
+    const el = document.getElementById('menu-section');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-emerald-100 selection:text-emerald-900">
@@ -96,12 +138,13 @@ export default function LandingPage() {
 
           <div>
             {user ? (
-              <Link href="/dashboard">
-                <button className="group flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-full font-medium transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
-                  <span>Dashboard</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </button>
-              </Link>
+              <button
+                onClick={scrollToMenu}
+                className="group flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-full font-medium transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              >
+                <span>Menu Utama</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </button>
             ) : (
               <Link href="/login">
                 <button className="group flex items-center space-x-2 bg-white hover:bg-gray-50 text-gray-900 px-6 py-2.5 rounded-full font-medium transition-all shadow-sm hover:shadow-md border border-gray-200">
@@ -141,16 +184,19 @@ export default function LandingPage() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up delay-300">
-              <Link href={user ? "/dashboard" : "/login"}>
-                <button className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-full font-bold shadow-lg hover:shadow-emerald-500/30 transition-all transform hover:-translate-y-1 flex items-center justify-center space-x-2">
-                  <span>{user ? 'Teruskan ke Sistem' : 'Mula Sekarang'}</span>
+              {user ? (
+                <button
+                  onClick={scrollToMenu}
+                  className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-full font-bold shadow-lg hover:shadow-emerald-500/30 transition-all transform hover:-translate-y-1 flex items-center justify-center space-x-2"
+                >
+                  <span>Akses Menu</span>
                   <ArrowRight className="w-5 h-5" />
                 </button>
-              </Link>
-              {!user && (
+              ) : (
                 <Link href="/login">
-                  <button className="w-full sm:w-auto px-8 py-4 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 rounded-full font-semibold transition-all flex items-center justify-center space-x-2">
-                    <span>Lihat Demo</span>
+                  <button className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-full font-bold shadow-lg hover:shadow-emerald-500/30 transition-all transform hover:-translate-y-1 flex items-center justify-center space-x-2">
+                    <span>Mula Sekarang</span>
+                    <ArrowRight className="w-5 h-5" />
                   </button>
                 </Link>
               )}
@@ -159,36 +205,42 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section className="py-20 bg-white relative">
+      {/* Menu / Features Grid */}
+      <section id="menu-section" className="py-20 bg-white relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Ciri-Ciri Utama Sistem</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Menu Utama</h2>
             <p className="text-gray-500 max-w-2xl mx-auto">
-              Direka khusus untuk memenuhi keperluan pengurusan dan pemantauan aktiviti Hidayah Centre Foundation.
+              Akses pantas ke semua modul sistem.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <div
-                key={index}
-                className="group relative p-8 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden"
-              >
-                <div className={`absolute top-0 left-0 w-1 h-full bg-gradient-to-b ${feature.color} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+            {menuItems.map((item, index) => (
+              <Link href={user ? item.href : '/login'} key={index} className="block h-full">
+                <div
+                  className="group relative p-8 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden h-full flex flex-col items-start cursor-pointer"
+                >
+                  <div className={`absolute top-0 left-0 w-1 h-full bg-gradient-to-b ${item.color} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
 
-                <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${feature.color} bg-opacity-10 flex items-center justify-center mb-6 text-white shadow-lg`}>
-                  {feature.icon}
+                  <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${item.color} bg-opacity-10 flex items-center justify-center mb-6 text-white shadow-lg`}>
+                    {item.icon}
+                  </div>
+
+                  <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-emerald-700 transition-colors">
+                    {item.title}
+                  </h3>
+
+                  <p className="text-gray-500 leading-relaxed text-sm mb-4">
+                    {item.description}
+                  </p>
+
+                  <div className="mt-auto flex items-center text-emerald-600 font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
+                    <span>Buka Halaman</span>
+                    <ArrowRight className="w-4 h-4 ml-1" />
+                  </div>
                 </div>
-
-                <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-emerald-700 transition-colors">
-                  {feature.title}
-                </h3>
-
-                <p className="text-gray-500 leading-relaxed">
-                  {feature.description}
-                </p>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
