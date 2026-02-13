@@ -147,9 +147,9 @@ export default function LoginPage() {
                                     <button
                                         type="button"
                                         onClick={() => { setView('forgot'); setResetEmail(email); }}
-                                        className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+                                        className="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline"
                                     >
-                                        Lupa kata laluan?
+                                        Lupa / Tukar Kata Laluan?
                                     </button>
                                 </div>
                             </div>
@@ -197,7 +197,7 @@ export default function LoginPage() {
                                     <span>Alamat Email</span>
                                 </label>
                                 <p className="text-xs text-gray-500 mb-2">
-                                    Kami akan menghantar pautan untuk menetapkan semula kata laluan anda.
+                                    Masukkan email anda untuk menerima pautan bagi menetapkan semula atau menukar kata laluan.
                                 </p>
                                 <input
                                     type="email"
