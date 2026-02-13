@@ -37,8 +37,8 @@ export default function LoginPage() {
 
         // Use FormData to reliably get values (fixes autofill sync issues)
         const formData = new FormData(e.currentTarget);
-        const emailVal = formData.get('email');
-        const passwordVal = formData.get('password');
+        const emailVal = formData.get('email').trim();
+        const passwordVal = formData.get('password').trim();
 
         if (!emailVal || !passwordVal) {
             setError('Sila isi kedua-dua email dan kata laluan.');

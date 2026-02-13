@@ -111,14 +111,17 @@ export default function UsersPage() {
                 const secondaryApp = initializeApp(firebaseConfig, "secondary");
                 const secondaryAuth = getAuth(secondaryApp);
 
+                const emailToCreate = formData.email.trim();
+                const passwordToCreate = formData.password.trim();
+
                 try {
-                    const userCred = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
+                    const userCred = await createUserWithEmailAndPassword(secondaryAuth, emailToCreate, passwordToCreate);
                     const uid = userCred.user.uid;
 
                     // Create User Doc in Main DB
                     await setDoc(doc(db, 'users', uid), {
-                        email: formData.email,
-                        name: formData.name,
+                        email: emailToCreate,
+                        name: formData.name.trim(),
                         role: formData.role,
                         assignedLocations: formData.assignedLocations,
                         createdAt: serverTimestamp()
