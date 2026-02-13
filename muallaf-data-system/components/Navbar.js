@@ -96,6 +96,9 @@ export default function Navbar() {
                                                 <DollarSign className="w-4 h-4 mr-2" /> Kadar Elaun
                                             </Link>
                                         )}
+                                        <Link href="/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                                            <BarChart2 className="w-4 h-4 mr-2" /> Dashboard Utama
+                                        </Link>
                                     </div>
                                 </div>
                             </div>
@@ -170,6 +173,7 @@ export default function Navbar() {
                         {role === 'admin' && (
                             <Link href="/kadar-elaun" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Kadar Elaun</Link>
                         )}
+                        <Link href="/dashboard" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Dashboard Utama</Link>
 
                         {role === 'admin' && (
                             <>
