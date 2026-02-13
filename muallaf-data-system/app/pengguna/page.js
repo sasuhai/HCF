@@ -9,7 +9,7 @@ import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth'
 import { db, firebaseConfig } from '@/lib/firebase/config';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { User, Plus, Search, Edit2, Trash2, Shield, MapPin, X, Check } from 'lucide-react';
+import { User, Plus, Search, Edit2, Trash2, Shield, MapPin, X, Check, Eye, EyeOff } from 'lucide-react';
 
 export default function UsersPage() {
     const { user, role } = useAuth();
@@ -19,6 +19,7 @@ export default function UsersPage() {
     const [locations, setLocations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -340,14 +341,27 @@ export default function UsersPage() {
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">Kata Laluan</label>
-                                            <input
-                                                type="password"
-                                                required
-                                                minLength={6}
-                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                value={formData.password}
-                                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                            />
+                                            <div className="relative mt-1">
+                                                <input
+                                                    type={showPassword ? 'text' : 'password'}
+                                                    required
+                                                    minLength={6}
+                                                    className="block w-full border border-gray-300 rounded-md shadow-sm p-2 pr-10 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    value={formData.password}
+                                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                                                >
+                                                    {showPassword ? (
+                                                        <EyeOff className="h-5 w-5" />
+                                                    ) : (
+                                                        <Eye className="h-5 w-5" />
+                                                    )}
+                                                </button>
+                                            </div>
                                             <p className="text-xs text-gray-500 mt-1">Minima 6 karakter.</p>
                                         </div>
                                     </>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Mail, Lock, AlertCircle, LogIn, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Mail, Lock, AlertCircle, LogIn, ArrowLeft, CheckCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
     const [view, setView] = useState('login'); // 'login' or 'forgot'
@@ -11,6 +11,7 @@ export default function LoginPage() {
     // Login State
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -133,16 +134,29 @@ export default function LoginPage() {
                                     <Lock className="h-4 w-4 text-emerald-600" />
                                     <span>Kata Laluan</span>
                                 </label>
-                                <input
-                                    name="password"
-                                    type="password"
-                                    defaultValue={password}
-                                    className="form-input"
-                                    placeholder="••••••••"
-                                    required
-                                    autoComplete="current-password"
-                                    disabled={loading}
-                                />
+                                <div className="relative">
+                                    <input
+                                        name="password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        defaultValue={password}
+                                        className="form-input pr-10"
+                                        placeholder="••••••••"
+                                        required
+                                        autoComplete="current-password"
+                                        disabled={loading}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                                    >
+                                        {showPassword ? (
+                                            <EyeOff className="h-5 w-5" />
+                                        ) : (
+                                            <Eye className="h-5 w-5" />
+                                        )}
+                                    </button>
+                                </div>
                                 <div className="text-right mt-1">
                                     <button
                                         type="button"
