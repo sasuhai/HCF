@@ -25,7 +25,7 @@ export default function LoginPage() {
     // Effect: Redirect when user is authenticated
     useEffect(() => {
         if (user) {
-            router.replace('/dashboard');
+            router.replace('/');
         }
     }, [user, router]);
 

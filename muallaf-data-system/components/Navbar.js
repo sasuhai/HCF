@@ -29,7 +29,7 @@ export default function Navbar() {
                 <div className="flex justify-between h-16">
                     {/* Logo & Brand */}
                     <div className="flex items-center">
-                        <Link href="/dashboard" className="flex-shrink-0 flex items-center">
+                        <Link href="/" className="flex-shrink-0 flex items-center">
                             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-500">
                                 HCF E-System
                             </span>
@@ -38,10 +38,10 @@ export default function Navbar() {
                         {/* Desktop Menu */}
                         <div className="hidden md:ml-8 md:flex md:space-x-4">
                             <Link
-                                href="/dashboard"
-                                className={`inline-flex items-center px-3 py-2 text-sm font-medium border-b-2 transition-colors ${isActive('/dashboard') ? 'border-emerald-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                                href="/"
+                                className={`inline-flex items-center px-3 py-2 text-sm font-medium border-b-2 transition-colors ${pathname === '/' ? 'border-emerald-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
                             >
-                                <Home className="w-4 h-4 mr-1.5" /> Dashboard
+                                <Home className="w-4 h-4 mr-1.5" /> Menu Utama
                             </Link>
 
                             {/* Dropdown: Kehadiran */}
@@ -150,11 +150,11 @@ export default function Navbar() {
                             {user?.email} <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full ml-2">{role}</span>
                         </div>
                         <Link
-                            href="/dashboard"
+                            href="/"
                             className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-emerald-500 hover:text-gray-800"
                             onClick={() => setIsMobileMenuOpen(false)}
                         >
-                            Dashboard
+                            Menu Utama
                         </Link>
                         <div className="pl-3 pr-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Kehadiran</div>
                         <Link href="/kehadiran" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Rekod Kehadiran</Link>
