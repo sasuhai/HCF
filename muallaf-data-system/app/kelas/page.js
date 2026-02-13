@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
+import { NEGERI_CAWANGAN_OPTIONS } from '@/lib/constants';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Search, Plus, Edit2, Trash2, MapPin, X, CheckCircle } from 'lucide-react';
@@ -26,6 +27,7 @@ export default function ClassesPage() {
     const [currentClass, setCurrentClass] = useState(null);
     const [formData, setFormData] = useState({
         nama: '',
+        negeri: '',
         lokasi: '',
         jenis: 'Fizikal',
         tahap: 'Asas'
@@ -110,6 +112,7 @@ export default function ClassesPage() {
             setCurrentClass(cls);
             setFormData({
                 nama: cls.nama || '',
+                negeri: cls.negeri || '',
                 lokasi: cls.lokasi || '',
                 jenis: cls.jenis || 'Fizikal',
                 tahap: cls.tahap || 'Asas'
@@ -129,6 +132,7 @@ export default function ClassesPage() {
     const resetForm = () => {
         setFormData({
             nama: '',
+            negeri: '',
             lokasi: selectedLocation || '',
             jenis: 'Fizikal',
             tahap: 'Asas'
@@ -216,7 +220,7 @@ export default function ClassesPage() {
                                             <h3 className="font-bold text-lg text-gray-900">{cls.nama}</h3>
                                             <div className="flex items-center text-gray-500 text-sm mt-1">
                                                 <MapPin className="h-3 w-3 mr-1" />
-                                                {cls.lokasi}
+                                                {cls.lokasi}{cls.negeri ? `, ${cls.negeri}` : ''}
                                             </div>
                                         </div>
                                         <div className="flex space-x-2">
@@ -265,6 +269,21 @@ export default function ClassesPage() {
                                         onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
                                         placeholder="cth: Kelas BTR 1"
                                     />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Negeri</label>
+                                    <select
+                                        required
+                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+                                        value={formData.negeri}
+                                        onChange={(e) => setFormData({ ...formData, negeri: e.target.value })}
+                                    >
+                                        <option value="">-- Sila Pilih Negeri --</option>
+                                        {NEGERI_CAWANGAN_OPTIONS.map(negeri => (
+                                            <option key={negeri} value={negeri}>{negeri}</option>
+                                        ))}
+                                    </select>
                                 </div>
 
                                 <div>
@@ -328,8 +347,9 @@ export default function ClassesPage() {
                             </form>
                         </div>
                     </div>
-                )}
-            </div>
-        </ProtectedRoute>
+                )
+                }
+            </div >
+        </ProtectedRoute >
     );
 }

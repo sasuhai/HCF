@@ -7,7 +7,7 @@ import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSubmission, updateSubmission } from '@/lib/firebase/firestore';
+import { getSubmission, updateSubmission, getLocations } from '@/lib/firebase/firestore';
 import {
     NEGERI_CAWANGAN_OPTIONS,
     KATEGORI_OPTIONS,
@@ -17,7 +17,8 @@ import {
     WARGANEGARA_OPTIONS,
     NEGERI_PENGISLAMAN_OPTIONS,
     TAHAP_PENDIDIKAN_OPTIONS,
-    BANK_OPTIONS
+    BANK_OPTIONS,
+    MUALAF_KATEGORI_ELAUN
 } from '@/lib/constants';
 import { ArrowLeft, Save, CheckCircle, AlertCircle, Upload } from 'lucide-react';
 import { processSubmissionFiles } from '@/lib/firebase/storage';
@@ -33,6 +34,13 @@ export default function EditRekodPage() {
     const [error, setError] = useState('');
     const [uploadProgress, setUploadProgress] = useState(0);
     const [uploadingFile, setUploadingFile] = useState('');
+    const [locations, setLocations] = useState([]);
+
+    useEffect(() => {
+        getLocations().then(({ data }) => {
+            if (data) setLocations(data);
+        });
+    }, []);
 
     useEffect(() => {
         loadSubmission();
@@ -225,6 +233,22 @@ export default function EditRekodPage() {
                                     {errors.negeriCawangan && (
                                         <p className="text-red-500 text-sm mt-1">{errors.negeriCawangan.message}</p>
                                     )}
+                                </div>
+
+                                <div>
+                                    <label className="form-label">
+                                        Lokasi
+                                    </label>
+                                    <select
+                                        {...register('lokasi')}
+                                        className="form-input"
+                                    >
+                                        <option value="">Pilih Lokasi</option>
+                                        {locations.map(loc => (
+                                            <option key={loc} value={loc}>{loc}</option>
+                                        ))}
+                                    </select>
+                                    <p className="text-xs text-gray-500 mt-1">Pilih lokasi jika berkaitan</p>
                                 </div>
                             </div>
                         </div>
@@ -451,6 +475,23 @@ export default function EditRekodPage() {
                                         className="form-input"
                                         placeholder="Nama seperti dalam akaun bank"
                                     />
+                                </div>
+
+                                {/* Kategori Elaun */}
+                                <div>
+                                    <label className="form-label">
+                                        Kategori Elaun
+                                    </label>
+                                    <select
+                                        {...register('kategoriElaun')}
+                                        className="form-input"
+                                    >
+                                        <option value="">Pilih kategori elaun</option>
+                                        {MUALAF_KATEGORI_ELAUN.map(option => (
+                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                        ))}
+                                    </select>
+                                    <p className="text-xs text-gray-500 mt-1">Kategori untuk kadar elaun/bayaran</p>
                                 </div>
 
 

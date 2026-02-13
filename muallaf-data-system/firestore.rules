@@ -73,5 +73,16 @@ service cloud.firestore {
     match /attendance_records/{recordId} {
       allow read, write: if isSignedIn();
     }
+
+    // Rate Categories collection - For allowance/payment rates
+    match /rateCategories/{rateId} {
+      // Anyone logged in can read rates (needed for dropdowns in forms)
+      allow read: if isSignedIn();
+      
+      // Only admins can create, update, or delete rates
+      allow create: if isSignedIn() && isAdmin();
+      allow update: if isSignedIn() && isAdmin();
+      allow delete: if isSignedIn() && isAdmin();
+    }
   }
 }

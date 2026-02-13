@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
-import { createSubmission } from '@/lib/firebase/firestore';
+import { createSubmission, getLocations } from '@/lib/firebase/firestore';
 import {
     NEGERI_CAWANGAN_OPTIONS,
     KATEGORI_OPTIONS,
@@ -16,7 +16,8 @@ import {
     WARGANEGARA_OPTIONS,
     NEGERI_PENGISLAMAN_OPTIONS,
     TAHAP_PENDIDIKAN_OPTIONS,
-    BANK_OPTIONS
+    BANK_OPTIONS,
+    MUALAF_KATEGORI_ELAUN
 } from '@/lib/constants';
 import { Save, RotateCcw, CheckCircle, AlertCircle, Zap, Upload } from 'lucide-react';
 import { processSubmissionFiles } from '@/lib/firebase/storage';
@@ -28,6 +29,16 @@ export default function BorangPage() {
     const [error, setError] = useState('');
     const [uploadProgress, setUploadProgress] = useState(0);
     const [uploadingFile, setUploadingFile] = useState('');
+    const [locations, setLocations] = useState([]); // State for locations
+
+    // Fetch locations on mount
+    useEffect(() => {
+        const fetchLocs = async () => {
+            const { data } = await getLocations();
+            if (data) setLocations(data);
+        };
+        fetchLocs();
+    }, []);
     const { user } = useAuth();
     const router = useRouter();
 
@@ -141,7 +152,8 @@ export default function BorangPage() {
             bank: 'Maybank',
             noAkaun: '1234567890123',
             namaDiBank: 'MUHAMMAD AHMAD BIN ABDULLAH',
-            catatan: 'Data ujian untuk sistem pendaftaran mualaf HCF 2026'
+            catatan: 'Data ujian untuk sistem pendaftaran mualaf HCF 2026',
+            lokasi: 'Wangsa Maju' // Default test location
         };
 
         // Use setValue to fill all fields
@@ -241,6 +253,22 @@ export default function BorangPage() {
                                     {errors.negeriCawangan && (
                                         <p className="text-red-500 text-sm mt-1">{errors.negeriCawangan.message}</p>
                                     )}
+                                </div>
+
+                                <div>
+                                    <label className="form-label">
+                                        Lokasi
+                                    </label>
+                                    <select
+                                        {...register('lokasi')}
+                                        className="form-input"
+                                    >
+                                        <option value="">Pilih Lokasi</option>
+                                        {locations.map(loc => (
+                                            <option key={loc} value={loc}>{loc}</option>
+                                        ))}
+                                    </select>
+                                    <p className="text-xs text-gray-500 mt-1">Pilih lokasi jika berkaitan</p>
                                 </div>
                             </div>
                         </div>
@@ -609,6 +637,23 @@ export default function BorangPage() {
                                         className="form-input"
                                         placeholder="Nama seperti dalam akaun bank"
                                     />
+                                </div>
+
+                                {/* Kategori Elaun */}
+                                <div>
+                                    <label className="form-label">
+                                        Kategori Elaun
+                                    </label>
+                                    <select
+                                        {...register('kategoriElaun')}
+                                        className="form-input"
+                                    >
+                                        <option value="">Pilih kategori elaun</option>
+                                        {MUALAF_KATEGORI_ELAUN.map(option => (
+                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                        ))}
+                                    </select>
+                                    <p className="text-xs text-gray-500 mt-1">Kategori untuk kadar elaun/bayaran</p>
                                 </div>
 
                                 {/* File Uploads Section */}

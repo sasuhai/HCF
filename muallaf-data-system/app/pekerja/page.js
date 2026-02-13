@@ -8,6 +8,7 @@ import { db } from '@/lib/firebase/config';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Search, Plus, Edit2, Trash2, User, X, MapPin } from 'lucide-react';
+import { PETUGAS_KATEGORI_ELAUN } from '@/lib/constants';
 
 export default function WorkersPage() {
     const { user, role, profile } = useAuth(); // Profile contains assignedLocations
@@ -31,7 +32,9 @@ export default function WorkersPage() {
         bank: '',
         noAkaun: '',
         peranan: 'Sukarelawan',
-        lokasi: '' // New Field
+        lokasi: '', // New Field
+        negeri: '', // New Field: Negeri
+        kategoriElaun: '' // Kategori for allowance rates
     });
 
     // Fetch Locations (from Classes)
@@ -114,7 +117,9 @@ export default function WorkersPage() {
                 bank: worker.bank || '',
                 noAkaun: worker.noAkaun || '',
                 peranan: worker.peranan || 'Sukarelawan',
-                lokasi: worker.lokasi || selectedLocation || ''
+                lokasi: worker.lokasi || selectedLocation || '',
+                negeri: worker.negeri || '',
+                kategoriElaun: worker.kategoriElaun || ''
             });
         } else {
             setCurrentWorker(null);
@@ -134,7 +139,9 @@ export default function WorkersPage() {
             bank: '',
             noAkaun: '',
             peranan: 'Sukarelawan',
-            lokasi: selectedLocation || ''
+            lokasi: selectedLocation || '',
+            negeri: '',
+            kategoriElaun: ''
         });
     };
 
@@ -231,6 +238,12 @@ export default function WorkersPage() {
                                             {worker.lokasi && (
                                                 <span className="ml-2 inline-block bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full mt-1">
                                                     {worker.lokasi}
+                                                    {worker.negeri ? `, ${worker.negeri}` : ''}
+                                                </span>
+                                            )}
+                                            {worker.kategoriElaun && (
+                                                <span className="ml-2 inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full mt-1">
+                                                    {worker.kategoriElaun}
                                                 </span>
                                             )}
                                         </div>
@@ -316,6 +329,33 @@ export default function WorkersPage() {
                                         </select>
                                     </div>
                                 </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Negeri</label>
+                                    <select
+                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                        value={formData.negeri}
+                                        onChange={(e) => setFormData({ ...formData, negeri: e.target.value })}
+                                    >
+                                        <option value="">-- Pilih Negeri --</option>
+                                        <option value="Johor">Johor</option>
+                                        <option value="Kedah">Kedah</option>
+                                        <option value="Kelantan">Kelantan</option>
+                                        <option value="Melaka">Melaka</option>
+                                        <option value="Negeri Sembilan">Negeri Sembilan</option>
+                                        <option value="Pahang">Pahang</option>
+                                        <option value="Perak">Perak</option>
+                                        <option value="Perlis">Perlis</option>
+                                        <option value="Pulau Pinang">Pulau Pinang</option>
+                                        <option value="Sabah">Sabah</option>
+                                        <option value="Sarawak">Sarawak</option>
+                                        <option value="Selangor">Selangor</option>
+                                        <option value="Terengganu">Terengganu</option>
+                                        <option value="W.P. Kuala Lumpur">W.P. Kuala Lumpur</option>
+                                        <option value="W.P. Labuan">W.P. Labuan</option>
+                                        <option value="W.P. Putrajaya">W.P. Putrajaya</option>
+                                    </select>
+                                </div>
+
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">No. Kad Pengenalan</label>
@@ -325,6 +365,21 @@ export default function WorkersPage() {
                                         value={formData.noKP}
                                         onChange={(e) => setFormData({ ...formData, noKP: e.target.value })}
                                     />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Kategori Elaun</label>
+                                    <select
+                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                        value={formData.kategoriElaun}
+                                        onChange={(e) => setFormData({ ...formData, kategoriElaun: e.target.value })}
+                                    >
+                                        <option value="">-- Pilih Kategori Elaun --</option>
+                                        {PETUGAS_KATEGORI_ELAUN.map(kategori => (
+                                            <option key={kategori.value} value={kategori.value}>{kategori.label}</option>
+                                        ))}
+                                    </select>
+                                    <p className="mt-1 text-xs text-gray-500">Kategori untuk kadar elaun/bayaran</p>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
@@ -367,8 +422,9 @@ export default function WorkersPage() {
                             </form>
                         </div>
                     </div>
-                )}
-            </div>
-        </ProtectedRoute>
+                )
+                }
+            </div >
+        </ProtectedRoute >
     );
 }

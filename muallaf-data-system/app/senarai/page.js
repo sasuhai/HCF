@@ -118,10 +118,12 @@ export default function SenaraiPage() {
             'Nama Islam',
             'No KP',
             'Kategori',
+            'Kategori Elaun',
             'Jantina',
             'Bangsa',
             'Tarikh Pengislaman',
-            'Negeri'
+            'Negeri',
+            'Lokasi' // Add Header to CSV
         ];
 
         const csvContent = [
@@ -132,10 +134,12 @@ export default function SenaraiPage() {
                 sub.namaIslam || '',
                 sub.noKP,
                 sub.kategori,
+                sub.kategoriElaun || '',
                 sub.jantina,
                 sub.bangsa,
                 sub.tarikhPengislaman,
-                sub.negeriCawangan
+                sub.negeriCawangan,
+                sub.lokasi || ''
             ].join(','))
         ].join('\n');
 
@@ -262,6 +266,7 @@ export default function SenaraiPage() {
                                             {/* Helper function logic inlined for clarity in replacement */}
                                             {[
                                                 { id: 'negeriCawangan', label: 'Negeri/Cawangan', width: 'min-w-[120px]' },
+                                                { id: 'lokasi', label: 'Lokasi', width: 'min-w-[120px]' }, // Add Header
                                                 { id: 'kategori', label: 'Kategori', width: 'min-w-[110px]' },
                                                 { id: 'namaIslam', label: 'Nama Islam', width: 'min-w-[120px]' },
                                                 { id: 'noKP', label: 'No KP', width: 'min-w-[130px]' },
@@ -283,6 +288,7 @@ export default function SenaraiPage() {
                                                 { id: 'bank', label: 'Bank', width: 'min-w-[120px]' },
                                                 { id: 'noAkaun', label: 'No Akaun', width: 'min-w-[130px]' },
                                                 { id: 'namaDiBank', label: 'Nama di Bank', width: 'min-w-[140px]' },
+                                                { id: 'kategoriElaun', label: 'Kategori Elaun', width: 'min-w-[120px]' },
                                                 { id: 'catatan', label: 'Catatan', width: 'min-w-[200px]' },
                                             ].map((col) => (
                                                 <th key={col.id} className={`text-left py-1 px-2 font-semibold text-gray-700 bg-gray-50 border-r border-gray-200 ${col.width} align-top`}>
@@ -348,6 +354,7 @@ export default function SenaraiPage() {
 
                                                 {/* Scrollable columns */}
                                                 <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">{submission.negeriCawangan || '-'}</td>
+                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">{submission.lokasi || '-'}</td>
                                                 <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[110px]">
                                                     <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${submission.kategori === 'Pengislaman' ? 'bg-green-100 text-green-700' :
                                                         submission.kategori === 'Sokongan' ? 'bg-blue-100 text-blue-700' :
@@ -383,6 +390,13 @@ export default function SenaraiPage() {
                                                 <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">{submission.bank || '-'}</td>
                                                 <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[130px]">{submission.noAkaun || '-'}</td>
                                                 <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">{submission.namaDiBank || '-'}</td>
+                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">
+                                                    {submission.kategoriElaun ? (
+                                                        <span className="inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap bg-yellow-100 text-yellow-800">
+                                                            {submission.kategoriElaun}
+                                                        </span>
+                                                    ) : '-'}
+                                                </td>
                                                 <td className="py-1 px-2 bg-white min-w-[200px]">
                                                     <div className="max-w-[200px] truncate" title={submission.catatan}>{submission.catatan || '-'}</div>
                                                 </td>

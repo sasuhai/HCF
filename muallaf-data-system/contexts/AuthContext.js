@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
-import { getUserProfile, signIn as firebaseSignIn, signOut as firebaseSignOut } from '@/lib/firebase/auth';
+import { getUserProfile, signIn as firebaseSignIn, signOut as firebaseSignOut, resetPassword as firebaseResetPassword } from '@/lib/firebase/auth';
 
 const AuthContext = createContext({});
 
@@ -42,6 +42,10 @@ export const AuthProvider = ({ children }) => {
         return await firebaseSignOut();
     };
 
+    const resetPassword = async (email) => {
+        return await firebaseResetPassword(email);
+    };
+
     const value = {
         user,
         role,
@@ -49,6 +53,7 @@ export const AuthProvider = ({ children }) => {
         loading,
         signIn,
         signOut,
+        resetPassword,
         isAdmin: role === 'admin'
     };
 

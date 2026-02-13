@@ -1,30 +1,84 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Mail, Lock, AlertCircle, LogIn } from 'lucide-react';
+import { Mail, Lock, AlertCircle, LogIn, ArrowLeft, CheckCircle } from 'lucide-react';
 
 export default function LoginPage() {
+    const [view, setView] = useState('login'); // 'login' or 'forgot'
+
+    // Login State
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const { signIn } = useAuth();
+
+    // Reset Password State
+    const [resetEmail, setResetEmail] = useState('');
+    const [resetStatus, setResetStatus] = useState({ error: '', success: '' });
+    const [resetLoading, setResetLoading] = useState(false);
+
+    const { user, signIn, resetPassword } = useAuth(); // Destructure user
     const router = useRouter();
 
-    const handleSubmit = async (e) => {
+    // Effect: Redirect when user is authenticated
+    useEffect(() => {
+        if (user) {
+            router.replace('/dashboard');
+        }
+    }, [user, router]);
+
+    const handleLogin = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
 
-        const { user, error } = await signIn(email, password);
+        // Use FormData to reliably get values (fixes autofill sync issues)
+        const formData = new FormData(e.currentTarget);
+        const emailVal = formData.get('email');
+        const passwordVal = formData.get('password');
 
-        if (error) {
-            setError('Email atau kata laluan tidak sah');
+        if (!emailVal || !passwordVal) {
+            setError('Sila isi kedua-dua email dan kata laluan.');
             setLoading(false);
-        } else {
-            router.push('/dashboard');
+            return;
+        }
+
+        try {
+            const result = await signIn(emailVal, passwordVal);
+            if (result.error) {
+                setError('Email atau kata laluan tidak sah. Sila cuba lagi.');
+                setLoading(false);
+            }
+            // Do not redirect here manually. Let useEffect handle it.
+            // But we keep loading true to prevent user interacting while redirect happens.
+        } catch (err) {
+            setError('Ralat semasa log masuk. Sila cuba lagi.');
+            setLoading(false);
+        }
+    };
+
+    const handleResetPassword = async (e) => {
+        e.preventDefault();
+        setResetStatus({ error: '', success: '' });
+        setResetLoading(true);
+
+        try {
+            const result = await resetPassword(resetEmail);
+            if (result.error) {
+                setResetStatus({ error: 'Gagal menghantar email. Pastikan alamat email sah.', success: '' });
+            } else {
+                setResetStatus({
+                    error: '',
+                    success: 'Pautan reset kata laluan telah dihantar. Sila semak peti masuk atau folder SPAM email anda.'
+                });
+                setResetEmail(''); // Clear input
+            }
+        } catch (err) {
+            setResetStatus({ error: 'Ralat tidak dijangka.', success: '' });
+        } finally {
+            setResetLoading(false);
         }
     };
 
@@ -40,77 +94,152 @@ export default function LoginPage() {
                         Sistem Data Mualaf
                     </h1>
                     <p className="text-gray-600">
-                        Sila log masuk untuk meneruskan
+                        {view === 'login' ? 'Sila log masuk untuk meneruskan' : 'Reset Kata Laluan'}
                     </p>
                 </div>
 
-                {/* Login Card */}
+                {/* Card Container */}
                 <div className="bg-white rounded-2xl shadow-2xl p-8 border border-gray-100">
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        {/* Error Alert */}
-                        {error && (
-                            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg flex items-start space-x-3">
-                                <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
-                                <p className="text-sm text-red-700">{error}</p>
-                            </div>
-                        )}
 
-                        {/* Email Field */}
-                        <div>
-                            <label className="form-label flex items-center space-x-2">
-                                <Mail className="h-4 w-4 text-emerald-600" />
-                                <span>Alamat Email</span>
-                            </label>
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="form-input"
-                                placeholder="nama@contoh.com"
-                                required
-                                disabled={loading}
-                            />
-                        </div>
-
-                        {/* Password Field */}
-                        <div>
-                            <label className="form-label flex items-center space-x-2">
-                                <Lock className="h-4 w-4 text-emerald-600" />
-                                <span>Kata Laluan</span>
-                            </label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="form-input"
-                                placeholder="••••••••"
-                                required
-                                disabled={loading}
-                            />
-                        </div>
-
-                        {/* Submit Button */}
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full btn-primary flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {loading ? (
-                                <>
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                    <span>Memuatkan...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <LogIn className="h-5 w-5" />
-                                    <span>Log Masuk</span>
-                                </>
+                    {/* LOGIN VIEW */}
+                    {view === 'login' && (
+                        <form onSubmit={handleLogin} className="space-y-6">
+                            {error && (
+                                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg flex items-start space-x-3">
+                                    <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+                                    <p className="text-sm text-red-700">{error}</p>
+                                </div>
                             )}
-                        </button>
-                    </form>
+
+                            <div>
+                                <label className="form-label flex items-center space-x-2">
+                                    <Mail className="h-4 w-4 text-emerald-600" />
+                                    <span>Alamat Email</span>
+                                </label>
+                                <input
+                                    name="email"
+                                    type="email"
+                                    defaultValue={email}
+                                    className="form-input"
+                                    placeholder="nama@contoh.com"
+                                    required
+                                    autoComplete="email"
+                                    disabled={loading}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="form-label flex items-center space-x-2">
+                                    <Lock className="h-4 w-4 text-emerald-600" />
+                                    <span>Kata Laluan</span>
+                                </label>
+                                <input
+                                    name="password"
+                                    type="password"
+                                    defaultValue={password}
+                                    className="form-input"
+                                    placeholder="••••••••"
+                                    required
+                                    autoComplete="current-password"
+                                    disabled={loading}
+                                />
+                                <div className="text-right mt-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => { setView('forgot'); setResetEmail(email); }}
+                                        className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+                                    >
+                                        Lupa kata laluan?
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full btn-primary flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed transform transition-transform active:scale-95"
+                            >
+                                {loading ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                        <span>Memuatkan...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <LogIn className="h-5 w-5" />
+                                        <span>Log Masuk</span>
+                                    </>
+                                )}
+                            </button>
+                        </form>
+                    )}
+
+                    {/* FORGOT PASSWORD VIEW */}
+                    {view === 'forgot' && (
+                        <form onSubmit={handleResetPassword} className="space-y-6">
+                            {/* Status Messages */}
+                            {resetStatus.error && (
+                                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg flex items-start space-x-3">
+                                    <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+                                    <p className="text-sm text-red-700">{resetStatus.error}</p>
+                                </div>
+                            )}
+                            {resetStatus.success && (
+                                <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg flex items-start space-x-3">
+                                    <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                                    <p className="text-sm text-green-700">{resetStatus.success}</p>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="form-label flex items-center space-x-2">
+                                    <Mail className="h-4 w-4 text-emerald-600" />
+                                    <span>Alamat Email</span>
+                                </label>
+                                <p className="text-xs text-gray-500 mb-2">
+                                    Kami akan menghantar pautan untuk menetapkan semula kata laluan anda.
+                                </p>
+                                <input
+                                    type="email"
+                                    value={resetEmail}
+                                    onChange={(e) => setResetEmail(e.target.value)}
+                                    className="form-input"
+                                    placeholder="nama@contoh.com"
+                                    required
+                                    autoComplete="email"
+                                    disabled={resetLoading}
+                                />
+                            </div>
+
+                            <div className="space-y-3">
+                                <button
+                                    type="submit"
+                                    disabled={resetLoading}
+                                    className="w-full btn-primary flex items-center justify-center space-x-2 disabled:opacity-50"
+                                >
+                                    {resetLoading ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                            <span>Menghantar...</span>
+                                        </>
+                                    ) : (
+                                        <span>Hantar Pautan Reset</span>
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setView('login'); setResetStatus({ error: '', success: '' }); }}
+                                    className="w-full flex items-center justify-center space-x-2 text-gray-600 hover:text-gray-800 text-sm font-medium py-2"
+                                >
+                                    <ArrowLeft className="h-4 w-4" />
+                                    <span>Kembali ke Log Masuk</span>
+                                </button>
+                            </div>
+                        </form>
+                    )}
 
                     {/* Footer */}
-                    <div className="mt-6 text-center text-sm text-gray-600">
+                    <div className="mt-6 text-center text-sm text-gray-600 border-t border-gray-100 pt-4">
                         <p>Hubungi pentadbir sistem untuk bantuan</p>
                     </div>
                 </div>

@@ -129,3 +129,37 @@ export const BANK_OPTIONS = [
     'Agro Bank',
     'Lain-lain'
 ];
+
+// Rate Categories for Mualaf
+export const MUALAF_KATEGORI_ELAUN = [
+    { value: 'MUALAF 1', label: 'MUALAF 1' },
+    { value: 'MUALAF 2', label: 'MUALAF 2' },
+    { value: 'MUALAF 3', label: 'MUALAF 3' }
+];
+
+// Rate Categories for Petugas (Staff/Workers)
+export const PETUGAS_KATEGORI_ELAUN = [
+    { value: 'GURU 1', label: 'GURU 1' },
+    { value: 'GURU 2', label: 'GURU 2' },
+    { value: 'GURU 3', label: 'GURU 3' },
+    { value: 'KOORDINATOR', label: 'KOORDINATOR' },
+    { value: 'PETUGAS', label: 'PETUGAS' },
+    { value: 'SUKARELAWAN 1', label: 'SUKARELAWAN 1' },
+    { value: 'SUKARELAWAN 2', label: 'SUKARELAWAN 2' },
+    { value: 'SUKARELAWAN 3', label: 'SUKARELAWAN 3' }
+];
+
+// Default Rate Structure (initial data)
+export const DEFAULT_RATE_CATEGORIES = [
+    { kategori: 'MUALAF 1', jumlahElaun: 15.00, jenisPembayaran: 'bayaran/kelas', jenis: 'mualaf' },
+    { kategori: 'MUALAF 2', jumlahElaun: 30.00, jenisPembayaran: 'bayaran/kelas', jenis: 'mualaf' },
+    { kategori: 'MUALAF 3', jumlahElaun: 50.00, jenisPembayaran: 'bayaran/kelas', jenis: 'mualaf' },
+    { kategori: 'GURU 1', jumlahElaun: 50.00, jenisPembayaran: 'bayaran/kelas', jenis: 'petugas' },
+    { kategori: 'GURU 2', jumlahElaun: 80.00, jenisPembayaran: 'bayaran/kelas', jenis: 'petugas' },
+    { kategori: 'GURU 3', jumlahElaun: 160.00, jenisPembayaran: 'bayaran/kelas', jenis: 'petugas' },
+    { kategori: 'KOORDINATOR', jumlahElaun: 100.00, jenisPembayaran: 'bayaran/bulan', jenis: 'petugas' },
+    { kategori: 'PETUGAS', jumlahElaun: 30.00, jenisPembayaran: 'bayaran/kelas', jenis: 'petugas' },
+    { kategori: 'SUKARELAWAN 1', jumlahElaun: 0.00, jenisPembayaran: 'bayaran/kelas', jenis: 'petugas' },
+    { kategori: 'SUKARELAWAN 2', jumlahElaun: 0.00, jenisPembayaran: 'bayaran/kelas', jenis: 'petugas' },
+    { kategori: 'SUKARELAWAN 3', jumlahElaun: 0.00, jenisPembayaran: 'bayaran/kelas', jenis: 'petugas' }
+];
