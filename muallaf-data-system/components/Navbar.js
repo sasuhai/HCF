@@ -115,9 +115,12 @@ export default function Navbar() {
                     {/* Right Side & Mobile Toggle */}
                     <div className="flex items-center">
                         <div className="hidden md:flex items-center ml-4 space-x-4">
-                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full border">
-                                {role === 'admin' ? 'Admin Access' : 'Editor Access'}
-                            </span>
+                            <div className="flex flex-col items-end mr-2">
+                                <span className="text-sm font-medium text-gray-700">{user?.email}</span>
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border">
+                                    {role === 'admin' ? 'Admin' : 'Editor'}
+                                </span>
+                            </div>
                             <button
                                 onClick={handleSignOut}
                                 className="text-gray-400 hover:text-red-500 transition-colors"
@@ -143,6 +146,9 @@ export default function Navbar() {
             {isMobileMenuOpen && (
                 <div className="md:hidden bg-white border-t">
                     <div className="pt-2 pb-3 space-y-1">
+                        <div className="pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-500">
+                            {user?.email} <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full ml-2">{role}</span>
+                        </div>
                         <Link
                             href="/dashboard"
                             className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-emerald-500 hover:text-gray-800"
