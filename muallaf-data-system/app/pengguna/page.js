@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, query, getDocs, doc, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signOut, sendEmailVerification } from 'firebase/auth';
 import { db, firebaseConfig } from '@/lib/firebase/config';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -118,13 +118,17 @@ export default function UsersPage() {
                     const userCred = await createUserWithEmailAndPassword(secondaryAuth, emailToCreate, passwordToCreate);
                     const uid = userCred.user.uid;
 
+                    // Send Email Verification
+                    await sendEmailVerification(userCred.user);
+
                     // Create User Doc in Main DB
                     await setDoc(doc(db, 'users', uid), {
                         email: emailToCreate,
                         name: formData.name.trim(),
                         role: formData.role,
                         assignedLocations: formData.assignedLocations,
-                        createdAt: serverTimestamp()
+                        createdAt: serverTimestamp(),
+                        emailVerified: false // Track status in Firestore if helpful, though Auth has it too
                     });
 
                     // Cleanup secondary app
@@ -140,7 +144,7 @@ export default function UsersPage() {
                         assignedLocations: formData.assignedLocations
                     }]);
 
-                    alert("Pengguna berjaya dicipta!");
+                    alert("Pengguna berjaya dicipta! Email pengesahan telah dihantar ke alamat tersebut.");
                     setIsModalOpen(false);
                 } catch (err) {
                     console.error("Error creating auth user:", err);
