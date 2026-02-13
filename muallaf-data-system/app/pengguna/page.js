@@ -93,10 +93,25 @@ export default function UsersPage() {
     const handleLocationToggle = (loc) => {
         setFormData(prev => {
             const current = prev.assignedLocations || [];
-            if (current.includes(loc)) {
-                return { ...prev, assignedLocations: current.filter(l => l !== loc) };
+
+            if (loc === 'All') {
+                if (current.includes('All')) {
+                    // Uncheck All
+                    return { ...prev, assignedLocations: [] };
+                } else {
+                    // Check All - clear everything else and just put All
+                    return { ...prev, assignedLocations: ['All'] };
+                }
             } else {
-                return { ...prev, assignedLocations: [...current, loc] };
+                // If All is selected, we shouldn't be here because other checkboxes are disabled,
+                // but for safety, if user manually toggles via code or glitch
+                if (current.includes('All')) return prev;
+
+                if (current.includes(loc)) {
+                    return { ...prev, assignedLocations: current.filter(l => l !== loc) };
+                } else {
+                    return { ...prev, assignedLocations: [...current, loc] };
+                }
             }
         });
     };
@@ -296,11 +311,17 @@ export default function UsersPage() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-wrap gap-1">
-                                                    {(u.assignedLocations || []).map((loc, idx) => (
-                                                        <span key={idx} className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs border border-gray-200">
-                                                            {loc}
+                                                    {(u.assignedLocations || []).includes('All') ? (
+                                                        <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs border border-blue-200 font-semibold">
+                                                            Semua Lokasi
                                                         </span>
-                                                    ))}
+                                                    ) : (
+                                                        (u.assignedLocations || []).map((loc, idx) => (
+                                                            <span key={idx} className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs border border-gray-200">
+                                                                {loc}
+                                                            </span>
+                                                        ))
+                                                    )}
                                                     {(!u.assignedLocations || u.assignedLocations.length === 0) && (
                                                         <span className="text-gray-400 text-xs italic">Tiada Lokasi</span>
                                                     )}
@@ -401,12 +422,22 @@ export default function UsersPage() {
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">Lokasi Ditugaskan</label>
                                     <div className="bg-gray-50 p-3 rounded-md border border-gray-200 max-h-48 overflow-y-auto grid grid-cols-2 gap-2">
+                                        <label className="flex items-center space-x-2 text-sm font-semibold col-span-2 pb-2 border-b border-gray-200 mb-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.assignedLocations?.includes('All')}
+                                                onChange={() => handleLocationToggle('All')}
+                                                className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                                            />
+                                            <span>Semua Lokasi (Akses Penuh)</span>
+                                        </label>
                                         {locations.map(loc => (
-                                            <label key={loc} className="flex items-center space-x-2 text-sm">
+                                            <label key={loc} className={`flex items-center space-x-2 text-sm ${formData.assignedLocations?.includes('All') ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                                 <input
                                                     type="checkbox"
-                                                    checked={formData.assignedLocations?.includes(loc)}
+                                                    checked={formData.assignedLocations?.includes(loc) || formData.assignedLocations?.includes('All')}
                                                     onChange={() => handleLocationToggle(loc)}
+                                                    disabled={formData.assignedLocations?.includes('All')}
                                                     className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4"
                                                 />
                                                 <span>{loc}</span>
