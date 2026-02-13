@@ -42,18 +42,18 @@ export default function LandingPage() {
   // Define menu items/features with links
   const menuItems = [
     {
-      title: "Rekod Mualaf",
-      description: "Cari dan urus pangkalan data mualaf secara terperinci.",
-      icon: <Database className="w-6 h-6" />,
-      color: "from-emerald-500 to-teal-500",
-      href: "/senarai"
-    },
-    {
       title: "Pendaftaran Baru",
       description: "Borang pendaftaran mualaf baru ke dalam sistem.",
       icon: <FileText className="w-6 h-6" />,
       color: "from-blue-500 to-cyan-500",
       href: "/borang"
+    },
+    {
+      title: "Rekod Mualaf",
+      description: "Cari dan urus pangkalan data mualaf secara terperinci.",
+      icon: <Database className="w-6 h-6" />,
+      color: "from-emerald-500 to-teal-500",
+      href: "/senarai"
     },
     {
       title: "Rekod Kehadiran",
