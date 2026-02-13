@@ -171,6 +171,37 @@ export default function UsersPage() {
         }
     };
 
+    const handleDelete = async (targetUser) => {
+        if (!confirm(`Adakah anda pasti ingin memadam pengguna "${targetUser.name}"?`)) return;
+
+        // Check if admin is trying to delete themselves
+        if (targetUser.id === user.uid) {
+            alert("Ralat: Anda tidak boleh memadam akaun anda sendiri.");
+            return;
+        }
+
+        const confirmManualDelete = confirm(
+            `PERHATIAN PENTING:\n\n` +
+            `Tindakan ini hanya akan memadam data pengguna dari pangkalan data aplikasi.\n\n` +
+            `Sila pastikan anda juga MEMADAM akaun ini secara manual dari senarai Firebase Authentication Console untuk menyekat akses login sepenuhnya.\n\n` +
+            `Adakah anda faham dan ingin meneruskan?`
+        );
+
+        if (!confirmManualDelete) return;
+
+        try {
+            await deleteDoc(doc(db, 'users', targetUser.id));
+
+            // Update local state
+            setUsers(prev => prev.filter(u => u.id !== targetUser.id));
+
+            alert(`Pengguna berjaya dipadam.\n\nJangan lupa padam dari Firebase Auth: ${targetUser.email}`);
+        } catch (error) {
+            console.error("Error deleting user:", error);
+            alert("Ralat memadam pengguna: " + error.message);
+        }
+    };
+
     // Filter Users
     const filteredUsers = users.filter(u =>
         (u.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -268,8 +299,11 @@ export default function UsersPage() {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <button onClick={() => handleOpenModal('edit', u)} className="text-indigo-600 hover:text-indigo-900 mr-3">
+                                                <button onClick={() => handleOpenModal('edit', u)} className="text-indigo-600 hover:text-indigo-900 mr-3" title="Edit">
                                                     <Edit2 className="h-4 w-4" />
+                                                </button>
+                                                <button onClick={() => handleDelete(u)} className="text-red-600 hover:text-red-900" title="Padam">
+                                                    <Trash2 className="h-4 w-4" />
                                                 </button>
                                             </td>
                                         </tr>
