@@ -330,12 +330,12 @@ export default function SenaraiPage() {
                                                 </td>
                                                 <td className="sticky left-[230px] z-10 bg-white py-1 px-2 border-r-2 border-gray-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px]">
                                                     <div className="flex items-center justify-start gap-1">
-                                                        <Link href={`/rekod/${submission.id}`}>
+                                                        <Link href={`/rekod?id=${submission.id}`}>
                                                             <button className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors" title="Lihat">
                                                                 <Eye className="h-4 w-4" />
                                                             </button>
                                                         </Link>
-                                                        <Link href={`/rekod/${submission.id}/edit`}>
+                                                        <Link href={`/rekod/edit?id=${submission.id}`}>
                                                             <button className="p-1 text-emerald-600 hover:bg-emerald-100 rounded transition-colors" title="Edit">
                                                                 <Edit className="h-4 w-4" />
                                                             </button>

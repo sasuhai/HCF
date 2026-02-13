@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
@@ -9,19 +9,24 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getSubmission, deleteSubmission } from '@/lib/firebase/firestore';
 import { ArrowLeft, Edit, Trash2, User, Calendar, MapPin, Phone, Mail, Briefcase } from 'lucide-react';
 
-export default function RekodDetailPage() {
-    const params = useParams();
+function RekodDetailContent() {
+    const searchParams = useSearchParams();
+    const id = searchParams.get('id');
     const router = useRouter();
     const { role } = useAuth();
     const [submission, setSubmission] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        loadSubmission();
-    }, [params.id]);
+        if (id) {
+            loadSubmission();
+        } else {
+            setLoading(false);
+        }
+    }, [id]);
 
     const loadSubmission = async () => {
-        const { data, error } = await getSubmission(params.id);
+        const { data, error } = await getSubmission(id);
         if (!error && data) {
             setSubmission(data);
         }
@@ -30,7 +35,7 @@ export default function RekodDetailPage() {
 
     const handleDelete = async () => {
         if (confirm('Adakah anda pasti ingin memadam rekod ini?')) {
-            const { error } = await deleteSubmission(params.id);
+            const { error } = await deleteSubmission(id);
             if (!error) {
                 router.push('/senarai');
             } else {
@@ -94,7 +99,7 @@ export default function RekodDetailPage() {
                             >
                                 <span>Cetak</span>
                             </button>
-                            <Link href={`/rekod/${params.id}/edit`}>
+                            <Link href={`/rekod/edit?id=${id}`}>
                                 <button className="btn-primary flex items-center space-x-2">
                                     <Edit className="h-5 w-5" />
                                     <span>Edit</span>
@@ -236,5 +241,13 @@ function DetailItem({ label, value, fullWidth = false }) {
             <dt className="text-sm font-medium text-gray-600 mb-1">{label}</dt>
             <dd className="text-base text-gray-900 bg-gray-50 px-4 py-2 rounded-lg">{value}</dd>
         </div>
+    );
+}
+
+export default function RekodDetailPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading...</div>}>
+            <RekodDetailContent />
+        </Suspense>
     );
 }

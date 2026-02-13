@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -23,8 +23,9 @@ import {
 import { ArrowLeft, Save, CheckCircle, AlertCircle, Upload } from 'lucide-react';
 import { processSubmissionFiles } from '@/lib/firebase/storage';
 
-export default function EditRekodPage() {
-    const params = useParams();
+function EditRekodContent() {
+    const searchParams = useSearchParams();
+    const id = searchParams.get('id');
     const router = useRouter();
     const { user } = useAuth();
     const { register, handleSubmit, reset, formState: { errors } } = useForm();
@@ -43,11 +44,16 @@ export default function EditRekodPage() {
     }, []);
 
     useEffect(() => {
-        loadSubmission();
-    }, [params.id]);
+        if (id) {
+            loadSubmission();
+        } else {
+            setLoading(false);
+            setError('Tiada ID rekod ditemui.');
+        }
+    }, [id]);
 
     const loadSubmission = async () => {
-        const { data, error } = await getSubmission(params.id);
+        const { data, error } = await getSubmission(id);
         if (!error && data) {
             reset(data);
         }
@@ -106,7 +112,7 @@ export default function EditRekodPage() {
 
             // Update submission
             setUploadingFile('Menyimpan data...');
-            const { error: updateError } = await updateSubmission(params.id, updateData, user.uid);
+            const { error: updateError } = await updateSubmission(id, updateData, user.uid);
 
             if (updateError) {
                 throw new Error(updateError);
@@ -118,7 +124,7 @@ export default function EditRekodPage() {
             setSaving(false);
 
             setTimeout(() => {
-                router.push(`/rekod/${params.id}`);
+                router.push(`/rekod?id=${id}`);
             }, 1500);
 
         } catch (err) {
@@ -142,6 +148,24 @@ export default function EditRekodPage() {
         );
     }
 
+    if (!id) {
+        return (
+            <ProtectedRoute>
+                <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
+                    <Navbar />
+                    <div className="max-w-4xl mx-auto px-4 py-8">
+                        <div className="card text-center py-12">
+                            <p className="text-red-500 text-lg">Tiada ID rekod dinyatakan</p>
+                            <Link href="/senarai" className="btn-primary inline-block mt-4">
+                                Kembali ke Senarai
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </ProtectedRoute>
+        );
+    }
+
     return (
         <ProtectedRoute>
             <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
@@ -150,7 +174,7 @@ export default function EditRekodPage() {
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                     {/* Header */}
                     <div className="mb-6">
-                        <Link href={`/rekod/${params.id}`} className="flex items-center text-emerald-600 hover:text-emerald-700 mb-4">
+                        <Link href={`/rekod?id=${id}`} className="flex items-center text-emerald-600 hover:text-emerald-700 mb-4">
                             <ArrowLeft className="h-5 w-5 mr-2" />
                             <span>Kembali</span>
                         </Link>
@@ -627,7 +651,7 @@ export default function EditRekodPage() {
                                 )}
                             </button>
 
-                            <Link href={`/rekod/${params.id}`} className="flex-1">
+                            <Link href={`/rekod?id=${id}`} className="flex-1">
                                 <button
                                     type="button"
                                     disabled={saving || success}
@@ -641,5 +665,13 @@ export default function EditRekodPage() {
                 </div>
             </div>
         </ProtectedRoute>
+    );
+}
+
+export default function EditRekodPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading...</div>}>
+            <EditRekodContent />
+        </Suspense>
     );
 }
