@@ -29,9 +29,14 @@ export default function Navbar() {
                 <div className="flex justify-between h-16">
                     {/* Logo & Brand */}
                     <div className="flex items-center">
-                        <Link href="/" className="flex-shrink-0 flex items-center">
-                            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-500">
-                                HCF iSantuni
+                        <Link href="/" className="flex-shrink-0 flex items-center space-x-2">
+                            <img
+                                src="https://hidayahcentre.org.my/wp-content/uploads/2021/06/logo-web2.png"
+                                alt="Hidayah Centre Foundation"
+                                className="h-8 w-auto object-contain"
+                            />
+                            <span className="text-xl font-bold text-slate-800">
+                                iSantuni
                             </span>
                         </Link>
 

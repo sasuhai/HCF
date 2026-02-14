@@ -411,7 +411,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-slate-500">
-            <p>&copy; 2026 Hidayah Centre Foundation. Hak Cipta Terpelihara.</p>
+            <p>Idiahus &copy; {new Date().getFullYear()} Hidayah Centre Foundation. Hak Cipta Terpelihara.</p>
             <p className="mt-2 md:mt-0">Dibangunkan dengan ❤️ untuk Ummah.</p>
           </div>
         </div>

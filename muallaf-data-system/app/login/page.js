@@ -147,11 +147,15 @@ export default function LoginPage() {
             <div className="w-full max-w-md">
                 {/* Logo/Header */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl mb-4 shadow-lg">
-                        <LogIn className="h-8 w-8 text-white" />
+                    <div className="inline-flex items-center justify-center mb-6">
+                        <img
+                            src="https://hidayahcentre.org.my/wp-content/uploads/2021/06/logo-web2.png"
+                            alt="Hidayah Centre Foundation"
+                            className="h-20 w-auto object-contain"
+                        />
                     </div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2">
-                        HCF iSantuni
+                    <h1 className="text-3xl font-bold text-slate-800 mb-2">
+                        iSantuni
                     </h1>
                     <p className="text-gray-600">
                         {view === 'login' ? 'Sila log masuk untuk meneruskan' :
@@ -385,7 +389,7 @@ export default function LoginPage() {
 
                 {/* Version */}
                 <p className="text-center text-xs text-gray-500 mt-6">
-                    Versi 1.0.0 © 2026
+                    Versi 1.0.0 © {new Date().getFullYear()}
                 </p>
             </div>
         </div>

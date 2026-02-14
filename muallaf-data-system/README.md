@@ -240,4 +240,4 @@ Lihat fail `USER_MANUAL.md` untuk panduan pengguna lengkap.
 
 ## 📄 License
 
-© 2026 - Hak Cipta Terpelihara
+Idiahus © 2026 - Hak Cipta Terpelihara
