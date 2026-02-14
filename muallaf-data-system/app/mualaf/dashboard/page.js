@@ -8,7 +8,7 @@ import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import {
     Filter, BarChart2, DollarSign, Users, BookOpen, X, ChevronRight, Eye, Download,
-    LayoutDashboard, User, FileText, Map as MapIcon, Search, Printer, ChevronDown
+    LayoutDashboard, User, FileText, Map as MapIcon, Search, Printer, ChevronDown, MapPin
 } from 'lucide-react';
 import BorangF2 from '@/components/BorangF2';
 
@@ -255,6 +255,10 @@ export default function AttendanceDashboard() {
                     namaKelas: cls.nama,
                     lokasi: cls.lokasi,
                     negeri: cls.negeri || 'Tiada Negeri',
+                    bahasa: record.bahasa || '-',
+                    hariMasa: record.hariMasa || '-',
+                    kekerapan: record.kekerapan || '-',
+                    penaja: record.penaja || '-',
                     bilPetugas: 0,
                     bilPelajar: 0,
                     jumlahElaun: 0,
@@ -298,14 +302,21 @@ export default function AttendanceDashboard() {
                     }
                     classAllowance += allowance;
 
+                    const details = type === 'worker' ? (workerDetails[person.id] || {}) : (studentDetails[person.id] || {});
+
                     recordParticipants.push({
                         id: person.id,
-                        name: person.nama || person.namaAsal,
+                        name: person.nama || person.namaAsal || details.nama || details.namaAsal || details.namaPenuh || 'Tiada Nama',
                         role: type === 'worker' ? 'Petugas' : 'Pelajar',
-                        category: person.kategoriElaun || '-',
+                        category: person.kategoriElaun || details.kategoriElaun || details.kategori || '-',
                         sessions: daysAttended,
                         totalSessionsInMonth: attendance.length,
-                        allowance: allowance
+                        allowance: allowance,
+                        // Enhanced details for Borang F2
+                        noIc: details.noKP || details.noIc || '-',
+                        bank: details.bank || details.namaBank || '-',
+                        noAkaun: details.noAkaun || '-',
+                        namaDiBank: details.namaDiBank || details.namaPenuh || details.nama || '-'
                     });
                 }
             };
@@ -603,30 +614,37 @@ export default function AttendanceDashboard() {
     // --- PRINT VIEW OVERLAY ---
     if (showPrintView) {
         return (
-            <div className="min-h-screen bg-gray-100">
+            <div className="min-h-screen bg-slate-200">
                 {/* Print Toolbar - Hidden when printing */}
-                <div className="bg-gray-800 text-white p-4 flex justify-between items-center sticky top-0 z-50 print:hidden shadow-lg">
-                    <h2 className="text-xl font-bold flex items-center">
-                        <FileText className="mr-2" />
-                        Pratonton Laporan F2 ({printData.length} Kelas)
-                    </h2>
-                    <div className="space-x-4">
+                <div className="bg-slate-900 text-white p-4 flex justify-between items-center sticky top-0 z-50 print:hidden shadow-2xl border-b border-white/10">
+                    <div className="flex flex-col">
+                        <h2 className="text-xl font-black flex items-center tracking-tight">
+                            <FileText className="mr-2 text-emerald-400" />
+                            Pratonton Laporan F2 <span className="ml-2 px-2 py-0.5 bg-white/10 rounded text-xs font-bold text-slate-300 border border-white/10">{printData.length} Kelas</span>
+                        </h2>
+                        <div className="flex items-center mt-1 text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                            <span className="flex items-center"><MapPin className="h-3 w-3 mr-1" /> {selectedNegeri || 'Semua'}</span>
+                            <span className="mx-2 opacity-30">|</span>
+                            <span>{selectedMonth ? getMonthName(selectedMonth).toUpperCase() : 'SEMUA BULAN'} {selectedYear}</span>
+                        </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
                         <button
                             onClick={() => window.print()}
-                            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded font-bold flex items-center inline-flex"
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl font-black flex items-center transition-all shadow-lg active:scale-95"
                         >
-                            <Printer className="mr-2 h-5 w-5" /> Cetak
+                            <Printer className="mr-2 h-5 w-5" /> Cetak Laporan
                         </button>
                         <button
                             onClick={() => setShowPrintView(false)}
-                            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded font-bold"
+                            className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-6 py-2.5 rounded-xl font-bold flex items-center transition-all active:scale-95"
                         >
-                            Tutup
+                            <X className="mr-2 h-5 w-5 text-slate-400" /> Kembali
                         </button>
                     </div>
                 </div>
 
-                <div className="p-8 print:p-0">
+                <div className="p-12 print:p-0">
                     {printData.map((cls, idx) => (
                         <div key={cls.id + idx} className="mb-12 print:mb-0">
                             <BorangF2
@@ -634,11 +652,15 @@ export default function AttendanceDashboard() {
                                     namaKelas: cls.namaKelas,
                                     negeri: cls.negeri,
                                     lokasi: cls.lokasi,
-                                    participants: cls.participants
+                                    participants: cls.participants,
+                                    bahasa: cls.bahasa,
+                                    hariMasa: cls.hariMasa,
+                                    kekerapan: cls.kekerapan,
+                                    penaja: cls.penaja
                                 }}
                                 month={getMonthName(cls.month)}
                                 year={cls.year}
-                                index={idx}
+                                index={idx + 1}
                             />
                         </div>
                     ))}

@@ -148,8 +148,7 @@ export default function ClassesPage() {
         } else {
             setCurrentClass(null);
             resetForm();
-            // Default location to currently selected filter if valid (and if user has permission to add there? 
-            // If creating a NEW location, input allows custom text)
+            // Default location to currently selected filter if valid
             if (selectedLocation && availableLocations.some(l => l.name === selectedLocation)) {
                 setFormData(prev => ({ ...prev, lokasi: selectedLocation }));
             }
@@ -278,64 +277,67 @@ export default function ClassesPage() {
                 {/* Modal */}
                 {isModalOpen && (
                     <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-lg max-w-lg w-full p-6">
-                            <div className="flex justify-between items-center mb-4">
+                        <div className="bg-white rounded-lg max-w-lg w-full p-6 shadow-xl transform transition-all">
+                            <div className="flex justify-between items-center mb-4 border-b pb-4">
                                 <h3 className="text-lg font-bold text-gray-900">
                                     {currentClass ? 'Kemaskini Kelas' : 'Tambah Kelas Baru'}
                                 </h3>
-                                <button onClick={() => setIsModalOpen(false)}><X className="h-6 w-6 text-gray-400" /></button>
+                                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                    <X className="h-6 w-6" />
+                                </button>
                             </div>
 
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700">Nama Kelas / Kumpulan</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Nama Kelas / Kumpulan</label>
                                     <input
                                         type="text"
                                         required
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                                         value={formData.nama}
                                         onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
                                         placeholder="cth: Kelas BTR 1"
                                     />
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Negeri</label>
-                                    <select
-                                        required
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                                        value={formData.negeri}
-                                        onChange={(e) => setFormData({ ...formData, negeri: e.target.value })}
-                                    >
-                                        <option value="">-- Sila Pilih Negeri --</option>
-                                        {(states.length > 0 ? states : NEGERI_CAWANGAN_OPTIONS).map(negeri => (
-                                            <option key={negeri} value={negeri}>{negeri}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Lokasi (Daerah/Kawasan)</label>
-                                    <select
-                                        required
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                                        value={formData.lokasi}
-                                        onChange={(e) => setFormData({ ...formData, lokasi: e.target.value })}
-                                    >
-                                        <option value="">-- Sila Pilih Lokasi --</option>
-                                        {availableLocations
-                                            .filter(loc => !formData.negeri || !loc.state_name || loc.state_name === formData.negeri)
-                                            .map(loc => (
-                                                <option key={loc.id || loc.name} value={loc.name}>{loc.name}</option>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Negeri</label>
+                                        <select
+                                            required
+                                            className="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                            value={formData.negeri}
+                                            onChange={(e) => setFormData({ ...formData, negeri: e.target.value })}
+                                        >
+                                            <option value="">-- Sila Pilih Negeri --</option>
+                                            {(states.length > 0 ? states : NEGERI_CAWANGAN_OPTIONS).map(negeri => (
+                                                <option key={negeri} value={negeri}>{negeri}</option>
                                             ))}
-                                    </select>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Lokasi</label>
+                                        <select
+                                            required
+                                            className="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                            value={formData.lokasi}
+                                            onChange={(e) => setFormData({ ...formData, lokasi: e.target.value })}
+                                        >
+                                            <option value="">-- Sila Pilih Lokasi --</option>
+                                            {availableLocations
+                                                .filter(loc => !formData.negeri || !loc.state_name || loc.state_name === formData.negeri)
+                                                .map(loc => (
+                                                    <option key={loc.id || loc.name} value={loc.name}>{loc.name}</option>
+                                                ))}
+                                        </select>
+                                    </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">Jenis</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Jenis</label>
                                         <select
-                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+                                            className="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                                             value={formData.jenis}
                                             onChange={(e) => setFormData({ ...formData, jenis: e.target.value })}
                                         >
@@ -345,9 +347,9 @@ export default function ClassesPage() {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">Tahap</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Tahap</label>
                                         <select
-                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+                                            className="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                                             value={formData.tahap}
                                             onChange={(e) => setFormData({ ...formData, tahap: e.target.value })}
                                         >
@@ -358,27 +360,26 @@ export default function ClassesPage() {
                                     </div>
                                 </div>
 
-                                <div className="pt-4 flex justify-end space-x-3">
+                                <div className="pt-6 flex justify-end space-x-3 border-t">
                                     <button
                                         type="button"
                                         onClick={() => setIsModalOpen(false)}
-                                        className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50"
+                                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-2 rounded-md transition-colors"
                                     >
                                         Batal
                                     </button>
                                     <button
                                         type="submit"
-                                        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center"
+                                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md flex items-center shadow-sm transition-colors"
                                     >
-                                        <Plus className="h-4 w-4 mr-1" /> Simpan
+                                        <CheckCircle className="h-4 w-4 mr-2" /> Simpan
                                     </button>
                                 </div>
                             </form>
                         </div>
                     </div>
-                )
-                }
-            </div >
-        </ProtectedRoute >
+                )}
+            </div>
+        </ProtectedRoute>
     );
 }
