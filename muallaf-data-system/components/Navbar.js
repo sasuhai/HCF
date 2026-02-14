@@ -31,7 +31,7 @@ export default function Navbar() {
                     <div className="flex items-center">
                         <Link href="/" className="flex-shrink-0 flex items-center">
                             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-500">
-                                HCF E-System
+                                HCF iSantuni
                             </span>
                         </Link>
 

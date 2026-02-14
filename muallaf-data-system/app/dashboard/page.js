@@ -90,7 +90,7 @@ export default function DashboardPage() {
                                 Gambaran Keseluruhan
                             </h1>
                             <p className="text-gray-500 mt-1">
-                                Ringkasan prestasi dan data terkini HCF E-System
+                                Ringkasan prestasi dan data terkini HCF iSantuni
                             </p>
                         </div>
                         <div className="flex items-center space-x-2 text-sm text-gray-500 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100">

@@ -106,7 +106,7 @@ const BorangF2 = ({ classData, month, year, index }) => {
             </table>
 
             <div className="mt-2 text-xs text-gray-500 italic">
-                * Senarai ini dijana secara automatik oleh sistem HCF E-System pada {new Date().toLocaleDateString('ms-MY')}.
+                * Senarai ini dijana secara automatik oleh sistem HCF iSantuni pada {new Date().toLocaleDateString('ms-MY')}.
             </div>
 
             {/* Signatures Area */}

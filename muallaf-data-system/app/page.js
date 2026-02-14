@@ -128,11 +128,11 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <div className="flex items-center space-x-2">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg hover:shadow-emerald-500/20 transition-all duration-300">
-              <span className="text-white font-bold text-lg">H</span>
+              <span className="text-white font-bold text-lg">Hi</span>
             </div>
             <span className={`text-xl font-bold tracking-tight ${scrolled ? 'text-gray-900' : 'text-gray-900'
               }`}>
-              HCF <span className="text-emerald-600">E-System</span>
+              HCF <span className="text-emerald-600">iSantuni</span>
             </span>
           </div>
 
@@ -275,8 +275,8 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center mb-8">
             <div className="flex items-center space-x-2 mb-4 md:mb-0">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white font-bold text-sm">H</div>
-              <span className="font-bold text-gray-900">HCF E-System</span>
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white font-bold text-sm">Hi</div>
+              <span className="font-bold text-gray-900">HCF iSantuni</span>
             </div>
             <div className="flex space-x-6 text-gray-500 text-sm">
               <a href="#" className="hover:text-emerald-600 transition-colors">Bantuan</a>

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { getUserProfile, signIn, signOut, resetPassword, updatePassword } from '@/lib/supabase/auth';
 
@@ -10,10 +10,23 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [role, setRole] = useState(null);
-    const [profile, setProfile] = useState(null);
+    const [role, setRole] = useState(() => {
+        if (typeof window !== 'undefined') return localStorage.getItem('hcf_role');
+        return null;
+    });
+    const [profile, setProfile] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('hcf_profile');
+            try { return saved ? JSON.parse(saved) : null; } catch (e) { return null; }
+        }
+        return null;
+    });
     const [loading, setLoading] = useState(true);
     const [isRecovery, setIsRecovery] = useState(false);
+    const lastUserFetchRef = useRef(null);
+
+    // Initial session check should not be redundant with onAuthStateChange if possible
+    // But we keep it for consistency.
 
     useEffect(() => {
         let mounted = true;
@@ -51,20 +64,28 @@ export const AuthProvider = ({ children }) => {
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (!mounted) return;
-            console.log("AuthProvider: Auth state change event:", event);
+            console.log(`AuthProvider: Event [${event}] for ${session?.user?.email || 'no-user'}`);
 
             if (event === 'PASSWORD_RECOVERY') {
                 setIsRecovery(true);
             }
 
             if (session?.user) {
-                await handleUser(session.user);
-            } else {
-                console.log("AuthProvider: No user in session (signed out)");
+                // Background update
+                handleUser(session.user);
+            } else if (event === 'SIGNED_OUT') {
+                console.log("AuthProvider: Explicit sign out recorded.");
                 setUser(null);
                 setRole(null);
                 setProfile(null);
+                lastUserFetchRef.current = null;
+                localStorage.removeItem('hcf_role');
+                localStorage.removeItem('hcf_profile');
                 setLoading(false);
+            } else if (!session) {
+                // If session is null but it's not a sign out, we might be in middle of refresh
+                // Only clear if we are sure we're logic out
+                console.log("AuthProvider: Null session event - ignoring to prevent flicker");
             }
         });
 
@@ -75,31 +96,55 @@ export const AuthProvider = ({ children }) => {
         };
     }, []);
 
-    const handleUser = async (user) => {
-        console.log("AuthProvider: Handling user update for", user.id);
+    const handleUser = async (currentUser) => {
+        if (!currentUser) return;
 
-        // Optimistically set user to unblock UI immediately
-        setUser(user);
+        // Update user object immediately
+        setUser(currentUser);
+
+        // LOCK: If already fetching or already fetched for this exact user ID
+        if (lastUserFetchRef.current === currentUser.id && profile && role) {
+            return;
+        }
+
+        const metadataRole = currentUser.app_metadata?.role || currentUser.user_metadata?.role;
+        // Only use metadataRole as a fallback if it's 'admin' or if we have absolutely no other role
+        if (metadataRole && (!role || (metadataRole === 'admin' && metadataRole !== role))) {
+            console.log("AuthProvider: Using metadata role fallback:", metadataRole);
+            setRole(metadataRole);
+            localStorage.setItem('hcf_role', metadataRole);
+        }
+
+        console.log("AuthProvider: Syncing profile for", currentUser.id);
+        lastUserFetchRef.current = currentUser.id;
 
         try {
-            // Add a timeout to profile fetch so it doesn't block forever
-            const fetchProfilePromise = getUserProfile(user.id);
-            const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 3000));
+            // Fetch profile with long timeout
+            const fetchProfilePromise = getUserProfile(currentUser.id);
+            const timeoutPromise = new Promise(resolve => setTimeout(() => resolve('timeout'), 6000));
 
             const userProfile = await Promise.race([fetchProfilePromise, timeoutPromise]);
 
-            console.log("AuthProvider: Profile fetched:", userProfile ? "Found" : "Not Found (or timed out)");
+            if (userProfile && userProfile !== 'timeout') {
+                const fetchedRole = userProfile.role || 'editor';
 
-            // Update with full profile info
-            if (userProfile) {
-                setRole(userProfile.role || 'editor');
+                // CRITICAL: Prevents flickering back to editor if we had a role
+                if (fetchedRole !== role) {
+                    console.log(`AuthProvider: Role update: ${role} -> ${fetchedRole}`);
+                    setRole(fetchedRole);
+                    localStorage.setItem('hcf_role', fetchedRole);
+                }
+
                 setProfile(userProfile);
+                localStorage.setItem('hcf_profile', JSON.stringify(userProfile));
             } else {
-                setRole('editor'); // Default call
+                console.warn("AuthProvider: Profile fetch deferred. Persistence kept role as:", role);
+                // If we have nothing at all, default
+                if (!role) setRole('editor');
             }
         } catch (error) {
-            console.error("AuthProvider: Error in handleUser:", error);
-            setRole('editor');
+            console.error("AuthProvider: handleUser error:", error);
+            if (!role) setRole('editor');
         } finally {
             setLoading(false);
         }
@@ -132,6 +177,9 @@ export const AuthProvider = ({ children }) => {
                 setUser(null);
                 setRole(null);
                 setProfile(null);
+                lastUserFetchRef.current = null;
+                localStorage.removeItem('hcf_role');
+                localStorage.removeItem('hcf_profile');
             }
             setLoading(false);
             return result;

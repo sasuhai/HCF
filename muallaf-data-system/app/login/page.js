@@ -151,7 +151,7 @@ export default function LoginPage() {
                         <LogIn className="h-8 w-8 text-white" />
                     </div>
                     <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2">
-                        Sistem Data Mualaf
+                        HCF iSantuni
                     </h1>
                     <p className="text-gray-600">
                         {view === 'login' ? 'Sila log masuk untuk meneruskan' :
