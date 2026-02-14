@@ -39,7 +39,7 @@ const BorangF2 = ({ classData, month, year, index }) => {
                     </div>
                     <div className="border-l-2 border-slate-300 pl-4 h-16 flex flex-col justify-center">
                         <h1 className="text-xl font-black tracking-tight text-slate-900 leading-none mb-1">BORANG F2</h1>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">E-Sistem Pengurusan Kelas Bimbingan</p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">iSantuni Pengurusan Kelas Bimbingan</p>
                     </div>
                 </div>
                 <div className="text-right">
