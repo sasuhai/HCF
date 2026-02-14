@@ -20,22 +20,33 @@ export default function LoginPage() {
     const [resetStatus, setResetStatus] = useState({ error: '', success: '' });
     const [resetLoading, setResetLoading] = useState(false);
 
-    const { user, signIn, resetPassword } = useAuth(); // Destructure user
+    // Update Password State (after link clicked)
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+
+    const { user, signIn, resetPassword, updatePassword, isRecovery, setIsRecovery } = useAuth();
     const router = useRouter();
+
+    // Effect: Switch to reset view if in recovery mode
+    useEffect(() => {
+        if (isRecovery) {
+            setView('reset');
+        }
+    }, [isRecovery]);
 
     // Effect: Redirect when user is authenticated
     useEffect(() => {
-        if (user) {
-            router.replace('/');
+        if (user && !isRecovery) {
+            console.log("LoginPage: User authenticated, redirecting...");
+            window.location.href = '/';
         }
-    }, [user, router]);
+    }, [user, isRecovery]);
 
     const handleLogin = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
 
-        // Use FormData to reliably get values (fixes autofill sync issues)
         const formData = new FormData(e.currentTarget);
         const emailVal = formData.get('email').trim();
         const passwordVal = formData.get('password').trim();
@@ -46,16 +57,27 @@ export default function LoginPage() {
             return;
         }
 
+        console.log("LoginPage: Attempting login for", emailVal);
+
         try {
             const result = await signIn(emailVal, passwordVal);
+            console.log("LoginPage: SignIn result:", result);
+
             if (result.error) {
+                console.error("LoginPage: Login failed:", result.error);
                 setError('Email atau kata laluan tidak sah. Sila cuba lagi.');
                 setLoading(false);
+            } else {
+                console.log("LoginPage: Login success. User:", result.user?.email);
+                // Manually redirect if useEffect doesn't trigger quickly enough
+                setTimeout(() => {
+                    console.log("LoginPage: Manual redirect timeout triggering...");
+                    window.location.href = '/';
+                }, 1000);
             }
-            // Do not redirect here manually. Let useEffect handle it.
-            // But we keep loading true to prevent user interacting while redirect happens.
         } catch (err) {
-            setError('Ralat semasa log masuk. Sila cuba lagi.');
+            console.error("LoginPage: Login exception:", err);
+            setError('Ralat semasa log masuk: ' + (err.message || "Unknown error"));
             setLoading(false);
         }
     };
@@ -83,6 +105,43 @@ export default function LoginPage() {
         }
     };
 
+    const handleUpdatePassword = async (e) => {
+        e.preventDefault();
+        setError('');
+        setResetStatus({ error: '', success: '' });
+
+        if (newPassword.length < 6) {
+            setError('Kata laluan mesti sekurang-kurangnya 6 aksara.');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            setError('Kata laluan tidak sepadan.');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const result = await updatePassword(newPassword);
+            if (result.error) {
+                setError(result.error);
+            } else {
+                setResetStatus({
+                    error: '',
+                    success: 'Kata laluan berjaya dikemaskini. Sila log masuk semula.'
+                });
+                setIsRecovery(false);
+                setView('login');
+                setNewPassword('');
+                setConfirmPassword('');
+            }
+        } catch (err) {
+            setError('Ralat semasa mengemaskini kata laluan.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 p-4">
             <div className="w-full max-w-md">
@@ -95,7 +154,8 @@ export default function LoginPage() {
                         Sistem Data Mualaf
                     </h1>
                     <p className="text-gray-600">
-                        {view === 'login' ? 'Sila log masuk untuk meneruskan' : 'Reset Kata Laluan'}
+                        {view === 'login' ? 'Sila log masuk untuk meneruskan' :
+                            view === 'forgot' ? 'Reset Kata Laluan' : 'Tukar Kata Laluan Baru'}
                     </p>
                 </div>
 
@@ -183,6 +243,71 @@ export default function LoginPage() {
                                         <LogIn className="h-5 w-5" />
                                         <span>Log Masuk</span>
                                     </>
+                                )}
+                            </button>
+                        </form>
+                    )}
+
+                    {/* RESET PASSWORD (UPDATE) VIEW */}
+                    {view === 'reset' && (
+                        <form onSubmit={handleUpdatePassword} className="space-y-6">
+                            {error && (
+                                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg flex items-start space-x-3">
+                                    <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+                                    <p className="text-sm text-red-700">{error}</p>
+                                </div>
+                            )}
+
+                            <p className="text-sm text-gray-600">
+                                Sila masukkan kata laluan baru anda di bawah.
+                            </p>
+
+                            <div>
+                                <label className="form-label flex items-center space-x-2">
+                                    <Lock className="h-4 w-4 text-emerald-600" />
+                                    <span>Kata Laluan Baru</span>
+                                </label>
+                                <input
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    className="form-input"
+                                    placeholder="••••••••"
+                                    required
+                                    minLength={6}
+                                    disabled={loading}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="form-label flex items-center space-x-2">
+                                    <Lock className="h-4 w-4 text-emerald-600" />
+                                    <span>Sahkan Kata Laluan Baru</span>
+                                </label>
+                                <input
+                                    type="password"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className="form-input"
+                                    placeholder="••••••••"
+                                    required
+                                    minLength={6}
+                                    disabled={loading}
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full btn-primary flex items-center justify-center space-x-2 disabled:opacity-50"
+                            >
+                                {loading ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                        <span>Mengemaskini...</span>
+                                    </>
+                                ) : (
+                                    <span>Simpan Kata Laluan Baru</span>
                                 )}
                             </button>
                         </form>

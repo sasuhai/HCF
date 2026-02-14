@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
+import { supabase } from '@/lib/supabase/client';
+import { getStates, getLocations, getLookupData } from '@/lib/supabase/database';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Search, Plus, Edit2, Trash2, User, X, MapPin } from 'lucide-react';
-import { PETUGAS_KATEGORI_ELAUN } from '@/lib/constants';
+import { PETUGAS_KATEGORI_ELAUN, NEGERI_CAWANGAN_OPTIONS, BANK_OPTIONS } from '@/lib/constants';
 
 export default function WorkersPage() {
     const { user, role, profile, loading: authLoading } = useAuth(); // Profile contains assignedLocations
@@ -17,6 +17,8 @@ export default function WorkersPage() {
     // Data State
     const [workers, setWorkers] = useState([]);
     const [locations, setLocations] = useState([]); // Unique locations from classes
+    const [states, setStates] = useState([]);
+    const [banks, setBanks] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Filter State
@@ -37,38 +39,49 @@ export default function WorkersPage() {
         kategoriElaun: '' // Kategori for allowance rates
     });
 
-    // Fetch Locations (from Classes)
+    // Fetch Locations
     useEffect(() => {
         if (authLoading) return;
 
-        const fetchLocations = async () => {
-            const snap = await getDocs(query(collection(db, 'classes')));
-            const uniqueLocs = [...new Set(snap.docs.map(d => d.data().lokasi).filter(l => l))].sort();
-            setLocations(uniqueLocs);
+        const fetchLocs = async () => {
+            const { data } = await getLocations();
+            if (data) setLocations(data);
         };
-        fetchLocations();
+        fetchLocs();
     }, [authLoading]);
 
-    // Subscribe to workers collection
+    // Fetch workers and states
     useEffect(() => {
-        const q = query(collection(db, 'workers'), orderBy('nama'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const workerList = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setWorkers(workerList);
-            setLoading(false);
-        }, (error) => {
-            console.error("Error fetching workers:", error);
-            setLoading(false);
-            if (error.code === 'resource-exhausted') {
-                alert("Kouta pangkalan data untuk Pekerja telah habis. Sila cuba esok.");
-            }
-        });
-
-        return () => unsubscribe();
+        fetchWorkers();
+        fetchStates();
+        fetchBanks();
     }, []);
+
+    const fetchBanks = async () => {
+        const { data } = await getLookupData('banks');
+        if (data) setBanks(data.map(b => b.name));
+    };
+
+    const fetchStates = async () => {
+        const { data } = await getStates();
+        if (data) setStates(data.map(s => s.name));
+    };
+
+    const fetchWorkers = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+            .from('workers')
+            .select('*')
+            .order('nama');
+
+        if (error) {
+            console.error("Error fetching workers:", error);
+            // alert("Ralat memuatkan data pekerja: " + error.message);
+        } else {
+            setWorkers(data || []);
+        }
+        setLoading(false);
+    };
 
     // Derived: Available Locations for Current User
     const availableLocations = (role === 'admin' || profile?.assignedLocations?.includes('All'))
@@ -81,20 +94,30 @@ export default function WorkersPage() {
 
         try {
             if (currentWorker) {
-                await updateDoc(doc(db, 'workers', currentWorker.id), {
-                    ...formData,
-                    updatedAt: serverTimestamp(),
-                    updatedBy: user.uid
-                });
+                const { error } = await supabase
+                    .from('workers')
+                    .update({
+                        ...formData,
+                        updatedAt: new Date().toISOString(),
+                        updatedBy: user.id
+                    })
+                    .eq('id', currentWorker.id);
+
+                if (error) throw error;
             } else {
-                await addDoc(collection(db, 'workers'), {
-                    ...formData,
-                    createdAt: serverTimestamp(),
-                    createdBy: user.uid
-                });
+                const { error } = await supabase
+                    .from('workers')
+                    .insert({
+                        ...formData,
+                        createdAt: new Date().toISOString(),
+                        createdBy: user.id
+                    });
+
+                if (error) throw error;
             }
             setIsModalOpen(false);
             resetForm();
+            fetchWorkers();
         } catch (error) {
             console.error("Error saving worker:", error);
             alert("Ralat menyimpan data pekerja.");
@@ -103,7 +126,16 @@ export default function WorkersPage() {
 
     const handleDelete = async (id) => {
         if (confirm("Adakah anda pasti mahu memadam pekerja ini?")) {
-            await deleteDoc(doc(db, 'workers', id));
+            const { error } = await supabase
+                .from('workers')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                alert("Ralat memadam pekerja: " + error.message);
+            } else {
+                fetchWorkers();
+            }
         }
     };
 
@@ -336,22 +368,9 @@ export default function WorkersPage() {
                                         onChange={(e) => setFormData({ ...formData, negeri: e.target.value })}
                                     >
                                         <option value="">-- Pilih Negeri --</option>
-                                        <option value="Johor">Johor</option>
-                                        <option value="Kedah">Kedah</option>
-                                        <option value="Kelantan">Kelantan</option>
-                                        <option value="Melaka">Melaka</option>
-                                        <option value="Negeri Sembilan">Negeri Sembilan</option>
-                                        <option value="Pahang">Pahang</option>
-                                        <option value="Perak">Perak</option>
-                                        <option value="Perlis">Perlis</option>
-                                        <option value="Pulau Pinang">Pulau Pinang</option>
-                                        <option value="Sabah">Sabah</option>
-                                        <option value="Sarawak">Sarawak</option>
-                                        <option value="Selangor">Selangor</option>
-                                        <option value="Terengganu">Terengganu</option>
-                                        <option value="W.P. Kuala Lumpur">W.P. Kuala Lumpur</option>
-                                        <option value="W.P. Labuan">W.P. Labuan</option>
-                                        <option value="W.P. Putrajaya">W.P. Putrajaya</option>
+                                        {(states.length > 0 ? states : NEGERI_CAWANGAN_OPTIONS).map(negeri => (
+                                            <option key={negeri} value={negeri}>{negeri}</option>
+                                        ))}
                                     </select>
                                 </div>
 
@@ -384,13 +403,16 @@ export default function WorkersPage() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700">Nama Bank</label>
-                                        <input
-                                            type="text"
+                                        <select
                                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
                                             value={formData.bank}
                                             onChange={(e) => setFormData({ ...formData, bank: e.target.value })}
-                                            placeholder="cth: Maybank"
-                                        />
+                                        >
+                                            <option value="">-- Pilih Bank --</option>
+                                            {(banks.length > 0 ? banks : BANK_OPTIONS).map(bank => (
+                                                <option key={bank} value={bank}>{bank}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700">No. Akaun</label>

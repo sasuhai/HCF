@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
+import { supabase } from '@/lib/supabase/client';
+import { getStates, getClassLevels, getClassTypes, getLocationsTable } from '@/lib/supabase/database';
 import { NEGERI_CAWANGAN_OPTIONS } from '@/lib/constants';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -16,6 +16,9 @@ export default function ClassesPage() {
 
     const [classes, setClasses] = useState([]);
     const [locations, setLocations] = useState([]);
+    const [states, setStates] = useState([]);
+    const [levels, setLevels] = useState([]);
+    const [types, setTypes] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Filter State
@@ -33,70 +36,84 @@ export default function ClassesPage() {
         tahap: 'Asas'
     });
 
-    // Fetch Locations (from Classes themselves to build unique list)
-    // Actually, distinct 'lokasi' values from existing classes
+    // Fetch Locations (using dynamic locations table)
     useEffect(() => {
         if (authLoading) return;
 
-        const fetchLocations = async () => {
-            const snap = await getDocs(query(collection(db, 'classes')));
-            const uniqueLocs = [...new Set(snap.docs.map(d => d.data().lokasi).filter(l => l))].sort();
-            setLocations(uniqueLocs);
+        const fetchMetadata = async () => {
+            const [locsRes, statesRes, levelsRes, typesRes] = await Promise.all([
+                getLocationsTable(),
+                getStates(),
+                getClassLevels(),
+                getClassTypes()
+            ]);
+
+            if (locsRes.data) setLocations(locsRes.data);
+            if (statesRes.data) setStates(statesRes.data.map(s => s.name));
+            if (levelsRes.data) setLevels(levelsRes.data.map(l => l.name));
+            if (typesRes.data) setTypes(typesRes.data.map(t => t.name));
         };
-        fetchLocations();
+        fetchMetadata();
     }, [authLoading]);
 
 
-    // Subscribe to classes collection
+    // Fetch Classes
     useEffect(() => {
-        const q = query(collection(db, 'classes'), orderBy('nama'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const classList = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setClasses(classList);
-            setLoading(false);
-
-            // Re-calc unique locations if new classes added? 
-            // For now, rely on initial fetch or maybe update locations state here too
-            const uniqueLocs = [...new Set(classList.map(d => d.lokasi).filter(l => l))].sort();
-            setLocations(uniqueLocs);
-        }, (error) => {
-            console.error("Error fetching classes:", error);
-            setLoading(false);
-            if (error.code === 'resource-exhausted') {
-                alert("Kouta pangkalan data telah habis untuk hari ini temporarily. Sila cuba lagi esok. (Quota Exceeded)");
-            } else {
-                alert("Ralat memuatkan data kelas: " + error.message);
-            }
-        });
-
-        return () => unsubscribe();
+        fetchClasses();
     }, []);
+
+    const fetchStates = async () => {
+        const { data } = await getStates();
+        if (data) setStates(data.map(s => s.name));
+    };
+
+    const fetchClasses = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+            .from('classes')
+            .select('*')
+            .order('nama');
+
+        if (error) {
+            console.error("Error fetching classes:", error);
+        } else {
+            setClasses(data || []);
+        }
+        setLoading(false);
+    };
 
     const availableLocations = (role === 'admin' || profile?.assignedLocations?.includes('All'))
         ? locations
-        : locations.filter(l => profile?.assignedLocations?.includes(l));
+        : locations.filter(l => profile?.assignedLocations?.includes(l.name));
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
             if (currentClass) {
-                await updateDoc(doc(db, 'classes', currentClass.id), {
-                    ...formData,
-                    updatedAt: serverTimestamp(),
-                    updatedBy: user.uid
-                });
+                const { error } = await supabase
+                    .from('classes')
+                    .update({
+                        ...formData,
+                        updatedAt: new Date().toISOString(),
+                        updatedBy: user.id
+                    })
+                    .eq('id', currentClass.id);
+
+                if (error) throw error;
             } else {
-                await addDoc(collection(db, 'classes'), {
-                    ...formData,
-                    createdAt: serverTimestamp(),
-                    createdBy: user.uid
-                });
+                const { error } = await supabase
+                    .from('classes')
+                    .insert({
+                        ...formData,
+                        createdAt: new Date().toISOString(),
+                        createdBy: user.id
+                    });
+
+                if (error) throw error;
             }
             setIsModalOpen(false);
             resetForm();
+            fetchClasses();
         } catch (error) {
             console.error("Error saving class:", error);
             alert("Ralat menyimpan kelas.");
@@ -105,7 +122,16 @@ export default function ClassesPage() {
 
     const handleDelete = async (id) => {
         if (confirm("Adakah anda pasti mahu memadam kelas ini?")) {
-            await deleteDoc(doc(db, 'classes', id));
+            const { error } = await supabase
+                .from('classes')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                alert("Ralat memadam kelas: " + error.message);
+            } else {
+                fetchClasses();
+            }
         }
     };
 
@@ -124,7 +150,7 @@ export default function ClassesPage() {
             resetForm();
             // Default location to currently selected filter if valid (and if user has permission to add there? 
             // If creating a NEW location, input allows custom text)
-            if (selectedLocation && availableLocations.includes(selectedLocation)) {
+            if (selectedLocation && availableLocations.some(l => l.name === selectedLocation)) {
                 setFormData(prev => ({ ...prev, lokasi: selectedLocation }));
             }
         }
@@ -177,7 +203,7 @@ export default function ClassesPage() {
                                 >
                                     <option value="">-- Semua Lokasi --</option>
                                     {availableLocations.map(loc => (
-                                        <option key={loc} value={loc}>{loc}</option>
+                                        <option key={loc.id || loc.name} value={loc.name}>{loc.name}</option>
                                     ))}
                                 </select>
                                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
@@ -282,7 +308,7 @@ export default function ClassesPage() {
                                         onChange={(e) => setFormData({ ...formData, negeri: e.target.value })}
                                     >
                                         <option value="">-- Sila Pilih Negeri --</option>
-                                        {NEGERI_CAWANGAN_OPTIONS.map(negeri => (
+                                        {(states.length > 0 ? states : NEGERI_CAWANGAN_OPTIONS).map(negeri => (
                                             <option key={negeri} value={negeri}>{negeri}</option>
                                         ))}
                                     </select>
@@ -290,20 +316,19 @@ export default function ClassesPage() {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">Lokasi (Daerah/Kawasan)</label>
-                                    <input
-                                        type="text"
+                                    <select
                                         required
-                                        list="locationsList"
                                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
                                         value={formData.lokasi}
                                         onChange={(e) => setFormData({ ...formData, lokasi: e.target.value })}
-                                        placeholder="cth: Bandar Tun Razak"
-                                    />
-                                    <datalist id="locationsList">
-                                        {availableLocations.map(loc => (
-                                            <option key={loc} value={loc} />
-                                        ))}
-                                    </datalist>
+                                    >
+                                        <option value="">-- Sila Pilih Lokasi --</option>
+                                        {availableLocations
+                                            .filter(loc => !formData.negeri || !loc.state_name || loc.state_name === formData.negeri)
+                                            .map(loc => (
+                                                <option key={loc.id || loc.name} value={loc.name}>{loc.name}</option>
+                                            ))}
+                                    </select>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
@@ -314,8 +339,9 @@ export default function ClassesPage() {
                                             value={formData.jenis}
                                             onChange={(e) => setFormData({ ...formData, jenis: e.target.value })}
                                         >
-                                            <option value="Fizikal">Fizikal</option>
-                                            <option value="Online">Online</option>
+                                            {(types.length > 0 ? types : ['Fizikal', 'Online']).map(t => (
+                                                <option key={t} value={t}>{t}</option>
+                                            ))}
                                         </select>
                                     </div>
                                     <div>
@@ -325,8 +351,9 @@ export default function ClassesPage() {
                                             value={formData.tahap}
                                             onChange={(e) => setFormData({ ...formData, tahap: e.target.value })}
                                         >
-                                            <option value="Asas">Asas</option>
-                                            <option value="Lanjutan">Lanjutan</option>
+                                            {(levels.length > 0 ? levels : ['Asas', 'Lanjutan']).map(l => (
+                                                <option key={l} value={l}>{l}</option>
+                                            ))}
                                         </select>
                                     </div>
                                 </div>

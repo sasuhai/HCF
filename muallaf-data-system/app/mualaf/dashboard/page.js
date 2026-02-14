@@ -2,11 +2,10 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { collection, query, getDocs, where, documentId } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
+import { supabase } from '@/lib/supabase/client';
+import { getRateCategories } from '@/lib/supabase/database';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { getRateCategories } from '@/lib/firebase/firestore';
 import {
     Filter, BarChart2, DollarSign, Users, BookOpen, X, ChevronRight, Eye, Download,
     LayoutDashboard, User, FileText, Map as MapIcon, Search, Printer, ChevronDown
@@ -90,96 +89,72 @@ export default function AttendanceDashboard() {
                 }
 
                 // Fetch Classes (Once)
-                // We need this map for location filtering
+                // Fetch Classes (Once)
                 if (Object.keys(allClasses).length === 0) {
-                    const classesSnap = await getDocs(query(collection(db, 'classes')));
+                    const { data: classesData, error: classesError } = await supabase.from('classes').select('*');
+                    if (classesError) throw classesError;
+
                     const classesMap = {};
-                    classesSnap.forEach(doc => {
-                        const data = doc.data();
+                    classesData.forEach(data => {
                         // FILTER: Check Access
                         if (isRestricted && !allowedLocations.includes(data.lokasi)) return;
-                        classesMap[doc.id] = { id: doc.id, ...data };
+                        classesMap[data.id] = { ...data };
                     });
                     setAllClasses(classesMap);
                 }
 
                 // Fetch Workers Details (Once)
                 if (Object.keys(workerDetails).length === 0) {
+                    const { data: workersData, error: workersError } = await supabase.from('workers').select('*');
+                    if (workersError) throw workersError;
+
                     const wMap = {};
-                    const workersSnap = await getDocs(collection(db, 'workers'));
-                    workersSnap.forEach(doc => wMap[doc.id] = doc.data());
+                    workersData.forEach(data => wMap[data.id] = data);
                     setWorkerDetails(wMap);
                 }
 
                 // Fetch Students Details (Active) (Once)
                 if (Object.keys(studentDetails).length === 0) {
+                    const { data: studentsData, error: studentsError } = await supabase
+                        .from('submissions')
+                        .select('*')
+                        .eq('status', 'active');
+                    if (studentsError) throw studentsError;
+
                     const sMap = {};
-                    const studentsSnap = await getDocs(query(collection(db, 'submissions'), where('status', '==', 'active')));
-                    studentsSnap.forEach(doc => sMap[doc.id] = doc.data());
+                    studentsData.forEach(data => sMap[data.id] = data);
                     setStudentDetails(sMap);
                 }
 
                 // Fetch Attendance Records (Filtered by Year)
-                // Default to fetching strictly by the selected year to save quota
-                let recordsQuery;
+                let queryBuilder = supabase.from('attendance_records').select('*');
 
                 if (selectedYear) {
                     const startMonth = `${selectedYear}-01`;
                     const endMonth = `${selectedYear}-12`;
-                    recordsQuery = query(
-                        collection(db, 'attendance_records'),
-                        where('month', '>=', startMonth),
-                        where('month', '<=', endMonth)
-                    );
+                    queryBuilder = queryBuilder.gte('month', startMonth).lte('month', endMonth);
                 } else {
-                    // Fallback if no year selected (should not happen with default, but just in case)
-                    // Limit to recent to prevent disaster
-                    // But Firestore doesn't support 'limit from end' easily without orderBy
                     const currentYr = new Date().getFullYear();
                     const startMonth = `${currentYr}-01`;
                     const endMonth = `${currentYr}-12`;
-                    recordsQuery = query(
-                        collection(db, 'attendance_records'),
-                        where('month', '>=', startMonth),
-                        where('month', '<=', endMonth)
-                    );
+                    queryBuilder = queryBuilder.gte('month', startMonth).lte('month', endMonth);
                 }
 
-                const recordsSnap = await getDocs(recordsQuery);
+                const { data: recordsData, error: recordsError } = await queryBuilder;
+                if (recordsError) throw recordsError;
+
                 const records = [];
-
-                // We need to access the LATEST classesMap, so using functional state update or just relying on closure if classesMap was set in this render?
-                // Actually, state updates won't be reflected immediately in this closure.
-                // We can re-fetch or pass it down. 
-                // Optimization: We know we just fetched it or have it in state. 
-                // Since `allClasses` is in dependency array, this effect re-runs?
-                // No, we want to run this effect when `selectedYear` changes.
-                // But `allClasses` might be empty on first run.
-
-                // Correction: The dependency array should handle this.
-                // If `allClasses` is empty, obtaining it inside `if` block is fine.
-                // But `allClasses` variable from state might be stale if we set it inside this function.
-                // Let's use a local variable for classesMap if we just fetched it.
-
-                // Note: The structure of this effect is slightly complex. 
-                // Let's assume on first load (auth ready), we fetch everything.
-
-                // Using a simpler approach: Just filter the records assuming classes exist or filter later.
-                // We'll trust the state `allClasses` if it exists, or the one we just fetched.
-
-                recordsSnap.forEach(doc => {
-                    const data = doc.data();
-                    const idParts = doc.id.split('_');
+                recordsData.forEach(data => {
+                    const idParts = data.id.split('_');
                     if (idParts.length >= 2) {
                         const datePart = idParts.pop(); // YYYY-MM
                         if (/^\d{4}-\d{2}$/.test(datePart)) {
                             const [year, month] = datePart.split('-');
                             const classId = idParts.join('_');
                             records.push({
-                                id: doc.id,
+                                ...data,
                                 classId,
                                 year,
-                                ...data,
                                 month,
                             });
                         }

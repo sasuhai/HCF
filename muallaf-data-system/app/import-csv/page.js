@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
-import { createSubmission } from '@/lib/firebase/firestore';
+import { createSubmission } from '@/lib/supabase/database';
 
 export default function ImportPage() {
     const { user } = useAuth();
@@ -81,7 +81,7 @@ export default function ImportPage() {
             };
 
             try {
-                const { id, error } = await createSubmission(submissionData, user.uid);
+                const { id, error } = await createSubmission(submissionData, user.id);
 
                 if (error) {
                     setLogs(prev => [`[${i + 1}/${total}] Failed: ${row.namaIslam || 'Record'} - ${error}`, ...prev]);

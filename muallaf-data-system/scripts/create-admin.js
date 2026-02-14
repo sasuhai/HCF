@@ -1,130 +1,107 @@
 /**
- * Script untuk create admin user
+ * Script untuk create admin user (Supabase)
  * 
  * Instructions:
- * 1. npm install firebase-admin
- * 2. Download serviceAccountKey.json dari Firebase Console
- * 3. Letakkan serviceAccountKey.json dalam folder ini
- * 4. Edit email, password, dan name di bawah
- * 5. Run: node create-admin.js
+ * 1. Pastikan .env.local mempunyai SUPABASE_SERVICE_ROLE_KEY
+ * 2. Run: node scripts/create-admin.js
  */
 
-const admin = require('firebase-admin');
-const serviceAccount = require('./serviceAccountKey.json');
+require('dotenv').config({ path: '.env.local' });
+const { createClient } = require('@supabase/supabase-js');
 
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !serviceRoleKey) {
+    console.error('Error: Missing Supabase URL or Service Role Key in .env.local');
+    process.exit(1);
+}
+
+const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+        autoRefreshToken: false,
+        persistSession: false
+    }
 });
-
-const db = admin.firestore();
-const auth = admin.auth();
 
 async function createAdmin() {
     // ============================================================
     // EDIT BAHAGIAN INI - TUKAR KEPADA INFO ADMIN SEBENAR
     // ============================================================
-    const email = 'admin@example.com';        // TUKAR INI
-    const password = 'ChangeMe123!';    // TUKAR INI (min 8 characters)
-    const name = 'Admin User';             // TUKAR INI
+    const email = 'sasuhai0@gmail.com';     // TUKAR INI
+    const password = 'ChangeMe123!';        // TUKAR INI (min 6 characters)
+    const name = 'Admin User';              // TUKAR INI
     // ============================================================
 
     console.log('════════════════════════════════════════');
-    console.log('🔄 Mencipta Admin User');
+    console.log('🔄 Mencipta Admin User (Supabase)');
     console.log('════════════════════════════════════════');
     console.log('Email:', email);
     console.log('Nama:', name);
     console.log('');
 
     try {
-        // Check if user already exists
-        let userRecord;
-        try {
-            userRecord = await auth.getUserByEmail(email);
-            console.log('⚠️  User dengan email ini sudah wujud!');
-            console.log('UID:', userRecord.uid);
-            console.log('');
+        // 1. Create User in Auth
+        const { data: { user }, error: createError } = await supabaseAdmin.auth.admin.createUser({
+            email: email,
+            password: password,
+            email_confirm: true
+        });
 
-            // Update role to admin
-            await db.collection('users').doc(userRecord.uid).set({
+        let userId = user?.id;
+
+        if (createError) {
+            // If user already exists, try to get user by email? 
+            // Supabase Admin API doesn't have getUserByEmail directly in the same way, but listUsers can filter?
+            // Actually, standard way is to just proceed if error indicates duplicate, but we need the ID.
+            // Let's list users and find by email.
+            const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+            const existingUser = users.find(u => u.email === email);
+
+            if (existingUser) {
+                console.log('⚠️  User dengan email ini sudah wujud dalam Auth!');
+                userId = existingUser.id;
+            } else {
+                throw createError;
+            }
+        } else {
+            console.log('✅ User created in Authentication');
+        }
+
+        console.log('UID:', userId);
+        console.log('');
+
+        // 2. Create/Update Profile in 'users' table
+        console.log('🔧 Mengemaskini profile dalam table users...');
+
+        const { error: upsertError } = await supabaseAdmin
+            .from('users')
+            .upsert({
+                id: userId,
                 email: email,
                 name: name,
                 role: 'admin',
                 updatedAt: new Date().toISOString()
-            }, { merge: true });
+            }, { onConflict: 'id' });
 
-            console.log('✅ Role dikemaskini kepada admin');
+        if (upsertError) throw upsertError;
 
-        } catch (error) {
-            if (error.code === 'auth/user-not-found') {
-                // User doesn't exist, create new one
-                console.log('🔧 Mencipta user baru dalam Authentication...');
-                userRecord = await admin.auth().createUser({
-                    email: email,
-                    password: password,
-                    displayName: name
-                });
-                console.log('✅ User created in Authentication');
-                console.log('UID:', userRecord.uid);
-                console.log('');
-
-                // Add to Firestore
-                console.log('🔧 Menambah document dalam Firestore...');
-                await db.collection('users').doc(userRecord.uid).set({
-                    email: email,
-                    name: name,
-                    role: 'admin',
-                    createdAt: new Date().toISOString()
-                });
-                console.log('✅ Document created in Firestore');
-
-            } else {
-                throw error;
-            }
-        }
-
+        console.log('✅ Profile dikemaskini dengan role: admin');
         console.log('');
         console.log('════════════════════════════════════════');
-        console.log('🎉 Admin Created Successfully!');
+        console.log('🎉 Admin Check/Creation Successful!');
         console.log('════════════════════════════════════════');
-        console.log('');
         console.log('Login dengan credentials berikut:');
         console.log('  Email    :', email);
         console.log('  Password :', password);
-        console.log('  Role     : admin');
-        console.log('');
-        console.log('⚠️  PENTING:');
-        console.log('1. Simpan credentials ini dengan selamat');
-        console.log('2. Tukar password selepas login pertama');
-        console.log('3. Jangan share credentials dengan orang lain');
         console.log('');
 
         process.exit(0);
 
     } catch (error) {
-        console.error('');
-        console.error('════════════════════════════════════════');
-        console.error('❌ Error Creating Admin');
-        console.error('════════════════════════════════════════');
-        console.error('Error Code:', error.code);
-        console.error('Error Message:', error.message);
-        console.error('');
-
-        if (error.code === 'auth/email-already-exists') {
-            console.error('💡 Penyelesaian:');
-            console.error('   User dengan email ini sudah wujud.');
-            console.error('   Gunakan email lain atau delete user sedia ada.');
-        } else if (error.code === 'auth/invalid-email') {
-            console.error('💡 Penyelesaian:');
-            console.error('   Format email tidak sah. Pastikan email format betul.');
-        } else if (error.code === 'auth/weak-password') {
-            console.error('💡 Penyelesaian:');
-            console.error('   Password terlalu lemah. Gunakan minimum 6 characters.');
-        }
-
-        console.error('');
+        console.error('❌ Error:', error.message);
         process.exit(1);
     }
 }
 
-// Run the script
-createAdmin().catch(console.error);
+createAdmin();

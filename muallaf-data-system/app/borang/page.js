@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
-import { createSubmission, getLocations } from '@/lib/firebase/firestore';
+import { createSubmission, getLocations, getStates, getLookupData } from '@/lib/supabase/database';
 import {
     NEGERI_CAWANGAN_OPTIONS,
     KATEGORI_OPTIONS,
@@ -20,24 +20,40 @@ import {
     MUALAF_KATEGORI_ELAUN
 } from '@/lib/constants';
 import { Save, RotateCcw, CheckCircle, AlertCircle, Zap, Upload } from 'lucide-react';
-import { processSubmissionFiles } from '@/lib/firebase/storage';
+import { processSubmissionFiles } from '@/lib/supabase/storage';
 
 export default function BorangPage() {
-    const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
+    const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm();
+    const selectedNegeri = watch('negeriCawangan');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
     const [uploadProgress, setUploadProgress] = useState(0);
     const [uploadingFile, setUploadingFile] = useState('');
     const [locations, setLocations] = useState([]); // State for locations
+    const [states, setStates] = useState([]); // State for states (negeri)
+    const [races, setRaces] = useState([]);
+    const [religions, setReligions] = useState([]);
+    const [banks, setBanks] = useState([]);
 
-    // Fetch locations on mount
+    // Fetch locations and states on mount
     useEffect(() => {
-        const fetchLocs = async () => {
-            const { data } = await getLocations();
-            if (data) setLocations(data);
+        const fetchData = async () => {
+            const [locsRes, statesRes, racesRes, religionsRes, banksRes] = await Promise.all([
+                getLookupData('locations'),
+                getStates(),
+                getLookupData('races'),
+                getLookupData('religions'),
+                getLookupData('banks')
+            ]);
+
+            if (locsRes.data) setLocations(locsRes.data);
+            if (statesRes.data) setStates(statesRes.data.map(s => s.name));
+            if (racesRes.data) setRaces(racesRes.data.map(r => r.name));
+            if (religionsRes.data) setReligions(religionsRes.data.map(r => r.name));
+            if (banksRes.data) setBanks(banksRes.data.map(b => b.name));
         };
-        fetchLocs();
+        fetchData();
     }, []);
     const { user } = useAuth();
     const router = useRouter();
@@ -95,7 +111,7 @@ export default function BorangPage() {
 
             // Create submission with all data including files
             setUploadingFile('Menyimpan data...');
-            const { id: submissionId, error: submitError } = await createSubmission(submissionData, user.uid);
+            const { id: submissionId, error: submitError } = await createSubmission(submissionData, user.id);
 
             if (submitError) {
                 throw new Error(submitError);
@@ -246,7 +262,7 @@ export default function BorangPage() {
                                         className="form-input"
                                     >
                                         <option value="">Pilih negeri/cawangan</option>
-                                        {NEGERI_CAWANGAN_OPTIONS.map(option => (
+                                        {(states.length > 0 ? states : NEGERI_CAWANGAN_OPTIONS).map(option => (
                                             <option key={option} value={option}>{option}</option>
                                         ))}
                                     </select>
@@ -264,9 +280,11 @@ export default function BorangPage() {
                                         className="form-input"
                                     >
                                         <option value="">Pilih Lokasi</option>
-                                        {locations.map(loc => (
-                                            <option key={loc} value={loc}>{loc}</option>
-                                        ))}
+                                        {locations
+                                            .filter(loc => !selectedNegeri || !loc.state_name || loc.state_name === selectedNegeri)
+                                            .map(loc => (
+                                                <option key={loc.id || loc.name} value={loc.name}>{loc.name}</option>
+                                            ))}
                                     </select>
                                     <p className="text-xs text-gray-500 mt-1">Pilih lokasi jika berkaitan</p>
                                 </div>
@@ -378,7 +396,7 @@ export default function BorangPage() {
                                             className="form-input"
                                         >
                                             <option value="">Pilih bangsa</option>
-                                            {BANGSA_OPTIONS.map(option => (
+                                            {(races.length > 0 ? races : BANGSA_OPTIONS).map(option => (
                                                 <option key={option} value={option}>{option}</option>
                                             ))}
                                         </select>
@@ -396,7 +414,7 @@ export default function BorangPage() {
                                             className="form-input"
                                         >
                                             <option value="">Pilih agama asal</option>
-                                            {AGAMA_ASAL_OPTIONS.map(option => (
+                                            {(religions.length > 0 ? religions : AGAMA_ASAL_OPTIONS).map(option => (
                                                 <option key={option} value={option}>{option}</option>
                                             ))}
                                         </select>
@@ -491,7 +509,7 @@ export default function BorangPage() {
                                         className="form-input"
                                     >
                                         <option value="">Pilih negeri</option>
-                                        {NEGERI_PENGISLAMAN_OPTIONS.map(option => (
+                                        {(states.length > 0 ? states.filter(s => !s.includes(' - ')) : NEGERI_PENGISLAMAN_OPTIONS).map(option => (
                                             <option key={option} value={option}>{option}</option>
                                         ))}
                                     </select>
@@ -607,7 +625,7 @@ export default function BorangPage() {
                                         className="form-input"
                                     >
                                         <option value="">Pilih bank</option>
-                                        {BANK_OPTIONS.map(option => (
+                                        {(banks.length > 0 ? banks : BANK_OPTIONS).map(option => (
                                             <option key={option} value={option}>{option}</option>
                                         ))}
                                     </select>

@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
-import { getOverallDashboardStats } from '@/lib/firebase/firestore';
+import { getOverallDashboardStats } from '@/lib/supabase/database';
 import { Users, BookOpen, UserCheck, TrendingUp, MapPin, Activity, ArrowRight, Loader, Calendar } from 'lucide-react';
 import {
     BarChart,

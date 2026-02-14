@@ -44,20 +44,6 @@ export default function Navbar() {
                                 <Home className="w-4 h-4 mr-1.5" /> Menu Utama
                             </Link>
 
-                            {/* Dropdown: Kehadiran */}
-                            <div className="relative group">
-                                <button className={`inline-flex items-center px-3 py-2 text-sm font-medium border-b-2 transition-colors ${isActive('/kehadiran') ? 'border-emerald-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
-                                    <Calendar className="w-4 h-4 mr-1.5" /> Kehadiran <ChevronDown className="w-3 h-3 ml-1" />
-                                </button>
-                                <div className="absolute left-0 mt-0 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden group-hover:block transition-all transform origin-top-left">
-                                    <div className="py-1">
-                                        <Link href="/kehadiran" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
-                                            <Calendar className="w-4 h-4 mr-2" /> Rekod Kehadiran
-                                        </Link>
-                                    </div>
-                                </div>
-                            </div>
-
                             {/* Dropdown: Data Mualaf */}
                             <div className="relative group">
                                 <button className={`inline-flex items-center px-3 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300`}>
@@ -65,14 +51,31 @@ export default function Navbar() {
                                 </button>
                                 <div className="absolute left-0 mt-0 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden group-hover:block transition-all transform origin-top-left">
                                     <div className="py-1">
-                                        <Link href="/mualaf/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
-                                            <BarChart2 className="w-4 h-4 mr-2" /> Analisis & Laporan
-                                        </Link>
                                         <Link href="/senarai" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
                                             <List className="w-4 h-4 mr-2" /> Senarai Rekod
                                         </Link>
                                         <Link href="/borang" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
                                             <FileText className="w-4 h-4 mr-2" /> Borang Baru
+                                        </Link>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Dropdown: KBM */}
+                            <div className="relative group">
+                                <button className={`inline-flex items-center px-3 py-2 text-sm font-medium border-b-2 transition-colors ${isActive('/kehadiran') || isActive('/kelas') || isActive('/pekerja') ? 'border-emerald-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+                                    <Calendar className="w-4 h-4 mr-1.5" /> KBM <ChevronDown className="w-3 h-3 ml-1" />
+                                </button>
+                                <div className="absolute left-0 mt-0 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden group-hover:block transition-all transform origin-top-left">
+                                    <div className="py-1">
+                                        <Link href="/kehadiran" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                                            <Calendar className="w-4 h-4 mr-2" /> Rekod Kehadiran
+                                        </Link>
+                                        <Link href="/kelas" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                                            <MapPin className="w-4 h-4 mr-2" /> Kelas & Lokasi
+                                        </Link>
+                                        <Link href="/pekerja" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                                            <Users className="w-4 h-4 mr-2" /> Petugas & Guru
                                         </Link>
                                     </div>
                                 </div>
@@ -85,18 +88,20 @@ export default function Navbar() {
                                 </button>
                                 <div className="absolute left-0 mt-0 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden group-hover:block transition-all transform origin-top-left">
                                     <div className="py-1">
-                                        <Link href="/kelas" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
-                                            <MapPin className="w-4 h-4 mr-2" /> Kelas & Lokasi
-                                        </Link>
-                                        <Link href="/pekerja" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
-                                            <Users className="w-4 h-4 mr-2" /> Petugas & Guru
-                                        </Link>
                                         {role === 'admin' && (
                                             <Link href="/kadar-elaun" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
                                                 <DollarSign className="w-4 h-4 mr-2" /> Kadar Elaun
                                             </Link>
                                         )}
-                                        <Link href="/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                                        <Link href="/mualaf/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                                            <BarChart2 className="w-4 h-4 mr-2" /> Analisis & Laporan
+                                        </Link>
+                                        {role === 'admin' && (
+                                            <Link href="/pengurusan/metadata" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center border-t border-gray-50">
+                                                <Settings className="w-4 h-4 mr-2" /> Tetapan Metadata
+                                            </Link>
+                                        )}
+                                        <Link href="/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center border-t border-gray-50">
                                             <BarChart2 className="w-4 h-4 mr-2" /> Dashboard Utama
                                         </Link>
                                     </div>
@@ -159,20 +164,23 @@ export default function Navbar() {
                         >
                             Menu Utama
                         </Link>
-                        <div className="pl-3 pr-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Kehadiran</div>
-                        <Link href="/kehadiran" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Rekod Kehadiran</Link>
-
                         <div className="pl-3 pr-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Data Mualaf</div>
-                        <Link href="/mualaf/dashboard" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Analisis & Laporan</Link>
                         <Link href="/senarai" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Senarai Rekod</Link>
                         <Link href="/borang" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Borang Baru</Link>
 
-                        <div className="pl-3 pr-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Pengurusan</div>
+                        <div className="pl-3 pr-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">KBM</div>
+                        <Link href="/kehadiran" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Rekod Kehadiran</Link>
                         <Link href="/kelas" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Kelas & Lokasi</Link>
                         <Link href="/pekerja" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Petugas & Guru</Link>
+
+                        <div className="pl-3 pr-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Pengurusan</div>
                         {role === 'admin' && (
                             <Link href="/kadar-elaun" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Kadar Elaun</Link>
                         )}
+                        {role === 'admin' && (
+                            <Link href="/pengurusan/metadata" className="block pl-6 py-2 text-sm text-emerald-600 font-medium hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Tetapan Metadata</Link>
+                        )}
+                        <Link href="/mualaf/dashboard" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Analisis & Laporan</Link>
                         <Link href="/dashboard" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Dashboard Utama</Link>
 
                         {role === 'admin' && (

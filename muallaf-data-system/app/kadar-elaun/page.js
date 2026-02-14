@@ -8,7 +8,7 @@ import {
     updateRateCategory,
     deleteRateCategory,
     initializeDefaultRates
-} from '@/lib/firebase/firestore';
+} from '@/lib/supabase/database';
 import { DEFAULT_RATE_CATEGORIES } from '@/lib/constants';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -56,7 +56,7 @@ export default function RatesPage() {
         }
 
         setLoading(true);
-        const { error } = await initializeDefaultRates(DEFAULT_RATE_CATEGORIES, user.uid);
+        const { error } = await initializeDefaultRates(DEFAULT_RATE_CATEGORIES, user.id);
         if (error) {
             alert('Ralat: ' + error);
         } else {
@@ -71,10 +71,10 @@ export default function RatesPage() {
 
         try {
             if (currentRate) {
-                const { error } = await updateRateCategory(currentRate.id, formData, user.uid);
+                const { error } = await updateRateCategory(currentRate.id, formData, user.id);
                 if (error) throw new Error(error);
             } else {
-                const { error } = await createRateCategory(formData, user.uid);
+                const { error } = await createRateCategory(formData, user.id);
                 if (error) throw new Error(error);
             }
 
@@ -192,8 +192,8 @@ export default function RatesPage() {
                         <button
                             onClick={() => setFilterType('all')}
                             className={`flex-1 py-2 px-4 rounded-md transition-colors ${filterType === 'all'
-                                    ? 'bg-emerald-600 text-white'
-                                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-white text-gray-700 hover:bg-gray-100'
                                 }`}
                         >
                             Semua ({rates.length})
@@ -201,8 +201,8 @@ export default function RatesPage() {
                         <button
                             onClick={() => setFilterType('mualaf')}
                             className={`flex-1 py-2 px-4 rounded-md transition-colors ${filterType === 'mualaf'
-                                    ? 'bg-emerald-600 text-white'
-                                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-white text-gray-700 hover:bg-gray-100'
                                 }`}
                         >
                             Mualaf ({mualaafRates.length})
@@ -210,8 +210,8 @@ export default function RatesPage() {
                         <button
                             onClick={() => setFilterType('petugas')}
                             className={`flex-1 py-2 px-4 rounded-md transition-colors ${filterType === 'petugas'
-                                    ? 'bg-emerald-600 text-white'
-                                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-white text-gray-700 hover:bg-gray-100'
                                 }`}
                         >
                             Petugas ({petugasRates.length})
@@ -274,8 +274,8 @@ export default function RatesPage() {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${rate.jenis === 'mualaf'
-                                                        ? 'bg-purple-100 text-purple-800'
-                                                        : 'bg-blue-100 text-blue-800'
+                                                    ? 'bg-purple-100 text-purple-800'
+                                                    : 'bg-blue-100 text-blue-800'
                                                     }`}>
                                                     {rate.jenis === 'mualaf' ? 'Mualaf' : 'Petugas'}
                                                 </span>

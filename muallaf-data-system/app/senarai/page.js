@@ -5,7 +5,7 @@ import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSubmissions, deleteSubmission } from '@/lib/firebase/firestore';
+import { getSubmissions, deleteSubmission } from '@/lib/supabase/database';
 import { Search, Eye, Edit, Trash2, Download, Filter, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { format } from 'date-fns';
 

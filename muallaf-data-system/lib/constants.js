@@ -1,25 +1,25 @@
 // Form field constants based on Google Form structure
 
 export const NEGERI_CAWANGAN_OPTIONS = [
-    'Perlis',
-    'Kedah',
-    'Pulau Pinang',
-    'Perak',
-    'Kuala Lumpur',
-    'Selangor',
-    'Negeri Sembilan',
-    'Melaka',
     'Johor',
+    'Kedah',
     'Kelantan',
-    'Terengganu',
+    'Kuala Lumpur',
+    'Melaka',
+    'Negeri Sembilan',
     'Pahang',
-    'Sarawak - Kuching',
-    'Sarawak - Sibu',
-    'Sarawak - Miri',
-    'Sarawak - Bintulu',
+    'Perak',
+    'Perlis',
+    'Pulau Pinang',
     'Sabah - Kota Kinabalu',
     'Sabah - Sandakan',
-    'Sabah - Tawau'
+    'Sabah - Tawau',
+    'Sarawak - Bintulu',
+    'Sarawak - Kuching',
+    'Sarawak - Miri',
+    'Sarawak - Sibu',
+    'Selangor',
+    'Terengganu'
 ];
 
 export const KATEGORI_OPTIONS = [
@@ -51,18 +51,18 @@ export const JANTINA_OPTIONS = [
 ];
 
 export const BANGSA_OPTIONS = [
-    'Cina',
-    'India',
-    'Serani',
-    'Punjabi',
-    'Kadazan',
-    'Dusun',
     'Bajau',
-    'Murut',
-    'Iban',
     'Bidayuh',
+    'Cina',
+    'Dusun',
+    'Iban',
+    'India',
+    'Kadazan',
     'Melanau',
+    'Murut',
     'Orang Asli',
+    'Punjabi',
+    'Serani',
     'Lain-lain'
 ];
 
@@ -77,17 +77,17 @@ export const AGAMA_ASAL_OPTIONS = [
 ];
 
 export const WARGANEGARA_OPTIONS = [
-    'Malaysia',
-    'Indonesia',
-    'Filipina',
-    'Thailand',
-    'Myanmar',
-    'Vietnam',
-    'China',
-    'India',
     'Bangladesh',
-    'Pakistan',
+    'China',
+    'Filipina',
+    'India',
+    'Indonesia',
+    'Malaysia',
+    'Myanmar',
     'Nepal',
+    'Pakistan',
+    'Thailand',
+    'Vietnam',
     'Lain-lain'
 ];
 
@@ -109,24 +109,24 @@ export const TAHAP_PENDIDIKAN_OPTIONS = [
 ];
 
 export const BANK_OPTIONS = [
-    'Maybank',
-    'CIMB Bank',
-    'Public Bank',
-    'RHB Bank',
-    'Hong Leong Bank',
+    'Affin Bank',
+    'Agro Bank',
+    'Alliance Bank',
     'AmBank',
     'Bank Islam',
+    'Bank Muamalat',
     'Bank Rakyat',
     'BSN (Bank Simpanan Nasional)',
-    'OCBC Bank',
+    'CIMB Bank',
+    'Hong Leong Bank',
     'HSBC Bank',
+    'Maybank',
+    'MBSB Bank',
+    'OCBC Bank',
+    'Public Bank',
+    'RHB Bank',
     'Standard Chartered',
     'UOB (United Overseas Bank)',
-    'Affin Bank',
-    'Alliance Bank',
-    'Bank Muamalat',
-    'MBSB Bank',
-    'Agro Bank',
     'Lain-lain'
 ];
 

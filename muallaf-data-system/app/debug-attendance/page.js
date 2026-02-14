@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, getDocs, doc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
+import { supabase } from '@/lib/supabase/client';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Trash2, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
@@ -19,26 +18,28 @@ export default function DebugAttendancePage() {
     const scanRecords = async () => {
         setLoading(true);
         try {
-            const snapshot = await getDocs(collection(db, 'attendance_records'));
+            const { data, error } = await supabase.from('attendance_records').select('*');
+
+            if (error) throw error;
+
             const found = [];
 
-            snapshot.forEach(docSnap => {
-                const data = docSnap.data();
+            data.forEach(record => {
                 const invalidDays = [];
                 let hasInvalidMonth = false;
 
                 // Check Month validity
-                if (data.month === '34' || parseInt(data.month) > 12) {
+                if (record.month === '34' || parseInt(record.month) > 12) {
                     hasInvalidMonth = true;
                 }
 
                 if (hasInvalidMonth) {
                     found.push({
-                        id: docSnap.id,
+                        id: record.id,
                         type: 'Invalid Record',
-                        description: `Invalid Month: ${data.month}`,
+                        description: `Invalid Month: ${record.month}`,
                         action: 'DELETE_DOC',
-                        data: data
+                        data: record
                     });
                     return; // Skip checking days if doc is invalid
                 }
@@ -48,8 +49,8 @@ export default function DebugAttendancePage() {
                 const peopleTypes = ['students', 'workers'];
 
                 peopleTypes.forEach(type => {
-                    if (Array.isArray(data[type])) {
-                        data[type].forEach(p => {
+                    if (Array.isArray(record[type])) {
+                        record[type].forEach(p => {
                             if (Array.isArray(p.attendance)) {
                                 p.attendance.forEach(d => {
                                     const val = parseInt(d, 10);
@@ -66,12 +67,12 @@ export default function DebugAttendancePage() {
 
                 if (hasBadDays) {
                     found.push({
-                        id: docSnap.id,
+                        id: record.id,
                         type: 'Corrupt Data',
                         description: `Found ${invalidDays.length} invalid attendance entries (e.g. Day 34).`,
                         details: invalidDays,
                         action: 'CLEAN_DATA',
-                        data: data
+                        data: record
                     });
                 }
             });
@@ -87,10 +88,9 @@ export default function DebugAttendancePage() {
     const fixIssue = async (issue) => {
         setFixing(true);
         try {
-            const ref = doc(db, 'attendance_records', issue.id);
-
             if (issue.action === 'DELETE_DOC') {
-                await deleteDoc(ref);
+                const { error } = await supabase.from('attendance_records').delete().eq('id', issue.id);
+                if (error) throw error;
             } else if (issue.action === 'CLEAN_DATA') {
                 const data = issue.data;
                 const updates = {};
@@ -115,7 +115,8 @@ export default function DebugAttendancePage() {
                     }));
                 }
 
-                await updateDoc(ref, updates);
+                const { error } = await supabase.from('attendance_records').update(updates).eq('id', issue.id);
+                if (error) throw error;
             }
             // Remove fixed issue from list
             setIssues(prev => prev.filter(i => i.id !== issue.id));

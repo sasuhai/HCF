@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { collection, query, where, getDocs, doc, setDoc, onSnapshot, serverTimestamp, limit } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
+import { supabase } from '@/lib/supabase/client';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Search, Save, UserPlus, FileText, CheckCircle, Trash2, Home, X, Check, Plus, Calendar, MapPin, Edit2, Copy } from 'lucide-react';
@@ -72,22 +71,18 @@ export default function AttendancePage() {
         if (authLoading) return;
 
         const fetchClasses = async () => {
-            try {
-                const q = query(collection(db, 'classes'));
-                const snapshot = await getDocs(q);
-                const classesList = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.nama.localeCompare(b.nama));
+            const { data, error } = await supabase
+                .from('classes')
+                .select('*')
+                .order('nama');
 
-                setClasses(classesList);
-
-                const uniqueLocs = [...new Set(classesList.map(c => c.lokasi).filter(l => l))].sort();
+            if (data) {
+                setClasses(data);
+                const uniqueLocs = [...new Set(data.map(c => c.lokasi).filter(l => l))].sort();
                 setLocations(uniqueLocs);
-            } catch (error) {
+            } else if (error) {
                 console.error("Error fetching classes:", error);
-                if (error.code === 'resource-exhausted') {
-                    alert("Kouta pangkalan data habis. Tidak dapat memuatkan senarai kelas.");
-                } else {
-                    alert("Ralat memuatkan kelas: " + error.message);
-                }
+                // alert("Ralat memuatkan kelas: " + error.message);
             }
         };
         fetchClasses();
@@ -122,11 +117,15 @@ export default function AttendancePage() {
 
         setLoading(true);
         const recordId = `${selectedClassId}_${selectedMonth}`;
-        const recordRef = doc(db, 'attendance_records', recordId);
 
-        const unsubscribe = onSnapshot(recordRef, async (docSnap) => {
-            if (docSnap.exists()) {
-                const data = { id: docSnap.id, ...docSnap.data() };
+        async function fetchRecord() {
+            const { data, error } = await supabase
+                .from('attendance_records')
+                .select('*')
+                .eq('id', recordId)
+                .single();
+
+            if (data) {
                 setAttendanceRecord(data);
 
                 // Auto-sync kategoriElaun if missing
@@ -134,6 +133,7 @@ export default function AttendancePage() {
                     setTimeout(() => syncKategoriElaunForRecord(data), 500);
                 }
             } else {
+                // Not found, init new
                 setAttendanceRecord({
                     id: recordId,
                     classId: selectedClassId,
@@ -151,9 +151,9 @@ export default function AttendancePage() {
                 });
             }
             setLoading(false);
-        });
+        }
 
-        return () => unsubscribe();
+        fetchRecord();
     }, [selectedClassId, selectedMonth]);
 
     // Sync kategoriElaun from profiles to attendance record
@@ -161,15 +161,19 @@ export default function AttendancePage() {
         if (!record) return;
 
         let updated = false;
+
+        // Optimisation: Fetch all needed workers/students in one go if possible, but for now map is ok for small arrays
         const updatedWorkers = await Promise.all(
             (record.workers || []).map(async (worker) => {
                 if (!worker.kategoriElaun) {
-                    const workerSnap = await getDocs(query(collection(db, 'workers'), where('__name__', '==', worker.id), limit(1)));
-                    if (!workerSnap.empty) {
-                        const workerData = workerSnap.docs[0].data();
-                        const newKategori = workerData.kategoriElaun || '';
+                    const { data } = await supabase
+                        .from('workers')
+                        .select('kategoriElaun')
+                        .eq('id', worker.id)
+                        .single();
 
-                        // Check if value actually changes to avoid infinite loop
+                    if (data) {
+                        const newKategori = data.kategoriElaun || '';
                         if (worker.kategoriElaun !== newKategori) {
                             updated = true;
                             return { ...worker, kategoriElaun: newKategori };
@@ -183,12 +187,14 @@ export default function AttendancePage() {
         const updatedStudents = await Promise.all(
             (record.students || []).map(async (student) => {
                 if (!student.kategoriElaun) {
-                    const studentSnap = await getDocs(query(collection(db, 'submissions'), where('__name__', '==', student.id), limit(1)));
-                    if (!studentSnap.empty) {
-                        const studentData = studentSnap.docs[0].data();
-                        const newKategori = studentData.kategoriElaun || '';
+                    const { data } = await supabase
+                        .from('submissions')
+                        .select('kategoriElaun')
+                        .eq('id', student.id)
+                        .single();
 
-                        // Check if value actually changes
+                    if (data) {
+                        const newKategori = data.kategoriElaun || '';
                         if (student.kategoriElaun !== newKategori) {
                             updated = true;
                             return { ...student, kategoriElaun: newKategori };
@@ -208,12 +214,25 @@ export default function AttendancePage() {
     const saveAttendance = async (newData) => {
         try {
             const recordId = `${selectedClassId}_${selectedMonth}`;
-            await setDoc(doc(db, 'attendance_records', recordId), {
+
+            // Construct full object to save (merging with current state)
+            const finalData = {
+                ...attendanceRecord,
                 ...newData,
+                id: recordId,
+                classId: selectedClassId, // ensure PK fields are present
                 month: selectedMonth,
-                classId: selectedClassId,
-                updatedAt: serverTimestamp()
-            }, { merge: true });
+                updatedAt: new Date().toISOString()
+            };
+
+            setAttendanceRecord(finalData); // Optimistic Update
+
+            const { error } = await supabase
+                .from('attendance_records')
+                .upsert(finalData);
+
+            if (error) throw error;
+
         } catch (error) {
             console.error("Error saving:", error);
             alert("Ralat menyimpan e-kehadiran");
@@ -225,7 +244,7 @@ export default function AttendancePage() {
         if (!attendanceRecord) return;
 
         const listName = type === 'worker' ? 'workers' : 'students';
-        const list = [...attendanceRecord[listName]];
+        const list = [...(attendanceRecord[listName] || [])];
         const personIndex = list.findIndex(p => p.id === personId);
 
         if (personIndex === -1) return;
@@ -241,10 +260,7 @@ export default function AttendancePage() {
 
         list[personIndex] = { ...list[personIndex], attendance: newAttendance };
 
-        // Optimistic update
-        setAttendanceRecord({ ...attendanceRecord, [listName]: list });
-
-        // Save to DB
+        // Save to DB (Optimistic update happened via saveAttendance calling setAttendanceRecord first)
         saveAttendance({ [listName]: list });
     };
 
@@ -319,14 +335,16 @@ export default function AttendancePage() {
         const previousRecordId = `${selectedClassId}_${previousMonth}`;
 
         try {
-            const previousSnap = await getDocs(query(collection(db, 'attendance_records'), where('__name__', '==', previousRecordId), limit(1)));
+            const { data: previousData, error } = await supabase
+                .from('attendance_records')
+                .select('*')
+                .eq('id', previousRecordId)
+                .single();
 
-            if (previousSnap.empty) {
+            if (!previousData || error) {
                 alert(`Tiada data untuk bulan sebelumnya (${previousMonth}).`);
                 return;
             }
-
-            const previousData = previousSnap.docs[0].data();
 
             // Current Data
             const currentWorkers = attendanceRecord?.workers || [];
@@ -404,8 +422,11 @@ export default function AttendancePage() {
     const openWorkerModal = async () => {
         if (allWorkers.length === 0) {
             try {
-                const snap = await getDocs(query(collection(db, 'workers')));
-                setAllWorkers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                const { data } = await supabase
+                    .from('workers')
+                    .select('*')
+                    .order('nama');
+                if (data) setAllWorkers(data);
             } catch (err) {
                 console.error("Error loading workers:", err);
                 alert("Gagal memuatkan senarai pekerja.");
@@ -417,8 +438,12 @@ export default function AttendancePage() {
     const openStudentModal = async () => {
         if (allStudents.length === 0) {
             try {
-                const snap = await getDocs(query(collection(db, 'submissions'), where('status', '==', 'active')));
-                setAllStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                const { data } = await supabase
+                    .from('submissions')
+                    .select('*')
+                    .eq('status', 'active')
+                    .order('namaIslam');
+                if (data) setAllStudents(data);
             } catch (err) {
                 console.error("Error loading students:", err);
                 alert("Gagal memuatkan senarai pelajar.");

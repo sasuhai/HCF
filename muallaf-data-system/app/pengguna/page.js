@@ -3,10 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { collection, query, getDocs, doc, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
-import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword, signOut, sendEmailVerification } from 'firebase/auth';
-import { db, firebaseConfig } from '@/lib/firebase/config';
+import { supabase } from '@/lib/supabase/client';
+import { getLocations } from '@/lib/supabase/database';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { User, Plus, Search, Edit2, Trash2, Shield, MapPin, X, Check, Eye, EyeOff } from 'lucide-react';
@@ -38,22 +36,21 @@ export default function UsersPage() {
     // Fetch Data
     useEffect(() => {
         const fetchData = async () => {
-            if (role !== 'admin') {
-                // If not admin, redirect or show unauthorized
-                // ProtectedRoute handles this usually but double check
-                return;
-            }
+            if (role !== 'admin') return;
 
             try {
                 // Fetch Users
-                const usersSnap = await getDocs(collection(db, 'users'));
-                const usersList = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                setUsers(usersList);
+                const { data: usersList, error: usersError } = await supabase
+                    .from('users')
+                    .select('*')
+                    .order('name');
+                if (usersError) throw usersError;
+                setUsers(usersList || []);
 
-                // Fetch Locations from Classes
-                const classesSnap = await getDocs(query(collection(db, 'classes')));
-                const uniqueLocs = [...new Set(classesSnap.docs.map(d => d.data().lokasi).filter(l => l))].sort();
-                setLocations(uniqueLocs);
+                // Fetch Locations from lookup table
+                const { data: locs, error: locsError } = await getLocations();
+                if (locsError) throw locsError;
+                setLocations(locs || []);
             } catch (error) {
                 console.error("Error fetching data:", error);
             } finally {
@@ -66,6 +63,8 @@ export default function UsersPage() {
         }
     }, [user, role]);
 
+
+    // Handlers
     const handleOpenModal = (mode, userToEdit = null) => {
         setModalMode(mode);
         if (mode === 'edit' && userToEdit) {
@@ -103,8 +102,6 @@ export default function UsersPage() {
                     return { ...prev, assignedLocations: ['All'] };
                 }
             } else {
-                // If All is selected, we shouldn't be here because other checkboxes are disabled,
-                // but for safety, if user manually toggles via code or glitch
                 if (current.includes('All')) return prev;
 
                 if (current.includes(loc)) {
@@ -122,58 +119,42 @@ export default function UsersPage() {
 
         try {
             if (modalMode === 'add') {
-                // Create User using Secondary App
-                const secondaryApp = initializeApp(firebaseConfig, "secondary");
-                const secondaryAuth = getAuth(secondaryApp);
-
-                const emailToCreate = formData.email.trim();
-                const passwordToCreate = formData.password.trim();
-
-                try {
-                    const userCred = await createUserWithEmailAndPassword(secondaryAuth, emailToCreate, passwordToCreate);
-                    const uid = userCred.user.uid;
-
-                    // Send Email Verification
-                    await sendEmailVerification(userCred.user);
-
-                    // Create User Doc in Main DB
-                    await setDoc(doc(db, 'users', uid), {
-                        email: emailToCreate,
-                        name: formData.name.trim(),
-                        role: formData.role,
-                        assignedLocations: formData.assignedLocations,
-                        createdAt: serverTimestamp(),
-                        emailVerified: false // Track status in Firestore if helpful, though Auth has it too
-                    });
-
-                    // Cleanup secondary app
-                    await signOut(secondaryAuth);
-                    deleteApp(secondaryApp);
-
-                    // Update local state
-                    setUsers(prev => [...prev, {
-                        id: uid,
+                // Use API Route to create user (DB + Auth) securely
+                const res = await fetch('/api/admin/create-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
                         email: formData.email,
+                        password: formData.password,
                         name: formData.name,
                         role: formData.role,
                         assignedLocations: formData.assignedLocations
-                    }]);
-
-                    alert("Pengguna berjaya dicipta! Email pengesahan telah dihantar ke alamat tersebut.");
-                    setIsModalOpen(false);
-                } catch (err) {
-                    console.error("Error creating auth user:", err);
-                    alert("Ralat mencipta pengguna: " + err.message);
-                    deleteApp(secondaryApp); // Cleanup on error too
-                }
-            } else {
-                // Edit User
-                await updateDoc(doc(db, 'users', currentUser.id), {
-                    name: formData.name,
-                    role: formData.role,
-                    assignedLocations: formData.assignedLocations,
-                    updatedAt: serverTimestamp()
+                    })
                 });
+
+                const json = await res.json();
+                if (!res.ok) throw new Error(json.error || 'Failed to create user');
+
+                alert("Pengguna berjaya dicipta!");
+                setIsModalOpen(false);
+
+                // Refresh list
+                const { data: refreshedUsers } = await supabase.from('users').select('*');
+                if (refreshedUsers) setUsers(refreshedUsers);
+
+            } else {
+                // Edit User (Direct DB update allowed by RLS policy for Admin)
+                const { error } = await supabase
+                    .from('users')
+                    .update({
+                        name: formData.name,
+                        role: formData.role,
+                        assignedLocations: formData.assignedLocations,
+                        updatedAt: new Date().toISOString()
+                    })
+                    .eq('id', currentUser.id);
+
+                if (error) throw error;
 
                 // Update local state
                 setUsers(prev => prev.map(u => u.id === currentUser.id ? {
@@ -188,7 +169,7 @@ export default function UsersPage() {
             }
         } catch (error) {
             console.error("Error submitting form:", error);
-            alert("Ralat memproses borang.");
+            alert("Ralat memproses borang: " + error.message);
         } finally {
             setLoading(false);
         }
@@ -198,27 +179,27 @@ export default function UsersPage() {
         if (!confirm(`Adakah anda pasti ingin memadam pengguna "${targetUser.name}"?`)) return;
 
         // Check if admin is trying to delete themselves
-        if (targetUser.id === user.uid) {
+        if (targetUser.id === user.id) {
             alert("Ralat: Anda tidak boleh memadam akaun anda sendiri.");
             return;
         }
 
-        const confirmManualDelete = confirm(
-            `PERHATIAN PENTING:\n\n` +
-            `Tindakan ini hanya akan memadam data pengguna dari pangkalan data aplikasi.\n\n` +
-            `Sila pastikan anda juga MEMADAM akaun ini secara manual dari senarai Firebase Authentication Console untuk menyekat akses login sepenuhnya.\n\n` +
-            `Adakah anda faham dan ingin meneruskan?`
-        );
-
-        if (!confirmManualDelete) return;
+        const confirmFinal = confirm("PERHATIAN: Tindakan ini akan memadam rekod pangkalan data DAN pengguna Auth login. Teruskan?");
+        if (!confirmFinal) return;
 
         try {
-            await deleteDoc(doc(db, 'users', targetUser.id));
+            // Use API Route to delete (Auth + DB)
+            const res = await fetch(`/api/admin/users/${targetUser.id}`, {
+                method: 'DELETE'
+            });
+            const json = await res.json();
+
+            if (!res.ok) throw new Error(json.error || 'Failed to delete user');
 
             // Update local state
             setUsers(prev => prev.filter(u => u.id !== targetUser.id));
 
-            alert(`Pengguna berjaya dipadam.\n\nJangan lupa padam dari Firebase Auth: ${targetUser.email}`);
+            alert(`Pengguna berjaya dipadam.`);
         } catch (error) {
             console.error("Error deleting user:", error);
             alert("Ralat memadam pengguna: " + error.message);
@@ -231,7 +212,7 @@ export default function UsersPage() {
         (u.email || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    if (role !== 'admin') {
+    if (role !== 'admin' && !loading) {
         return (
             <ProtectedRoute>
                 <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -293,7 +274,7 @@ export default function UsersPage() {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {loading ? (
+                                {loading && users.length === 0 ? (
                                     <tr><td colSpan="4" className="px-6 py-4 text-center">Loading...</td></tr>
                                 ) : filteredUsers.length === 0 ? (
                                     <tr><td colSpan="4" className="px-6 py-4 text-center text-gray-500">Tiada pengguna dijumpai.</td></tr>
@@ -411,22 +392,38 @@ export default function UsersPage() {
                                     <select
                                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         value={formData.role}
-                                        onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                                        onChange={(e) => {
+                                            const newRole = e.target.value;
+                                            setFormData(prev => {
+                                                let newLocations = prev.assignedLocations || [];
+                                                if (newRole === 'admin') {
+                                                    // Auto-select 'All' for admin
+                                                    newLocations = ['All'];
+                                                } else {
+                                                    // If switching to editor, remove 'All' if present
+                                                    if (newLocations.includes('All')) {
+                                                        newLocations = [];
+                                                    }
+                                                }
+                                                return { ...prev, role: newRole, assignedLocations: newLocations };
+                                            });
+                                        }}
                                     >
                                         <option value="editor">Editor</option>
                                         <option value="admin">Admin</option>
                                     </select>
-                                    <p className="text-xs text-gray-500 mt-1">Admin boleh akses semua data. Editor hanya akses data lokasi yang ditetapkan.</p>
+                                    <p className="text-xs text-gray-500 mt-1">Admin boleh akses semua data secara automatik.</p>
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">Lokasi Ditugaskan</label>
                                     <div className="bg-gray-50 p-3 rounded-md border border-gray-200 max-h-48 overflow-y-auto grid grid-cols-2 gap-2">
-                                        <label className="flex items-center space-x-2 text-sm font-semibold col-span-2 pb-2 border-b border-gray-200 mb-2">
+                                        <label className={`flex items-center space-x-2 text-sm font-semibold col-span-2 pb-2 border-b border-gray-200 mb-2 ${formData.role === 'editor' ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                             <input
                                                 type="checkbox"
                                                 checked={formData.assignedLocations?.includes('All')}
-                                                onChange={() => handleLocationToggle('All')}
+                                                onChange={() => formData.role !== 'editor' && handleLocationToggle('All')}
+                                                disabled={formData.role === 'editor'}
                                                 className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4"
                                             />
                                             <span>Semua Lokasi (Akses Penuh)</span>

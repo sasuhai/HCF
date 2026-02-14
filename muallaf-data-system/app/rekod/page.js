@@ -6,7 +6,7 @@ import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSubmission, deleteSubmission } from '@/lib/firebase/firestore';
+import { getSubmission, deleteSubmission } from '@/lib/supabase/database';
 import { ArrowLeft, Edit, Trash2, User, Calendar, MapPin, Phone, Mail, Briefcase } from 'lucide-react';
 
 function RekodDetailContent() {

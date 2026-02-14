@@ -7,7 +7,7 @@ import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSubmission, updateSubmission, getLocations } from '@/lib/firebase/firestore';
+import { getSubmission, updateSubmission, getLocations, getStates, getLookupData } from '@/lib/supabase/database';
 import {
     NEGERI_CAWANGAN_OPTIONS,
     KATEGORI_OPTIONS,
@@ -21,14 +21,15 @@ import {
     MUALAF_KATEGORI_ELAUN
 } from '@/lib/constants';
 import { ArrowLeft, Save, CheckCircle, AlertCircle, Upload } from 'lucide-react';
-import { processSubmissionFiles } from '@/lib/firebase/storage';
+import { processSubmissionFiles } from '@/lib/supabase/storage';
 
 function EditRekodContent() {
     const searchParams = useSearchParams();
     const id = searchParams.get('id');
     const router = useRouter();
     const { user, role, profile, loading: authLoading } = useAuth();
-    const { register, handleSubmit, reset, formState: { errors } } = useForm();
+    const { register, handleSubmit, reset, watch, formState: { errors } } = useForm();
+    const selectedNegeri = watch('negeriCawangan');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [success, setSuccess] = useState(false);
@@ -36,19 +37,39 @@ function EditRekodContent() {
     const [uploadProgress, setUploadProgress] = useState(0);
     const [uploadingFile, setUploadingFile] = useState('');
     const [locations, setLocations] = useState([]);
+    const [states, setStates] = useState([]);
+    const [races, setRaces] = useState([]);
+    const [religions, setReligions] = useState([]);
+    const [banks, setBanks] = useState([]);
 
     useEffect(() => {
         if (authLoading) return;
 
-        getLocations().then(({ data }) => {
+        getLookupData('locations').then(({ data }) => {
             if (data) {
                 // Filter locations based on access
                 const isRestricted = role !== 'admin' && !profile?.assignedLocations?.includes('All');
                 const allowed = isRestricted
-                    ? data.filter(l => profile?.assignedLocations?.includes(l))
+                    ? data.filter(l => profile?.assignedLocations?.includes(l.name))
                     : data;
                 setLocations(allowed);
             }
+        });
+
+        getStates().then(({ data }) => {
+            if (data) setStates(data.map(s => s.name));
+        });
+
+        getLookupData('races').then(({ data }) => {
+            if (data) setRaces(data.map(r => r.name));
+        });
+
+        getLookupData('religions').then(({ data }) => {
+            if (data) setReligions(data.map(r => r.name));
+        });
+
+        getLookupData('banks').then(({ data }) => {
+            if (data) setBanks(data.map(b => b.name));
         });
     }, [role, profile, authLoading]);
 
@@ -133,7 +154,7 @@ function EditRekodContent() {
 
             // Update submission
             setUploadingFile('Menyimpan data...');
-            const { error: updateError } = await updateSubmission(id, updateData, user.uid);
+            const { error: updateError } = await updateSubmission(id, updateData, user.id);
 
             if (updateError) {
                 throw new Error(updateError);
@@ -271,7 +292,7 @@ function EditRekodContent() {
                                         className="form-input"
                                     >
                                         <option value="">Pilih negeri/cawangan</option>
-                                        {NEGERI_CAWANGAN_OPTIONS.map(option => (
+                                        {(states.length > 0 ? states : NEGERI_CAWANGAN_OPTIONS).map(option => (
                                             <option key={option} value={option}>{option}</option>
                                         ))}
                                     </select>
@@ -289,9 +310,11 @@ function EditRekodContent() {
                                         className="form-input"
                                     >
                                         <option value="">Pilih Lokasi</option>
-                                        {locations.map(loc => (
-                                            <option key={loc} value={loc}>{loc}</option>
-                                        ))}
+                                        {locations
+                                            .filter(loc => !selectedNegeri || !loc.state_name || loc.state_name === selectedNegeri)
+                                            .map(loc => (
+                                                <option key={loc.id || loc.name} value={loc.name}>{loc.name}</option>
+                                            ))}
                                     </select>
                                     <p className="text-xs text-gray-500 mt-1">Pilih lokasi jika berkaitan</p>
                                 </div>
@@ -366,7 +389,7 @@ function EditRekodContent() {
                                         <label className="form-label">Bangsa <span className="text-red-500">*</span></label>
                                         <select {...register('bangsa', { required: 'Wajib dipilih' })} className="form-input">
                                             <option value="">Pilih bangsa</option>
-                                            {BANGSA_OPTIONS.map(option => (
+                                            {(races.length > 0 ? races : BANGSA_OPTIONS).map(option => (
                                                 <option key={option} value={option}>{option}</option>
                                             ))}
                                         </select>
@@ -376,7 +399,7 @@ function EditRekodContent() {
                                         <label className="form-label">Agama Asal <span className="text-red-500">*</span></label>
                                         <select {...register('agamaAsal', { required: 'Wajib dipilih' })} className="form-input">
                                             <option value="">Pilih agama asal</option>
-                                            {AGAMA_ASAL_OPTIONS.map(option => (
+                                            {(religions.length > 0 ? religions : AGAMA_ASAL_OPTIONS).map(option => (
                                                 <option key={option} value={option}>{option}</option>
                                             ))}
                                         </select>
@@ -425,7 +448,7 @@ function EditRekodContent() {
                                     <label className="form-label">Negeri Pengislaman <span className="text-red-500">*</span></label>
                                     <select {...register('negeriPengislaman', { required: 'Wajib dipilih' })} className="form-input">
                                         <option value="">Pilih negeri</option>
-                                        {NEGERI_PENGISLAMAN_OPTIONS.map(option => (
+                                        {(states.length > 0 ? states.filter(s => !s.includes(' - ')) : NEGERI_PENGISLAMAN_OPTIONS).map(option => (
                                             <option key={option} value={option}>{option}</option>
                                         ))}
                                     </select>
@@ -490,7 +513,7 @@ function EditRekodContent() {
                                         className="form-input"
                                     >
                                         <option value="">Pilih bank</option>
-                                        {BANK_OPTIONS.map(option => (
+                                        {(banks.length > 0 ? banks : BANK_OPTIONS).map(option => (
                                             <option key={option} value={option}>{option}</option>
                                         ))}
                                     </select>
