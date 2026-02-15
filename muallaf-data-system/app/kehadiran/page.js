@@ -866,7 +866,7 @@ function AttendancePageContent() {
                                     <div key={w.id} className="p-3 border-b hover:bg-gray-50 flex justify-between items-center">
                                         <div>
                                             <div className="font-medium text-sm">{w.nama}</div>
-                                            <div className="text-xs text-gray-500">{w.peranan} • {w.lokasi}</div>
+                                            <div className="text-xs text-gray-500">{w.noKP || '-'} • {w.peranan} • {w.lokasi}</div>
                                         </div>
                                         <button
                                             onClick={() => handleAddWorker(w)}
@@ -905,8 +905,8 @@ function AttendancePageContent() {
                                 {filteredStudents.map(s => (
                                     <div key={s.id} className="p-3 border-b hover:bg-gray-50 flex justify-between items-center">
                                         <div>
-                                            <div className="font-medium text-sm">{s.namaAsal || s.namaIslam}</div>
-                                            <div className="text-xs text-gray-500">{s.noKP}</div>
+                                            <div className="font-medium text-sm">{s.namaIslam || s.namaAsal}</div>
+                                            <div className="text-xs text-gray-500">{s.noKP} • {s.lokasi || 'Tiada Lokasi'} • {s.kategoriElaun || 'Tiada Elaun'}</div>
                                         </div>
                                         <button
                                             onClick={() => handleAddStudent(s)}
