@@ -228,84 +228,94 @@ export default function RatesPage() {
                         </div>
                     </div>
 
-                    {/* Rates Table */}
+                    {/* Rates Display */}
                     {loading ? (
                         <div className="text-center py-10">Loading...</div>
-                    ) : filteredRates.length === 0 ? (
-                        <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-                            {rates.length === 0
-                                ? 'Tiada kadar elaun. Klik "Mula dengan Default" untuk memulakan.'
-                                : 'Tiada kadar elaun untuk kategori yang dipilih.'
-                            }
-                        </div>
                     ) : (
-                        <div className="bg-white rounded-lg shadow overflow-hidden">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Bil
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Kategori
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Jenis
-                                        </th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Jumlah Elaun
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Jenis Pembayaran
-                                        </th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Tindakan
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {filteredRates.map((rate, index) => (
-                                        <tr key={rate.id} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {index + 1}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="font-medium text-gray-900">{rate.kategori}</span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${rate.jenis === 'mualaf'
-                                                    ? 'bg-purple-100 text-purple-800'
-                                                    : 'bg-blue-100 text-blue-800'
-                                                    }`}>
-                                                    {rate.jenis === 'mualaf' ? 'Mualaf' : 'Petugas'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right">
-                                                <span className="text-lg font-bold text-emerald-600">
-                                                    RM {rate.jumlahElaun.toFixed(2)}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                                {rate.jenisPembayaran}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <button
-                                                    onClick={() => openModal(rate)}
-                                                    className="text-emerald-600 hover:text-emerald-900 mr-3"
-                                                >
-                                                    <Edit2 className="h-4 w-4 inline" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(rate.id)}
-                                                    className="text-red-600 hover:text-red-900"
-                                                >
-                                                    <Trash2 className="h-4 w-4 inline" />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                        <div className={`grid grid-cols-1 ${filterType === 'all' ? 'lg:grid-cols-2' : ''} gap-6`}>
+                            {/* Petugas Table */}
+                            {(filterType === 'all' || filterType === 'petugas') && (
+                                <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
+                                    <div className="bg-blue-50 px-4 py-2 border-b border-blue-100 flex justify-between items-center">
+                                        <h3 className="font-bold text-blue-800 text-sm">Kadar Elaun Petugas</h3>
+                                        <span className="bg-blue-200 text-blue-800 text-[10px] px-2 py-0.5 rounded-full font-bold">{petugasRates.length}</span>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full divide-y divide-gray-200">
+                                            <thead className="bg-gray-50">
+                                                <tr>
+                                                    <th className="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Kategori</th>
+                                                    <th className="px-3 py-2 text-right text-[10px] font-bold text-gray-500 uppercase">RM</th>
+                                                    <th className="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Per</th>
+                                                    <th className="px-3 py-2 text-center text-[10px] font-bold text-gray-500 uppercase">Tindakan</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-white divide-y divide-gray-200">
+                                                {petugasRates.map((rate) => (
+                                                    <tr key={rate.id} className="hover:bg-blue-50/50 transition-colors">
+                                                        <td className="px-3 py-1.5 whitespace-nowrap text-xs font-semibold text-gray-900">{rate.kategori}</td>
+                                                        <td className="px-3 py-1.5 whitespace-nowrap text-right text-xs font-bold text-emerald-600">
+                                                            {rate.jumlahElaun.toFixed(2)}
+                                                        </td>
+                                                        <td className="px-3 py-1.5 whitespace-nowrap text-[10px] text-gray-500">{rate.jenisPembayaran.replace('bayaran/', '')}</td>
+                                                        <td className="px-3 py-1.5 whitespace-nowrap text-center text-xs">
+                                                            <div className="flex justify-center space-x-2">
+                                                                <button onClick={() => openModal(rate)} className="text-gray-400 hover:text-blue-600 transition-colors"><Edit2 className="h-3 w-3" /></button>
+                                                                <button onClick={() => handleDelete(rate.id)} className="text-gray-400 hover:text-red-600 transition-colors"><Trash2 className="h-3 w-3" /></button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {petugasRates.length === 0 && (
+                                                    <tr><td colSpan="4" className="text-center py-4 text-xs text-gray-400">Tiada rekod</td></tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Mualaf Table */}
+                            {(filterType === 'all' || filterType === 'mualaf') && (
+                                <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
+                                    <div className="bg-purple-50 px-4 py-2 border-b border-purple-100 flex justify-between items-center">
+                                        <h3 className="font-bold text-purple-800 text-sm">Kadar Elaun Mualaf</h3>
+                                        <span className="bg-purple-200 text-purple-800 text-[10px] px-2 py-0.5 rounded-full font-bold">{mualaafRates.length}</span>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full divide-y divide-gray-200">
+                                            <thead className="bg-gray-50">
+                                                <tr>
+                                                    <th className="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Kategori</th>
+                                                    <th className="px-3 py-2 text-right text-[10px] font-bold text-gray-500 uppercase">RM</th>
+                                                    <th className="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Per</th>
+                                                    <th className="px-3 py-2 text-center text-[10px] font-bold text-gray-500 uppercase">Tindakan</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-white divide-y divide-gray-200">
+                                                {mualaafRates.map((rate) => (
+                                                    <tr key={rate.id} className="hover:bg-purple-50/50 transition-colors">
+                                                        <td className="px-3 py-1.5 whitespace-nowrap text-xs font-semibold text-gray-900">{rate.kategori}</td>
+                                                        <td className="px-3 py-1.5 whitespace-nowrap text-right text-xs font-bold text-emerald-600">
+                                                            {rate.jumlahElaun.toFixed(2)}
+                                                        </td>
+                                                        <td className="px-3 py-1.5 whitespace-nowrap text-[10px] text-gray-500">{rate.jenisPembayaran.replace('bayaran/', '')}</td>
+                                                        <td className="px-3 py-1.5 whitespace-nowrap text-center text-xs">
+                                                            <div className="flex justify-center space-x-2">
+                                                                <button onClick={() => openModal(rate)} className="text-gray-400 hover:text-blue-600 transition-colors"><Edit2 className="h-3 w-3" /></button>
+                                                                <button onClick={() => handleDelete(rate.id)} className="text-gray-400 hover:text-red-600 transition-colors"><Trash2 className="h-3 w-3" /></button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {mualaafRates.length === 0 && (
+                                                    <tr><td colSpan="4" className="text-center py-4 text-xs text-gray-400">Tiada rekod</td></tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

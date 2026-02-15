@@ -6,8 +6,26 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSubmissions, deleteSubmission } from '@/lib/supabase/database';
-import { Search, Eye, Edit, Trash2, Download, Filter, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
-import { format } from 'date-fns';
+import { Search, Eye, Edit, Trash2, Download, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+
+// Helper component for filter inputs - Moved outside to prevent re-renders
+const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
+    <div className="relative">
+        <input
+            type="text"
+            list={listId}
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value)}
+            className="block w-full bg-white text-[10px] border-gray-300 rounded-md shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-0.5 px-1"
+            placeholder={placeholder || "Cari..."}
+        />
+        <datalist id={listId}>
+            {options.map(val => (
+                <option key={val} value={val} />
+            ))}
+        </datalist>
+    </div>
+);
 
 export default function SenaraiPage() {
     const [submissions, setSubmissions] = useState([]);
@@ -16,7 +34,7 @@ export default function SenaraiPage() {
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
     const [currentPage, setCurrentPage] = useState(1);
     const { role, profile, loading: authLoading } = useAuth();
-    const itemsPerPage = 20; // Increased to show more data per page since we are compacting
+    const itemsPerPage = 20;
 
     useEffect(() => {
         if (!authLoading) {
@@ -57,7 +75,7 @@ export default function SenaraiPage() {
             return Object.entries(columnFilters).every(([key, value]) => {
                 if (key === field) return true; // Ignore current field's filter
                 if (!value) return true;
-                return sub[key]?.toString().toLowerCase() === value.toLowerCase();
+                return sub[key]?.toString().toLowerCase().includes(value.toLowerCase());
             });
         });
 
@@ -101,7 +119,8 @@ export default function SenaraiPage() {
     const filteredSubmissions = submissions.filter(submission => {
         return Object.entries(columnFilters).every(([field, value]) => {
             if (!value) return true;
-            return submission[field]?.toString().toLowerCase() === value.toLowerCase();
+            // Changed strict equality to includes for search functionalities
+            return submission[field]?.toString().toLowerCase().includes(value.toLowerCase());
         });
     }).sort((a, b) => {
         if (!sortConfig.key) return 0;
@@ -130,7 +149,7 @@ export default function SenaraiPage() {
             'Bangsa',
             'Tarikh Pengislaman',
             'Negeri',
-            'Lokasi' // Add Header to CSV
+            'Lokasi'
         ];
 
         const csvContent = [
@@ -142,6 +161,7 @@ export default function SenaraiPage() {
                 sub.noKP,
                 sub.kategori,
                 sub.kategoriElaun || '',
+                sub.namaIslam || '',
                 sub.jantina,
                 sub.bangsa,
                 sub.tarikhPengislaman,
@@ -163,6 +183,50 @@ export default function SenaraiPage() {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const paginatedSubmissions = filteredSubmissions.slice(startIndex, startIndex + itemsPerPage);
 
+    // Statistics Calculation
+    const categoryCounts = filteredSubmissions.reduce((acc, curr) => {
+        const cat = curr.kategori || 'Tiada Kategori';
+        acc[cat] = (acc[cat] || 0) + 1;
+        return acc;
+    }, {});
+
+    const allowanceCounts = filteredSubmissions.reduce((acc, curr) => {
+        const allow = curr.kategoriElaun || 'Tiada Elaun';
+        acc[allow] = (acc[allow] || 0) + 1;
+        return acc;
+    }, {});
+
+    // Helper for category badge colors
+    const getCategoryColorParams = (cat) => {
+        if (cat === 'Pengislaman') return { bg: 'bg-green-100', text: 'text-green-700' };
+        if (cat === 'Sokongan') return { bg: 'bg-blue-100', text: 'text-blue-700' };
+        if (cat === 'Non-Muslim') return { bg: 'bg-purple-100', text: 'text-purple-700' };
+        return { bg: 'bg-orange-100', text: 'text-orange-700' };
+    };
+
+    // Helper for consistent badge colors with max differentiation for few items
+    const getAllowanceColorParams = (type) => {
+        if (!type || type === 'Tiada Elaun') return { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-200' };
+
+        // High contrast palette for maximum differentiation
+        const colors = [
+            { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' },      // Distinct Blue
+            { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200' },        // Distinct Red
+            { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200' }, // Distinct Green
+            { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' }, // Distinct Purple
+            { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },   // Distinct Orange/Yellow
+            { bg: 'bg-pink-100', text: 'text-pink-700', border: 'border-pink-200' },      // Distinct Pink
+        ];
+
+        let hash = 0;
+        for (let i = 0; i < type.length; i++) {
+            hash = type.charCodeAt(i) + ((hash << 5) - hash);
+        }
+
+        const index = Math.abs(hash) % colors.length;
+        return colors[index];
+    };
+
     return (
         <ProtectedRoute>
             <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
@@ -170,14 +234,49 @@ export default function SenaraiPage() {
 
                 <div className="w-full mx-auto px-2 sm:px-4 py-4">
                     {/* Header */}
-                    <div className="mb-2">
-                        <h1 className="text-2xl font-bold text-gray-900 mb-1">Senarai Rekod</h1>
+                    <div className="mb-4">
+                        <h1 className="text-2xl font-bold text-gray-900 mb-2">Senarai Rekod</h1>
+
+                        {/* Statistics Badges */}
+                        <div className="flex flex-col md:flex-row gap-4 mb-4">
+                            {/* Kategori Stats */}
+                            <div className="bg-white p-3 rounded-xl shadow-sm border border-emerald-100 flex-1">
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Ringkasan Kategori <span className="text-emerald-600">({filteredSubmissions.length})</span></h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {Object.entries(categoryCounts).sort((a, b) => a[0].localeCompare(b[0])).map(([cat, count]) => {
+                                        const colors = getCategoryColorParams(cat);
+                                        return (
+                                            <div key={cat} className="flex items-center bg-gray-50 border border-gray-100 rounded-lg px-2 py-1">
+                                                <span className="text-xs font-medium text-gray-600 mr-2">{cat}</span>
+                                                <span className={`${colors.bg} ${colors.text} text-xs font-bold px-1.5 py-0.5 rounded-md min-w-[24px] text-center`}>{count}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Kategori Elaun Stats */}
+                            <div className="bg-white p-3 rounded-xl shadow-sm border border-blue-100 flex-1">
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Ringkasan Kategori Elaun <span className="text-blue-600">({filteredSubmissions.filter(s => s.kategoriElaun).length})</span></h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {Object.entries(allowanceCounts).sort((a, b) => a[0].localeCompare(b[0])).map(([cat, count]) => {
+                                        const colors = getAllowanceColorParams(cat);
+                                        return (
+                                            <div key={cat} className="flex items-center bg-gray-50 border border-gray-100 rounded-lg px-2 py-1">
+                                                <span className="text-xs font-medium text-gray-600 mr-2">{cat}</span>
+                                                <span className={`${colors.bg} ${colors.text} text-xs font-bold px-1.5 py-0.5 rounded-md min-w-[24px] text-center`}>{count}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+
                         <p className="text-gray-600 text-xs">
                             Jumlah {filteredSubmissions.length} rekod dijumpai
                         </p>
                     </div>
 
-                    {/* Actions */}
                     {/* Actions */}
                     <div className="flex justify-between items-center mb-2">
                         <div>
@@ -217,9 +316,9 @@ export default function SenaraiPage() {
                             <div className="overflow-x-auto">
                                 <table className="w-full text-xs border-collapse">
                                     <thead>
-                                        <tr className="border-b-2 border-gray-300 bg-gray-50">
+                                        <tr className="border-b-2 border-emerald-500 bg-emerald-100">
                                             {/* Frozen columns with solid backgrounds */}
-                                            <th className="sticky left-0 z-20 bg-gray-50 text-left py-1 px-2 font-semibold text-gray-700 border-r-2 border-gray-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[90px] align-top">
+                                            <th className="sticky left-0 z-20 bg-emerald-200 text-left py-1 px-2 font-semibold text-gray-700 shadow-[1px_0_0_0_#10b981] min-w-[90px] align-top">
                                                 <div
                                                     className="flex items-center cursor-pointer mb-1 group"
                                                     onClick={() => handleSort('noStaf')}
@@ -231,18 +330,15 @@ export default function SenaraiPage() {
                                                         <ArrowUpDown className="h-3 w-3 ml-1 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                                                     )}
                                                 </div>
-                                                <select
-                                                    value={columnFilters['noStaf'] || ''}
-                                                    onChange={(e) => handleFilterChange('noStaf', e.target.value)}
-                                                    className="block w-full text-[10px] border-gray-300 rounded-md shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-0.5"
-                                                >
-                                                    <option value="">Semua</option>
-                                                    {getUniqueValues('noStaf').map(val => (
-                                                        <option key={val} value={val}>{val}</option>
-                                                    ))}
-                                                </select>
+                                                <FilterInput
+                                                    value={columnFilters['noStaf']}
+                                                    onChange={(val) => handleFilterChange('noStaf', val)}
+                                                    options={getUniqueValues('noStaf')}
+                                                    listId="list-noStaf"
+                                                    placeholder="No Staf"
+                                                />
                                             </th>
-                                            <th className="sticky left-[90px] z-20 bg-gray-50 text-left py-1 px-2 font-semibold text-gray-700 border-r-2 border-gray-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[140px] align-top">
+                                            <th className="sticky left-[90px] z-20 bg-emerald-200 text-left py-1 px-2 font-semibold text-gray-700 shadow-[1px_0_0_0_#10b981] min-w-[140px] align-top">
                                                 <div
                                                     className="flex items-center cursor-pointer mb-1 group"
                                                     onClick={() => handleSort('namaAsal')}
@@ -254,18 +350,15 @@ export default function SenaraiPage() {
                                                         <ArrowUpDown className="h-3 w-3 ml-1 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                                                     )}
                                                 </div>
-                                                <select
-                                                    value={columnFilters['namaAsal'] || ''}
-                                                    onChange={(e) => handleFilterChange('namaAsal', e.target.value)}
-                                                    className="block w-full text-[10px] border-gray-300 rounded-md shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-0.5"
-                                                >
-                                                    <option value="">Semua</option>
-                                                    {getUniqueValues('namaAsal').map(val => (
-                                                        <option key={val} value={val}>{val}</option>
-                                                    ))}
-                                                </select>
+                                                <FilterInput
+                                                    value={columnFilters['namaAsal']}
+                                                    onChange={(val) => handleFilterChange('namaAsal', val)}
+                                                    options={getUniqueValues('namaAsal')}
+                                                    listId="list-namaAsal"
+                                                    placeholder="Cari Nama"
+                                                />
                                             </th>
-                                            <th className="sticky left-[230px] z-20 bg-gray-50 text-left py-1 px-2 font-semibold text-gray-700 border-r-2 border-gray-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px] align-top">
+                                            <th className="sticky left-[230px] z-20 bg-emerald-200 text-left py-1 px-2 font-semibold text-gray-700 shadow-[1px_0_0_0_#10b981] min-w-[100px] align-top">
                                                 <div className="mb-1">Tindakan</div>
                                             </th>
 
@@ -273,8 +366,9 @@ export default function SenaraiPage() {
                                             {/* Helper function logic inlined for clarity in replacement */}
                                             {[
                                                 { id: 'negeriCawangan', label: 'Negeri/Cawangan', width: 'min-w-[120px]' },
-                                                { id: 'lokasi', label: 'Lokasi', width: 'min-w-[120px]' }, // Add Header
+                                                { id: 'lokasi', label: 'Lokasi', width: 'min-w-[120px]' },
                                                 { id: 'kategori', label: 'Kategori', width: 'min-w-[110px]' },
+                                                { id: 'kategoriElaun', label: 'Kategori Elaun', width: 'min-w-[120px]' },
                                                 { id: 'namaIslam', label: 'Nama Islam', width: 'min-w-[120px]' },
                                                 { id: 'noKP', label: 'No KP', width: 'min-w-[130px]' },
                                                 { id: 'jantina', label: 'Jantina', width: 'min-w-[80px]' },
@@ -295,10 +389,9 @@ export default function SenaraiPage() {
                                                 { id: 'bank', label: 'Bank', width: 'min-w-[120px]' },
                                                 { id: 'noAkaun', label: 'No Akaun', width: 'min-w-[130px]' },
                                                 { id: 'namaDiBank', label: 'Nama di Bank', width: 'min-w-[140px]' },
-                                                { id: 'kategoriElaun', label: 'Kategori Elaun', width: 'min-w-[120px]' },
                                                 { id: 'catatan', label: 'Catatan', width: 'min-w-[200px]' },
                                             ].map((col) => (
-                                                <th key={col.id} className={`text-left py-1 px-2 font-semibold text-gray-700 bg-gray-50 border-r border-gray-200 ${col.width} align-top`}>
+                                                <th key={col.id} className={`text-left py-1 px-2 font-semibold text-gray-700 bg-emerald-100 border-r border-gray-200 ${col.width} align-top`}>
                                                     <div
                                                         className="flex items-center cursor-pointer mb-1 group"
                                                         onClick={() => handleSort(col.id)}
@@ -310,16 +403,13 @@ export default function SenaraiPage() {
                                                             <ArrowUpDown className="h-3 w-3 ml-1 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                                                         )}
                                                     </div>
-                                                    <select
-                                                        value={columnFilters[col.id] || ''}
-                                                        onChange={(e) => handleFilterChange(col.id, e.target.value)}
-                                                        className="block w-full text-[10px] border-gray-300 rounded-md shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-0.5"
-                                                    >
-                                                        <option value="">Semua</option>
-                                                        {getUniqueValues(col.id).map(val => (
-                                                            <option key={val} value={val}>{val}</option>
-                                                        ))}
-                                                    </select>
+                                                    <FilterInput
+                                                        value={columnFilters[col.id]}
+                                                        onChange={(val) => handleFilterChange(col.id, val)}
+                                                        options={getUniqueValues(col.id)}
+                                                        listId={`list-${col.id}`}
+                                                        placeholder="Cari..."
+                                                    />
                                                 </th>
                                             ))}
                                         </tr>
@@ -328,14 +418,14 @@ export default function SenaraiPage() {
                                         {paginatedSubmissions.map((submission, idx) => (
                                             <tr key={submission.id} className="border-b border-gray-200 hover:bg-emerald-50 transition-colors">
                                                 {/* Frozen columns with solid white backgrounds */}
-                                                <td className="sticky left-0 z-10 bg-white py-1 px-2 border-r-2 border-gray-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[90px]">
+                                                <td className="sticky left-0 z-10 bg-emerald-50 py-1 px-2 shadow-[1px_0_0_0_#10b981] min-w-[90px]">
                                                     <span className="font-semibold text-gray-900">{submission.noStaf}</span>
                                                 </td>
-                                                <td className="sticky left-[90px] z-10 bg-white py-1 px-2 border-r-2 border-gray-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[140px]">
+                                                <td className="sticky left-[90px] z-10 bg-emerald-50 py-1 px-2 shadow-[1px_0_0_0_#10b981] min-w-[140px]">
                                                     <div className="font-medium text-gray-900">{submission.namaAsal}</div>
                                                     <div className="text-[10px] text-gray-500">{submission.noKP}</div>
                                                 </td>
-                                                <td className="sticky left-[230px] z-10 bg-white py-1 px-2 border-r-2 border-gray-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px]">
+                                                <td className="sticky left-[230px] z-10 bg-emerald-50 py-1 px-2 shadow-[1px_0_0_0_#10b981] min-w-[100px]">
                                                     <div className="flex items-center justify-start gap-1">
                                                         <Link href={`/rekod?id=${submission.id}`}>
                                                             <button className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors" title="Lihat">
@@ -371,6 +461,16 @@ export default function SenaraiPage() {
                                                         {submission.kategori}
                                                     </span>
                                                 </td>
+                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">
+                                                    {submission.kategoriElaun ? (
+                                                        <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap border ${(() => {
+                                                            const c = getAllowanceColorParams(submission.kategoriElaun);
+                                                            return `${c.bg} ${c.text} ${c.border}`;
+                                                        })()}`}>
+                                                            {submission.kategoriElaun}
+                                                        </span>
+                                                    ) : '-'}
+                                                </td>
                                                 <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">{submission.namaIslam || '-'}</td>
                                                 <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[130px]">{submission.noKP || '-'}</td>
                                                 <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[80px]">{submission.jantina || '-'}</td>
@@ -397,13 +497,6 @@ export default function SenaraiPage() {
                                                 <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">{submission.bank || '-'}</td>
                                                 <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[130px]">{submission.noAkaun || '-'}</td>
                                                 <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">{submission.namaDiBank || '-'}</td>
-                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">
-                                                    {submission.kategoriElaun ? (
-                                                        <span className="inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap bg-yellow-100 text-yellow-800">
-                                                            {submission.kategoriElaun}
-                                                        </span>
-                                                    ) : '-'}
-                                                </td>
                                                 <td className="py-1 px-2 bg-white min-w-[200px]">
                                                     <div className="max-w-[200px] truncate" title={submission.catatan}>{submission.catatan || '-'}</div>
                                                 </td>

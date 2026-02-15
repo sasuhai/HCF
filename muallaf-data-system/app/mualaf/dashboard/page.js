@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import { getRateCategories } from '@/lib/supabase/database';
@@ -13,6 +14,8 @@ import {
 import BorangF2 from '@/components/BorangF2';
 
 export default function AttendanceDashboard() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const { user, role, profile, loading: authLoading } = useAuth();
 
     // UI State
@@ -69,6 +72,24 @@ export default function AttendanceDashboard() {
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, []);
+
+    // Handle URL Params
+    useEffect(() => {
+        if (!searchParams) return;
+
+        const tab = searchParams.get('tab');
+        const year = searchParams.get('year');
+        const month = searchParams.get('month');
+        const location = searchParams.get('location');
+        const negeri = searchParams.get('negeri');
+
+        if (tab) setActiveTab(tab);
+        if (year) setSelectedYear(year);
+        if (month) setSelectedMonth(month);
+        if (location) setSelectedLocation(location);
+        if (negeri) setSelectedNegeri(negeri);
+
+    }, [searchParams]);
 
 
     // 1. Initial Data Load & Refetch on Year Change
@@ -330,7 +351,7 @@ export default function AttendanceDashboard() {
             aggregatedData[key].participants.push(...recordParticipants);
         });
 
-        const rows = Object.values(aggregatedData);
+        const rows = Object.values(aggregatedData).filter(r => r.bilPetugas > 0 || r.bilPelajar > 0);
 
         let totalClasses = 0;
         let totalWorkers = 0;
@@ -611,6 +632,19 @@ export default function AttendanceDashboard() {
         setShowPrintView(true);
     };
 
+    // Auto-Print Trigger
+    const [autoPrintTriggered, setAutoPrintTriggered] = useState(false);
+
+    useEffect(() => {
+        if (!searchParams) return;
+        const view = searchParams.get('view');
+
+        if (view === 'print' && !loading && tableData.length > 0 && !autoPrintTriggered) {
+            handlePrintReport();
+            setAutoPrintTriggered(true);
+        }
+    }, [searchParams, loading, tableData, autoPrintTriggered]);
+
     // --- PRINT VIEW OVERLAY ---
     if (showPrintView) {
         return (
@@ -636,7 +670,27 @@ export default function AttendanceDashboard() {
                             <Printer className="mr-2 h-5 w-5" /> Cetak Laporan
                         </button>
                         <button
-                            onClick={() => setShowPrintView(false)}
+                            onClick={() => {
+                                if (autoPrintTriggered) {
+                                    const loc = searchParams.get('location');
+                                    const month = searchParams.get('month'); // Expecting just number? No, month in dashboard is number "1", "2". Attendance expects "YYYY-MM"
+                                    const year = searchParams.get('year');
+                                    const classId = searchParams.get('classId');
+
+                                    // Reconstruct YYYY-MM for attendance page
+                                    const monthStr = month ? `${month}`.padStart(2, '0') : '';
+                                    const fullMonth = year && monthStr ? `${year}-${monthStr}` : '';
+
+                                    const query = new URLSearchParams();
+                                    if (loc) query.set('location', loc);
+                                    if (fullMonth) query.set('month', fullMonth);
+                                    if (classId) query.set('classId', classId);
+
+                                    router.push(`/kehadiran?${query.toString()}`);
+                                } else {
+                                    setShowPrintView(false);
+                                }
+                            }}
                             className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-6 py-2.5 rounded-xl font-bold flex items-center transition-all active:scale-95"
                         >
                             <X className="mr-2 h-5 w-5 text-slate-400" /> Kembali

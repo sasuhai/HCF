@@ -4,26 +4,47 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
-import { getStates, getLocations, getLookupData } from '@/lib/supabase/database';
+import { getStates, getLocationsTable, getLookupData } from '@/lib/supabase/database';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { Search, Plus, Edit2, Trash2, User, X, MapPin } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, User, X, MapPin, Download, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { PETUGAS_KATEGORI_ELAUN, NEGERI_CAWANGAN_OPTIONS, BANK_OPTIONS } from '@/lib/constants';
 
+// Helper component for filter inputs
+const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
+    <div className="relative">
+        <input
+            type="text"
+            list={listId}
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value)}
+            className="block w-full bg-white text-[10px] border-gray-300 rounded-md shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-0.5 px-1"
+            placeholder={placeholder || "Cari..."}
+        />
+        <datalist id={listId}>
+            {options.map(val => (
+                <option key={val} value={val} />
+            ))}
+        </datalist>
+    </div>
+);
+
 export default function WorkersPage() {
-    const { user, role, profile, loading: authLoading } = useAuth(); // Profile contains assignedLocations
+    const { user, role, profile, loading: authLoading } = useAuth();
     const router = useRouter();
 
     // Data State
     const [workers, setWorkers] = useState([]);
-    const [locations, setLocations] = useState([]); // Unique locations from classes
+    const [locations, setLocations] = useState([]); // Stores full objects: {id, name, state_name}
     const [states, setStates] = useState([]);
     const [banks, setBanks] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Filter State
-    const [selectedLocation, setSelectedLocation] = useState('');
-    const [searchTerm, setSearchTerm] = useState('');
+    // Filter & Sort State
+    const [columnFilters, setColumnFilters] = useState({});
+    const [sortConfig, setSortConfig] = useState({ key: 'nama', direction: 'asc' });
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 20;
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -34,28 +55,27 @@ export default function WorkersPage() {
         bank: '',
         noAkaun: '',
         peranan: 'Sukarelawan',
-        lokasi: '', // New Field
-        negeri: '', // New Field: Negeri
-        kategoriElaun: '' // Kategori for allowance rates
+        lokasi: '',
+        negeri: '',
+        kategoriElaun: ''
     });
 
-    // Fetch Locations
+    // Fetch Reference Data
     useEffect(() => {
-        if (authLoading) return;
-
-        const fetchLocs = async () => {
-            const { data } = await getLocations();
-            if (data) setLocations(data);
-        };
-        fetchLocs();
+        if (!authLoading) {
+            fetchLocations();
+            fetchStates();
+            fetchBanks();
+            fetchWorkers();
+        }
     }, [authLoading]);
 
-    // Fetch workers and states
-    useEffect(() => {
-        fetchWorkers();
-        fetchStates();
-        fetchBanks();
-    }, []);
+    const fetchLocations = async () => {
+        // Use getLocationsTable to get full metadata (name, state_name)
+        // If getLocationsTable is not available, we can fallback or ensure it is imported
+        const { data } = await getLocationsTable();
+        if (data) setLocations(data);
+    };
 
     const fetchBanks = async () => {
         const { data } = await getLookupData('banks');
@@ -74,24 +94,32 @@ export default function WorkersPage() {
             .select('*')
             .order('nama');
 
-        if (error) {
-            console.error("Error fetching workers:", error);
-            // alert("Ralat memuatkan data pekerja: " + error.message);
-        } else {
-            setWorkers(data || []);
+        if (!error && data) {
+            // Apply permission filtering immediately
+            if (role !== 'admin' && profile?.assignedLocations && !profile.assignedLocations.includes('All')) {
+                const allowedData = data.filter(w => profile.assignedLocations.includes(w.lokasi));
+                setWorkers(allowedData);
+            } else {
+                setWorkers(data);
+            }
         }
         setLoading(false);
     };
 
-    // Derived: Available Locations for Current User
-    const availableLocations = (role === 'admin' || profile?.assignedLocations?.includes('All'))
+    // Derived: Available Locations Logic
+    // 1. Filter by User Permissions
+    const permittedLocations = (role === 'admin' || profile?.assignedLocations?.includes('All'))
         ? locations
-        : locations.filter(l => profile?.assignedLocations?.includes(l));
+        : locations.filter(l => profile?.assignedLocations?.includes(l.name));
+
+    // 2. Filter by Selected State (in Modal)
+    const modalLocations = formData.negeri
+        ? permittedLocations.filter(l => l.state_name === formData.negeri)
+        : permittedLocations;
 
     // Handle Form Submit
     const handleSubmit = async (e) => {
         e.preventDefault();
-
         try {
             if (currentWorker) {
                 const { error } = await supabase
@@ -102,7 +130,6 @@ export default function WorkersPage() {
                         updatedBy: user.id
                     })
                     .eq('id', currentWorker.id);
-
                 if (error) throw error;
             } else {
                 const { error } = await supabase
@@ -112,7 +139,6 @@ export default function WorkersPage() {
                         createdAt: new Date().toISOString(),
                         createdBy: user.id
                     });
-
                 if (error) throw error;
             }
             setIsModalOpen(false);
@@ -126,11 +152,7 @@ export default function WorkersPage() {
 
     const handleDelete = async (id) => {
         if (confirm("Adakah anda pasti mahu memadam pekerja ini?")) {
-            const { error } = await supabase
-                .from('workers')
-                .delete()
-                .eq('id', id);
-
+            const { error } = await supabase.from('workers').delete().eq('id', id);
             if (error) {
                 alert("Ralat memadam pekerja: " + error.message);
             } else {
@@ -148,17 +170,13 @@ export default function WorkersPage() {
                 bank: worker.bank || '',
                 noAkaun: worker.noAkaun || '',
                 peranan: worker.peranan || 'Sukarelawan',
-                lokasi: worker.lokasi || selectedLocation || '',
+                lokasi: worker.lokasi || '',
                 negeri: worker.negeri || '',
                 kategoriElaun: worker.kategoriElaun || ''
             });
         } else {
             setCurrentWorker(null);
             resetForm();
-            // Default location to currently selected filter if valid
-            if (selectedLocation && availableLocations.includes(selectedLocation)) {
-                setFormData(prev => ({ ...prev, lokasi: selectedLocation }));
-            }
         }
         setIsModalOpen(true);
     };
@@ -170,145 +188,338 @@ export default function WorkersPage() {
             bank: '',
             noAkaun: '',
             peranan: 'Sukarelawan',
-            lokasi: selectedLocation || '',
+            lokasi: '',
             negeri: '',
             kategoriElaun: ''
         });
     };
 
-    // Filter Logic
+    // --- Table Logic ---
+
+    // Get unique values for a column, respecting other filters
+    const getUniqueValues = (field) => {
+        const relevantSubmissions = workers.filter(sub => {
+            return Object.entries(columnFilters).every(([key, value]) => {
+                if (key === field) return true;
+                if (!value) return true;
+                return sub[key]?.toString().toLowerCase().includes(value.toLowerCase());
+            });
+        });
+
+        const values = relevantSubmissions
+            .map(sub => sub[field])
+            .filter(val => val && val !== '' && val !== null && val !== undefined);
+        return [...new Set(values)].sort();
+    };
+
+    const handleFilterChange = (field, value) => {
+        setColumnFilters(prev => {
+            const newFilters = { ...prev };
+            if (value === '') {
+                delete newFilters[field];
+            } else {
+                newFilters[field] = value;
+            }
+            return newFilters;
+        });
+        setCurrentPage(1);
+    };
+
+    const handleSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const clearAllFilters = () => {
+        setColumnFilters({});
+        setSortConfig({ key: 'nama', direction: 'asc' });
+        setCurrentPage(1);
+    };
+
     const filteredWorkers = workers.filter(worker => {
-        const matchesSearch = worker.nama.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesLocation = selectedLocation ? worker.lokasi === selectedLocation : true;
-
-        // Strict Access Control: If user is not admin, they can ONLY see workers in their assigned locations
-        // However, if they haven't selected a location, show all valid ones?
-        // UI enforces selection via dropdown.
-        // Also ensure worker.lokasi is in availableLocations
-        const isAccessible = role === 'admin' || profile?.assignedLocations?.includes('All') || (worker.lokasi && profile?.assignedLocations?.includes(worker.lokasi));
-
-        return matchesSearch && matchesLocation && isAccessible;
+        return Object.entries(columnFilters).every(([field, value]) => {
+            if (!value) return true;
+            return worker[field]?.toString().toLowerCase().includes(value.toLowerCase());
+        });
+    }).sort((a, b) => {
+        if (!sortConfig.key) return 0;
+        let aVal = a[sortConfig.key] || '';
+        let bVal = b[sortConfig.key] || '';
+        if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+        if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
     });
+
+    const exportToCSV = () => {
+        const headers = ['Nama', 'Peranan', 'No KP', 'Lokasi', 'Negeri', 'Kategori Elaun', 'Bank', 'No Akaun'];
+        const csvContent = [
+            headers.join(','),
+            ...filteredWorkers.map(w => [
+                w.nama, w.peranan, w.noKP, w.lokasi, w.negeri, w.kategoriElaun, w.bank, w.noAkaun
+            ].join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `data-pekerja-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+    };
+
+    // Pagination
+    const totalPages = Math.ceil(filteredWorkers.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedWorkers = filteredWorkers.slice(startIndex, startIndex + itemsPerPage);
+
+    // Statistics Calculation
+    const roleCounts = filteredWorkers.reduce((acc, curr) => {
+        const role = curr.peranan || 'Tiada Peranan';
+        acc[role] = (acc[role] || 0) + 1;
+        return acc;
+    }, {});
+
+    const allowanceCounts = filteredWorkers.reduce((acc, curr) => {
+        const allow = curr.kategoriElaun || 'Tiada Kat. Elaun';
+        acc[allow] = (acc[allow] || 0) + 1;
+        return acc;
+    }, {});
 
     return (
         <ProtectedRoute>
-            <div className="min-h-screen bg-gray-50">
+            <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
                 <Navbar />
 
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    {/* Header with Location Filter */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-                                <User className="h-6 w-6 mr-2 text-emerald-600" />
-                                Pengurusan Petugas
-                            </h1>
-                            <p className="text-gray-500 text-sm mt-1">Senarai Guru, Petugas, Koordinator, dan Sukarelawan.</p>
-                        </div>
+                <div className="w-full mx-auto px-2 sm:px-4 py-4">
+                    {/* Header */}
+                    <div className="mb-4">
+                        <h1 className="text-2xl font-bold text-gray-900 flex items-center mb-2">
+                            <User className="h-6 w-6 mr-2 text-emerald-600" />
+                            Pengurusan Petugas
+                        </h1>
 
-                        <div className="flex items-center space-x-4">
-                            {/* Location Dropdown */}
-                            <div className="relative">
-                                <select
-                                    value={selectedLocation}
-                                    onChange={(e) => setSelectedLocation(e.target.value)}
-                                    className="appearance-none bg-white border border-gray-300 text-gray-700 py-2 px-4 pr-8 rounded leading-tight focus:outline-none focus:bg-white focus:border-emerald-500"
-                                >
-                                    <option value="">-- Pilih Lokasi --</option>
-                                    {availableLocations.map(loc => (
-                                        <option key={loc} value={loc}>{loc}</option>
+                        {/* Statistics Badges */}
+                        <div className="flex flex-col md:flex-row gap-4 mb-4">
+                            {/* Peranan Stats */}
+                            <div className="bg-white p-3 rounded-xl shadow-sm border border-emerald-100 flex-1">
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Ringkasan Peranan</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {Object.entries(roleCounts).sort((a, b) => a[0].localeCompare(b[0])).map(([role, count]) => (
+                                        <div key={role} className="flex items-center bg-gray-50 border border-gray-100 rounded-lg px-2 py-1">
+                                            <span className="text-xs font-medium text-gray-600 mr-2">{role}</span>
+                                            <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-1.5 py-0.5 rounded-md min-w-[24px] text-center">{count}</span>
+                                        </div>
                                     ))}
-                                </select>
-                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                                    <MapPin className="h-4 w-4" />
                                 </div>
                             </div>
 
+                            {/* Kategori Elaun Stats */}
+                            <div className="bg-white p-3 rounded-xl shadow-sm border border-blue-100 flex-1">
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Ringkasan Kategori Elaun</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {Object.entries(allowanceCounts).sort((a, b) => a[0].localeCompare(b[0])).map(([cat, count]) => (
+                                        <div key={cat} className="flex items-center bg-gray-50 border border-gray-100 rounded-lg px-2 py-1">
+                                            <span className="text-xs font-medium text-gray-600 mr-2">{cat}</span>
+                                            <span className="bg-blue-100 text-blue-700 text-xs font-bold px-1.5 py-0.5 rounded-md min-w-[24px] text-center">{count}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <p className="text-gray-600 text-xs">
+                            Jumlah {filteredWorkers.length} rekod dijumpai
+                        </p>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex justify-between items-center mb-2">
+                        <div>
+                            {Object.keys(columnFilters).length > 0 && (
+                                <button
+                                    onClick={clearAllFilters}
+                                    className="px-3 py-1 bg-red-50 text-red-600 rounded text-xs font-medium hover:bg-red-100 transition-colors"
+                                >
+                                    Padam Semua Filter
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex bg-transparent space-x-2">
+                            <button
+                                onClick={exportToCSV}
+                                className="flex items-center justify-center space-x-1 whitespace-nowrap bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 px-3 py-1 rounded text-xs font-medium shadow-sm transition-colors"
+                            >
+                                <Download className="h-4 w-4" />
+                                <span>Export CSV</span>
+                            </button>
                             <button
                                 onClick={() => openModal()}
-                                disabled={!selectedLocation && availableLocations.length > 0}
-                                className="bg-emerald-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-emerald-700 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                title={!selectedLocation ? "Sila pilih lokasi dahulu" : "Tambah Pekerja"}
+                                className="bg-emerald-600 text-white px-3 py-1 rounded text-xs font-medium hover:bg-emerald-700 shadow-sm transition-colors flex items-center"
                             >
-                                <Plus className="h-5 w-5 mr-1" /> Tambah
+                                <Plus className="h-4 w-4 mr-1" /> Tambah
                             </button>
                         </div>
                     </div>
 
-                    {/* Search Bar */}
-                    <div className="bg-white p-4 rounded-lg shadow mb-6">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                            <input
-                                type="text"
-                                placeholder="Cari nama pekerja..."
-                                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Workers Grid */}
+                    {/* Table */}
                     {loading ? (
-                        <div className="text-center py-10">Loading...</div>
+                        <div className="card">
+                            <div className="space-y-4">
+                                {[1, 2, 3, 4, 5].map(i => (
+                                    <div key={i} className="animate-shimmer h-16 rounded-lg"></div>
+                                ))}
+                            </div>
+                        </div>
                     ) : filteredWorkers.length === 0 ? (
-                        <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-                            {selectedLocation ? "Tiada petugas di lokasi ini." : "Sila pilih lokasi untuk melihat senarai."}
+                        <div className="card text-center py-12">
+                            <p className="text-gray-500 text-lg">Tiada rekod dijumpai</p>
                         </div>
                     ) : (
-                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                            {filteredWorkers.map((worker) => (
-                                <div key={worker.id} className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-5 border-l-4 border-emerald-500">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div>
-                                            <h3 className="font-bold text-lg text-gray-900">{worker.nama}</h3>
-                                            <span className="inline-block bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded-full mt-1">
-                                                {worker.peranan}
-                                            </span>
-                                            {worker.lokasi && (
-                                                <span className="ml-2 inline-block bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full mt-1">
-                                                    {worker.lokasi}
-                                                    {worker.negeri ? `, ${worker.negeri}` : ''}
-                                                </span>
-                                            )}
-                                            {worker.kategoriElaun && (
-                                                <span className="ml-2 inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full mt-1">
-                                                    {worker.kategoriElaun}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="flex space-x-2">
-                                            <button onClick={() => openModal(worker)} className="text-gray-400 hover:text-emerald-600 p-1">
-                                                <Edit2 className="h-4 w-4" />
-                                            </button>
-                                            <button onClick={() => handleDelete(worker.id)} className="text-gray-400 hover:text-red-500 p-1">
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    </div>
+                        <div className="card overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-xs border-collapse">
+                                    <thead>
+                                        <tr className="border-b-2 border-emerald-500 bg-emerald-100">
+                                            {/* Frozen: Nama */}
+                                            <th className="sticky left-0 z-20 bg-emerald-200 text-left py-1 px-2 font-semibold text-gray-700 shadow-[1px_0_0_0_#10b981] min-w-[200px] align-top">
+                                                <div
+                                                    className="flex items-center cursor-pointer mb-1 group"
+                                                    onClick={() => handleSort('nama')}
+                                                >
+                                                    <span>Nama</span>
+                                                    {sortConfig.key === 'nama' ? (
+                                                        sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 text-emerald-600" /> : <ArrowDown className="h-3 w-3 ml-1 text-emerald-600" />
+                                                    ) : (
+                                                        <ArrowUpDown className="h-3 w-3 ml-1 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    )}
+                                                </div>
+                                                <FilterInput
+                                                    value={columnFilters['nama']}
+                                                    onChange={(val) => handleFilterChange('nama', val)}
+                                                    options={getUniqueValues('nama')}
+                                                    listId="list-nama"
+                                                    placeholder="Cari Nama"
+                                                />
+                                            </th>
+                                            {/* Frozen: Tindakan */}
+                                            <th className="sticky left-[200px] z-20 bg-emerald-200 text-left py-1 px-2 font-semibold text-gray-700 shadow-[1px_0_0_0_#10b981] min-w-[100px] align-top">
+                                                <div className="mb-1">Tindakan</div>
+                                            </th>
 
-                                    <div className="space-y-2 text-sm text-gray-600">
-                                        <div className="flex justify-between border-b pb-1">
-                                            <span>No. KP:</span>
-                                            <span className="font-medium">{worker.noKP || '-'}</span>
-                                        </div>
-                                        <div className="flex justify-between border-b pb-1">
-                                            <span>Bank:</span>
-                                            <span className="font-medium">{worker.bank || '-'}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span>No. Akaun:</span>
-                                            <span className="font-medium">{worker.noAkaun || '-'}</span>
-                                        </div>
+                                            {/* Scrollable Columns */}
+                                            {[
+                                                { id: 'peranan', label: 'Peranan', width: 'min-w-[120px]' },
+                                                { id: 'noKP', label: 'No KP', width: 'min-w-[150px]' },
+                                                { id: 'lokasi', label: 'Lokasi', width: 'min-w-[140px]' },
+                                                { id: 'negeri', label: 'Negeri', width: 'min-w-[140px]' },
+                                                { id: 'kategoriElaun', label: 'Kat. Elaun', width: 'min-w-[140px]' },
+                                                { id: 'bank', label: 'Bank', width: 'min-w-[140px]' },
+                                                { id: 'noAkaun', label: 'No Akaun', width: 'min-w-[160px]' }
+                                            ].map(col => (
+                                                <th key={col.id} className={`text-left py-1 px-2 font-semibold text-gray-700 bg-emerald-100 border-r border-gray-200 ${col.width} align-top`}>
+                                                    <div
+                                                        className="flex items-center cursor-pointer mb-1 group"
+                                                        onClick={() => handleSort(col.id)}
+                                                    >
+                                                        <span>{col.label}</span>
+                                                        {sortConfig.key === col.id ? (
+                                                            sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 text-emerald-600" /> : <ArrowDown className="h-3 w-3 ml-1 text-emerald-600" />
+                                                        ) : (
+                                                            <ArrowUpDown className="h-3 w-3 ml-1 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                        )}
+                                                    </div>
+                                                    <FilterInput
+                                                        value={columnFilters[col.id]}
+                                                        onChange={(val) => handleFilterChange(col.id, val)}
+                                                        options={getUniqueValues(col.id)}
+                                                        listId={`list-${col.id}`}
+                                                        placeholder="Cari..."
+                                                    />
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {paginatedWorkers.map((worker) => (
+                                            <tr key={worker.id} className="border-b border-gray-200 hover:bg-emerald-50 transition-colors">
+                                                <td className="sticky left-0 z-10 bg-emerald-50 py-1 px-2 shadow-[1px_0_0_0_#10b981] min-w-[200px] font-medium text-gray-900">
+                                                    {worker.nama}
+                                                </td>
+                                                <td className="sticky left-[200px] z-10 bg-emerald-50 py-1 px-2 shadow-[1px_0_0_0_#10b981] min-w-[100px]">
+                                                    <div className="flex items-center space-x-2">
+                                                        <button onClick={() => openModal(worker)} className="text-gray-400 hover:text-emerald-600 transition-colors p-1" title="Edit">
+                                                            <Edit2 className="h-4 w-4" />
+                                                        </button>
+                                                        <button onClick={() => handleDelete(worker.id)} className="text-gray-400 hover:text-red-600 transition-colors p-1" title="Padam">
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
+                                                </td>
+
+                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">
+                                                    <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${worker.peranan === 'Guru' ? 'bg-indigo-100 text-indigo-700' :
+                                                        worker.peranan === 'Petugas' ? 'bg-blue-100 text-blue-700' :
+                                                            worker.peranan === 'Koordinator' ? 'bg-purple-100 text-purple-700' :
+                                                                'bg-emerald-100 text-emerald-700'
+                                                        }`}>
+                                                        {worker.peranan}
+                                                    </span>
+                                                </td>
+                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[150px]">{worker.noKP || '-'}</td>
+                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">{worker.lokasi || '-'}</td>
+                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">{worker.negeri || '-'}</td>
+                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">
+                                                    {worker.kategoriElaun ? (
+                                                        <span className="inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap bg-yellow-100 text-yellow-800">
+                                                            {worker.kategoriElaun}
+                                                        </span>
+                                                    ) : '-'}
+                                                </td>
+                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">{worker.bank || '-'}</td>
+                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[160px]">{worker.noAkaun || '-'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Pagination */}
+                            {totalPages > 1 && (
+                                <div className="mt-6 flex items-center justify-between border-t pt-4">
+                                    <p className="text-sm text-gray-600">
+                                        Menunjukkan {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filteredWorkers.length)} daripada {filteredWorkers.length}
+                                    </p>
+                                    <div className="flex items-center space-x-2">
+                                        <button
+                                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                            disabled={currentPage === 1}
+                                            className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <ChevronLeft className="h-5 w-5" />
+                                        </button>
+                                        <span className="text-sm font-medium">
+                                            Halaman {currentPage} / {totalPages}
+                                        </span>
+                                        <button
+                                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                            disabled={currentPage === totalPages}
+                                            className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <ChevronRight className="h-5 w-5" />
+                                        </button>
                                     </div>
                                 </div>
-                            ))}
+                            )}
                         </div>
                     )}
                 </div>
 
-                {/* Modal */}
+                {/* Modal (kept largely same style but ensured it works with new structure/imports) */}
                 {isModalOpen && (
                     <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
                         <div className="bg-white rounded-lg max-w-lg w-full p-6">
@@ -332,6 +543,38 @@ export default function WorkersPage() {
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
+                                    {/* Moved Negeri first */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Negeri</label>
+                                        <select
+                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                            value={formData.negeri}
+                                            onChange={(e) => setFormData({ ...formData, negeri: e.target.value, lokasi: '' })}
+                                        >
+                                            <option value="">-- Pilih Negeri --</option>
+                                            {(states.length > 0 ? states : NEGERI_CAWANGAN_OPTIONS).map(negeri => (
+                                                <option key={negeri} value={negeri}>{negeri}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Lokasi</label>
+                                        <select
+                                            required
+                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                            value={formData.lokasi}
+                                            onChange={(e) => setFormData({ ...formData, lokasi: e.target.value })}
+                                            disabled={!formData.negeri}
+                                        >
+                                            <option value="">-- Pilih --</option>
+                                            {modalLocations.map(loc => (
+                                                <option key={loc.id || loc.name} value={loc.name}>{loc.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700">Peranan</label>
                                         <select
@@ -345,35 +588,7 @@ export default function WorkersPage() {
                                             <option value="Koordinator">Koordinator</option>
                                         </select>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Lokasi</label>
-                                        <select
-                                            required
-                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                            value={formData.lokasi}
-                                            onChange={(e) => setFormData({ ...formData, lokasi: e.target.value })}
-                                        >
-                                            <option value="">-- Pilih --</option>
-                                            {availableLocations.map(loc => (
-                                                <option key={loc} value={loc}>{loc}</option>
-                                            ))}
-                                        </select>
-                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Negeri</label>
-                                    <select
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                        value={formData.negeri}
-                                        onChange={(e) => setFormData({ ...formData, negeri: e.target.value })}
-                                    >
-                                        <option value="">-- Pilih Negeri --</option>
-                                        {(states.length > 0 ? states : NEGERI_CAWANGAN_OPTIONS).map(negeri => (
-                                            <option key={negeri} value={negeri}>{negeri}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">No. Kad Pengenalan</label>
@@ -443,9 +658,8 @@ export default function WorkersPage() {
                             </form>
                         </div>
                     </div>
-                )
-                }
-            </div >
-        </ProtectedRoute >
+                )}
+            </div>
+        </ProtectedRoute>
     );
 }

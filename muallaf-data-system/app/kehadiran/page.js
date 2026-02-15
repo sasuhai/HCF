@@ -1,14 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { Search, Save, UserPlus, FileText, CheckCircle, Trash2, Home, X, Check, Plus, Calendar, MapPin, Edit2, Copy } from 'lucide-react';
+import { Search, Save, UserPlus, FileText, CheckCircle, Trash2, Home, X, Check, Plus, Calendar, MapPin, Edit2, Copy, AlertCircle, ChevronDown, Download, Globe, Clock, User } from 'lucide-react';
 
 export default function AttendancePage() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const { user, role, profile, loading: authLoading } = useAuth();
 
     // Selection state
@@ -21,6 +24,18 @@ export default function AttendancePage() {
     const [locations, setLocations] = useState([]);
     const [attendanceRecord, setAttendanceRecord] = useState(null);
     const [loading, setLoading] = useState(false);
+
+    // Initial Load from URL
+    useEffect(() => {
+        if (!searchParams) return;
+        const loc = searchParams.get('location');
+        const month = searchParams.get('month');
+        const clsId = searchParams.get('classId');
+
+        if (loc) setSelectedLocation(loc);
+        if (month) setSelectedMonth(month);
+        if (clsId) setSelectedClassId(clsId);
+    }, [searchParams]);
 
     // Modal state
     const [isWorkerModalOpen, setIsWorkerModalOpen] = useState(false);
@@ -103,10 +118,11 @@ export default function AttendancePage() {
         return true;
     });
 
-    // Reset Class selection if Location changes
-    useEffect(() => {
-        setSelectedClassId('');
-    }, [selectedLocation]);
+    // Reset Class selection if Location changes - REMOVED to allow URL param persistence.
+    // Instead handled in onChange of location select.
+    // useEffect(() => {
+    //    setSelectedClassId('');
+    // }, [selectedLocation]);
 
     // Fetch Attendance Record when Class & Month change
     useEffect(() => {
@@ -477,76 +493,114 @@ export default function AttendancePage() {
         (s.noKP || '').includes(searchTerm)
     );
 
+    const handleGenerateReport = () => {
+        if (!selectedMonth || !selectedLocation) {
+            alert("Sila pilih Lokasi dan Bulan untuk menjana laporan.");
+            return;
+        }
+        const [year, month] = selectedMonth.split('-');
+        const query = new URLSearchParams({
+            tab: 'reports',
+            view: 'print',
+            year,
+            month,
+            location: selectedLocation,
+            classId: selectedClassId // Pass classId for return navigation
+        }).toString();
+        router.push(`/mualaf/dashboard?${query}`);
+    };
+
     return (
         <ProtectedRoute>
             <div className="min-h-screen bg-gray-50">
                 <Navbar />
 
                 <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                    {/* Header Controls */}
-                    <div className="bg-white p-4 rounded-lg shadow mb-6 flex flex-wrap gap-4 items-end">
-                        {/* Location Selector */}
-                        <div className="w-1/4 min-w-[200px]">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Pilih Lokasi</label>
-                            <div className="relative">
-                                <select
-                                    value={selectedLocation}
-                                    onChange={(e) => setSelectedLocation(e.target.value)}
-                                    className="w-full border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 p-2 border appearance-none"
-                                >
-                                    <option value="">-- Sila Pilih --</option>
-                                    {availableLocations.map(loc => (
-                                        <option key={loc} value={loc}>{loc}</option>
-                                    ))}
-                                </select>
-                                <MapPin className="h-4 w-4 text-gray-400 absolute right-3 top-3 pointer-events-none" />
+                    {/* Header Controls (Redesigned) */}
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col lg:flex-row items-end gap-4 mb-6">
+
+                        {/* Wrapper for filters to keep them together */}
+                        <div className="flex flex-col md:flex-row gap-4 w-full flex-grow">
+                            {/* Location Selector */}
+                            <div className="flex-1 min-w-[200px]">
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Pilih Lokasi</label>
+                                <div className="relative group">
+                                    <select
+                                        value={selectedLocation}
+                                        onChange={(e) => {
+                                            setSelectedLocation(e.target.value);
+                                            setSelectedClassId(''); // Reset for manual change
+                                        }}
+                                        className="w-full bg-white text-gray-900 border border-gray-200 rounded-lg pl-3 pr-10 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all appearance-none cursor-pointer hover:border-blue-300 shadow-sm"
+                                    >
+                                        <option value="">-- Sila Pilih --</option>
+                                        {availableLocations.map(loc => (
+                                            <option key={loc} value={loc}>{loc}</option>
+                                        ))}
+                                    </select>
+                                    <MapPin className="h-4 w-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 group-hover:text-blue-500 transition-colors pointer-events-none" />
+                                </div>
                             </div>
+
+                            {/* Class Selector */}
+                            <div className="flex-1 min-w-[200px]">
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Pilih Kelas</label>
+                                <div className="relative group">
+                                    <select
+                                        value={selectedClassId}
+                                        onChange={(e) => setSelectedClassId(e.target.value)}
+                                        disabled={!selectedLocation}
+                                        className="w-full bg-white text-gray-900 border border-gray-200 rounded-lg pl-3 pr-10 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all appearance-none cursor-pointer hover:border-blue-300 shadow-sm disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+                                    >
+                                        <option value="">-- Sila Pilih Kelas --</option>
+                                        {availableClasses.map(c => (
+                                            <option key={c.id} value={c.id}>{c.nama} ({c.jenis})</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="h-4 w-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 group-hover:text-blue-500 transition-colors pointer-events-none" />
+                                </div>
+                            </div>
+
+                            {/* Month Selector */}
+                            <div className="w-40 flex-shrink-0">
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Bulan</label>
+                                <input
+                                    type="month"
+                                    value={selectedMonth}
+                                    onChange={(e) => setSelectedMonth(e.target.value)}
+                                    className="w-full bg-white text-gray-900 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
+                                />
+                            </div>
+
+                            {/* Copy from Previous Month Button */}
+                            {selectedClassId && selectedMonth && (
+                                <div className="flex-none">
+                                    <label className="block text-[10px] font-bold text-transparent mb-1.5">&nbsp;</label>
+                                    <button
+                                        onClick={() => setIsCopyConfirmModalOpen(true)}
+                                        className="h-[42px] bg-purple-600 hover:bg-purple-700 text-white px-4 rounded-lg flex items-center text-sm font-medium shadow-sm shadow-purple-200 transition-all transform active:scale-95 whitespace-nowrap"
+                                        title="Salin data dari bulan sebelumnya"
+                                    >
+                                        <Copy className="h-4 w-4 mr-2" />
+                                        Salin Dari Bulan Lepas
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
-                        {/* Class Selector */}
-                        <div className="w-1/4 min-w-[200px]">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Pilih Kelas</label>
-                            <select
-                                value={selectedClassId}
-                                onChange={(e) => setSelectedClassId(e.target.value)}
-                                disabled={!selectedLocation}
-                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 p-2 border disabled:bg-gray-100 disabled:text-gray-400"
-                            >
-                                <option value="">-- Sila Pilih Kelas --</option>
-                                {availableClasses.map(c => (
-                                    <option key={c.id} value={c.id}>{c.nama} ({c.jenis})</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="w-48">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Bulan</label>
-                            <input
-                                type="month"
-                                value={selectedMonth}
-                                onChange={(e) => setSelectedMonth(e.target.value)}
-                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 p-2 border"
-                            />
-                        </div>
-
-                        {/* Copy from Previous Month Button */}
-                        {selectedClassId && selectedMonth && (
-                            <div className="flex items-end">
+                        {/* Report Button - Visible only if data loaded AND has participants */}
+                        {selectedClassId && attendanceRecord && (attendanceRecord.workers?.length > 0 || attendanceRecord.students?.length > 0) && (
+                            <div className="flex-none w-full lg:w-auto">
+                                <label className="block text-[10px] font-bold text-transparent mb-1.5 hidden lg:block">&nbsp;</label>
                                 <button
-                                    onClick={() => setIsCopyConfirmModalOpen(true)}
-                                    className="bg-purple-600 text-white px-3 py-2 rounded-md hover:bg-purple-700 flex items-center text-sm"
-                                    title="Salin data dari bulan sebelumnya"
+                                    onClick={handleGenerateReport}
+                                    className="h-[42px] w-full lg:w-auto flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 rounded-lg text-sm font-medium transition-colors border border-blue-100"
                                 >
-                                    <Copy className="h-4 w-4 mr-1.5" />
-                                    Salin Dari Bulan Lepas
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    <span>Jana Borang F2 (Laporan & Pembayaran)</span>
                                 </button>
                             </div>
                         )}
-
-                        <div className="ml-auto flex items-center bg-blue-50 px-4 py-2 rounded text-blue-700 text-sm">
-                            <FileText className="h-4 w-4 mr-2" />
-                            <span>Laporan & Pembayaran Auto-Generated</span>
-                        </div>
                     </div>
 
                     {/* Class Information Card */}
@@ -555,78 +609,58 @@ export default function AttendancePage() {
                         if (!selectedClass) return null;
 
                         return (
-                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg shadow-sm p-4 mb-6">
-                                <div className="flex items-start justify-between mb-3">
-                                    <div>
-                                        <h3 className="text-lg font-bold text-gray-900 flex items-center">
-                                            <Calendar className="h-5 w-5 mr-2 text-blue-600" />
-                                            {selectedClass.nama}
-                                        </h3>
-                                        <p className="text-sm text-gray-600 mt-1 flex items-center">
-                                            <MapPin className="h-4 w-4 mr-1" />
-                                            {selectedClass.lokasi}
-                                        </p>
-                                    </div>
-                                    <div className="flex gap-2 items-center">
-                                        <span className={`px-2 py-1 rounded text-xs font-medium ${selectedClass.jenis === 'Online' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
-                                            {selectedClass.jenis}
-                                        </span>
-                                        <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">
-                                            {selectedClass.tahap}
-                                        </span>
-                                        <button
-                                            onClick={openClassInfoModal}
-                                            className="ml-2 p-1.5 text-blue-600 hover:bg-blue-100 rounded transition-colors"
-                                            title="Edit maklumat kelas bulanan"
-                                        >
-                                            <Edit2 className="h-4 w-4" />
-                                        </button>
+                            <div className="bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-3 mb-4">
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-3 mb-1">
+                                            <h3 className="text-lg font-bold text-gray-900">{selectedClass.nama}</h3>
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${selectedClass.jenis === 'Online' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                                {selectedClass.jenis}
+                                            </span>
+                                            <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
+                                                {selectedClass.tahap}
+                                            </span>
+                                            <button onClick={openClassInfoModal} className="text-gray-400 hover:text-blue-600 transition-colors" title="Edit maklumat kelas">
+                                                <Edit2 className="h-4 w-4" />
+                                            </button>
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-gray-600">
+                                            <div className="flex items-center" title="Lokasi">
+                                                <MapPin className="h-3 w-3 mr-1 text-gray-400" />
+                                                {selectedClass.lokasi}
+                                            </div>
+                                            {attendanceRecord.bahasa && (
+                                                <div className="flex items-center" title="Bahasa Pengantar">
+                                                    <Globe className="h-3 w-3 mr-1.5 text-gray-400" />
+                                                    <span className="text-gray-400 mr-1">Bahasa:</span> {attendanceRecord.bahasa}
+                                                </div>
+                                            )}
+                                            {attendanceRecord.hariMasa && (
+                                                <div className="flex items-center" title="Hari & Masa">
+                                                    <Clock className="h-3 w-3 mr-1.5 text-gray-400" />
+                                                    {attendanceRecord.hariMasa}
+                                                </div>
+                                            )}
+                                            {attendanceRecord.pic && (
+                                                <div className="flex items-center" title="Person In Charge">
+                                                    <User className="h-3 w-3 mr-1.5 text-gray-400" />
+                                                    <span className="text-gray-400 mr-1">PIC:</span> {attendanceRecord.pic}
+                                                    {attendanceRecord.noTelPIC && <span className="text-gray-400 ml-1">({attendanceRecord.noTelPIC})</span>}
+                                                </div>
+                                            )}
+                                            {attendanceRecord.penaja && (
+                                                <div className="flex items-center" title="Penaja">
+                                                    <span className="text-gray-400 mr-1 font-semibold text-[10px] uppercase">Penaja:</span> {attendanceRecord.penaja}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4 pt-3 border-t border-blue-200">
-                                    {attendanceRecord.bahasa && (
-                                        <div className="bg-white bg-opacity-60 rounded p-2">
-                                            <div className="text-xs text-gray-500 font-medium">Bahasa</div>
-                                            <div className="text-sm text-gray-900 mt-0.5">{attendanceRecord.bahasa}</div>
-                                        </div>
-                                    )}
-                                    {attendanceRecord.hariMasa && (
-                                        <div className="bg-white bg-opacity-60 rounded p-2">
-                                            <div className="text-xs text-gray-500 font-medium">Hari & Masa</div>
-                                            <div className="text-sm text-gray-900 mt-0.5">{attendanceRecord.hariMasa}</div>
-                                        </div>
-                                    )}
-                                    {attendanceRecord.kekerapan && (
-                                        <div className="bg-white bg-opacity-60 rounded p-2">
-                                            <div className="text-xs text-gray-500 font-medium">Kekerapan Kelas</div>
-                                            <div className="text-sm text-gray-900 mt-0.5">{attendanceRecord.kekerapan}</div>
-                                        </div>
-                                    )}
-                                    {attendanceRecord.penaja && (
-                                        <div className="bg-white bg-opacity-60 rounded p-2">
-                                            <div className="text-xs text-gray-500 font-medium">Penaja</div>
-                                            <div className="text-sm text-gray-900 mt-0.5">{attendanceRecord.penaja}</div>
-                                        </div>
-                                    )}
-                                    {attendanceRecord.pic && (
-                                        <div className="bg-white bg-opacity-60 rounded p-2">
-                                            <div className="text-xs text-gray-500 font-medium">PIC</div>
-                                            <div className="text-sm text-gray-900 mt-0.5">{attendanceRecord.pic}</div>
-                                        </div>
-                                    )}
-                                    {attendanceRecord.noTelPIC && (
-                                        <div className="bg-white bg-opacity-60 rounded p-2">
-                                            <div className="text-xs text-gray-500 font-medium">No Tel PIC</div>
-                                            <div className="text-sm text-gray-900 mt-0.5">{attendanceRecord.noTelPIC}</div>
-                                        </div>
-                                    )}
-                                </div>
-
                                 {attendanceRecord.catatan && (
-                                    <div className="mt-3 pt-3 border-t border-blue-200">
-                                        <div className="text-xs text-gray-500 font-medium mb-1">Catatan</div>
-                                        <div className="text-sm text-gray-700 bg-white bg-opacity-60 rounded p-2">{attendanceRecord.catatan}</div>
+                                    <div className="mt-2 pt-2 border-t border-gray-100 text-xs flex items-start text-gray-500">
+                                        <span className="font-semibold mr-2 text-gray-400 uppercase text-[10px]">Catatan:</span>
+                                        {attendanceRecord.catatan}
                                     </div>
                                 )}
                             </div>
@@ -636,59 +670,62 @@ export default function AttendancePage() {
                     {selectedClassId && selectedMonth ? (
                         <div className="space-y-8">
                             {/* Workers Table */}
-                            <div className="bg-white rounded-lg shadow overflow-hidden">
-                                <div className="p-4 border-b flex justify-between items-center bg-gray-50">
-                                    <h2 className="text-lg font-bold text-gray-900 flex items-center">
-                                        <UserPlus className="h-5 w-5 mr-2 text-emerald-600" />
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
+                                    <h2 className="text-base font-bold text-gray-900 flex items-center">
                                         Maklumat Guru / Petugas / Sukarelawan
                                     </h2>
                                     <button
                                         onClick={openWorkerModal}
-                                        className="bg-emerald-600 text-white px-3 py-1.5 rounded text-sm hover:bg-emerald-700 flex items-center"
+                                        className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-emerald-700 shadow-sm transition-all flex items-center"
                                     >
-                                        <UserPlus className="h-4 w-4 mr-1" /> Tambah
+                                        <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Tambah
                                     </button>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full text-xs border-collapse">
                                         <thead>
-                                            <tr className="bg-gray-100 border-b">
-                                                <th className="p-2 text-left sticky left-0 bg-gray-100 z-10 w-48 border-r">Nama</th>
-                                                <th className="p-2 text-left w-24 border-r">Peranan</th>
-                                                <th className="p-2 text-left w-24 border-r text-xs">Kategori Elaun</th>
+                                            <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase">
+                                                <th className="p-3 text-left sticky left-0 bg-gray-50 z-10 w-48 font-semibold border-r border-gray-200 shadow-[1px_0_0_0_rgba(229,231,235,1)]">Nama</th>
+                                                <th className="p-3 text-left w-24 font-semibold border-r border-gray-200">Peranan</th>
+                                                <th className="p-3 text-left w-24 font-semibold border-r border-gray-200 text-[10px]">Kategori Elaun</th>
                                                 {daysArray.map(d => (
-                                                    <th key={d} className="p-1 w-10 text-center border-r font-normal text-gray-500">
-                                                        <div className="font-medium text-gray-700">{d}</div>
-                                                        <div className="text-[9px] text-gray-400 mt-0.5">{getDayName(selectedMonth, d)}</div>
+                                                    <th key={d} className="p-1 w-9 text-center border-r border-gray-100 font-normal">
+                                                        <div className="font-bold text-gray-700">{d}</div>
+                                                        <div className="text-[9px] text-gray-400">{getDayName(selectedMonth, d)}</div>
                                                     </th>
                                                 ))}
-                                                <th className="p-2 text-center w-16 bg-gray-50 font-bold sticky right-0">Jum</th>
-                                                <th className="p-2 w-10 sticky right-0"></th>
+                                                <th className="p-2 text-center w-16 bg-gray-50 font-bold sticky right-0 border-l border-gray-200">Jum</th>
+                                                <th className="p-2 w-10 sticky right-0 bg-gray-50"></th>
                                             </tr>
                                         </thead>
-                                        <tbody>
+                                        <tbody className="divide-y divide-gray-100">
                                             {attendanceRecord?.workers?.length === 0 ? (
-                                                <tr><td colSpan={totalDays + 5} className="p-8 text-center text-gray-400">Tiada pekerja disenaraikan.</td></tr>
+                                                <tr><td colSpan={totalDays + 5} className="p-8 text-center text-gray-400 italic">Tiada pekerja disenaraikan.</td></tr>
                                             ) : (
                                                 attendanceRecord?.workers?.map((worker) => (
-                                                    <tr key={worker.id} className="border-b hover:bg-gray-50">
-                                                        <td className="p-2 sticky left-0 bg-white border-r font-medium truncate">{worker.nama}</td>
-                                                        <td className="p-2 border-r">{worker.role}</td>
-                                                        <td className="p-2 border-r text-xs">
-                                                            {worker.kategoriElaun && (
-                                                                <span className="bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded text-[8.4px] leading-tight">
+                                                    <tr key={worker.id} className="hover:bg-gray-50/80 transition-colors">
+                                                        <td className="p-2.5 sticky left-0 bg-white border-r border-gray-200 font-medium text-gray-900 truncate shadow-[1px_0_0_0_rgba(229,231,235,1)]">{worker.nama}</td>
+                                                        <td className="p-2.5 border-r border-gray-100 text-gray-600">{worker.role}</td>
+                                                        <td className="p-2.5 border-r border-gray-100">
+                                                            {worker.kategoriElaun ? (
+                                                                <span className="bg-yellow-50 text-yellow-700 border border-yellow-200 px-1.5 py-0.5 rounded text-[9px] font-medium leading-tight inline-block text-center min-w-[50px]">
                                                                     {worker.kategoriElaun}
                                                                 </span>
+                                                            ) : (
+                                                                <div className="flex items-center justify-center text-amber-500" title="Kategori Elaun tiada. Sila kemaskini profil untuk pengiraan tepat.">
+                                                                    <AlertCircle className="h-4 w-4" />
+                                                                </div>
                                                             )}
                                                         </td>
                                                         {daysArray.map(d => {
                                                             const isChecked = worker.attendance?.includes(d);
                                                             return (
-                                                                <td key={d} className="p-0 text-center border-r relative h-8">
-                                                                    <label className="cursor-pointer w-full h-full flex items-center justify-center hover:bg-emerald-50 absolute inset-0">
+                                                                <td key={d} className="p-0 text-center border-r border-gray-50 relative h-9">
+                                                                    <label className="cursor-pointer w-full h-full flex items-center justify-center hover:bg-emerald-50/50 transition-colors">
                                                                         <input
                                                                             type="checkbox"
-                                                                            className="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4"
+                                                                            className="rounded-sm text-emerald-600 focus:ring-emerald-500/30 h-4 w-4 border-gray-300"
                                                                             checked={isChecked || false}
                                                                             onChange={() => toggleAttendance('worker', worker.id, d)}
                                                                         />
@@ -696,12 +733,12 @@ export default function AttendancePage() {
                                                                 </td>
                                                             );
                                                         })}
-                                                        <td className="p-2 text-center font-bold bg-gray-50 sticky right-0">
+                                                        <td className="p-2 text-center font-bold bg-gray-50/50 sticky right-0 border-l border-gray-100 text-emerald-600">
                                                             {worker.attendance?.length || 0}
                                                         </td>
-                                                        <td className="p-2 text-center sticky right-0">
-                                                            <button onClick={() => handleRemovePerson('worker', worker.id)} className="text-red-400 hover:text-red-600">
-                                                                <Trash2 className="h-4 w-4" />
+                                                        <td className="p-2 text-center sticky right-0 bg-white">
+                                                            <button onClick={() => handleRemovePerson('worker', worker.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50">
+                                                                <Trash2 className="h-3.5 w-3.5" />
                                                             </button>
                                                         </td>
                                                     </tr>
@@ -713,59 +750,62 @@ export default function AttendancePage() {
                             </div>
 
                             {/* Students Table */}
-                            <div className="bg-white rounded-lg shadow overflow-hidden">
-                                <div className="p-4 border-b flex justify-between items-center bg-gray-50">
-                                    <h2 className="text-lg font-bold text-gray-900 flex items-center">
-                                        <UserPlus className="h-5 w-5 mr-2 text-blue-600" />
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
+                                    <h2 className="text-base font-bold text-gray-900 flex items-center">
                                         Maklumat Pelajar
                                     </h2>
                                     <button
                                         onClick={openStudentModal}
-                                        className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700 flex items-center"
+                                        className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition-all flex items-center"
                                     >
-                                        <UserPlus className="h-4 w-4 mr-1" /> Tambah
+                                        <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Tambah
                                     </button>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full text-xs border-collapse">
                                         <thead>
-                                            <tr className="bg-gray-100 border-b">
-                                                <th className="p-2 text-left sticky left-0 bg-gray-100 z-10 w-48 border-r">Nama</th>
-                                                <th className="p-2 text-left w-32 border-r">Data Mualaf</th>
-                                                <th className="p-2 text-left w-24 border-r text-xs">Kategori Elaun</th>
+                                            <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase">
+                                                <th className="p-3 text-left sticky left-0 bg-gray-50 z-10 w-48 font-semibold border-r border-gray-200 shadow-[1px_0_0_0_rgba(229,231,235,1)]">Nama</th>
+                                                <th className="p-3 text-left w-32 font-semibold border-r border-gray-200">Data Mualaf</th>
+                                                <th className="p-3 text-left w-24 font-semibold border-r border-gray-200 text-[10px]">Kategori Elaun</th>
                                                 {daysArray.map(d => (
-                                                    <th key={d} className="p-1 w-10 text-center border-r font-normal text-gray-500">
-                                                        <div className="font-medium text-gray-700">{d}</div>
-                                                        <div className="text-[9px] text-gray-400 mt-0.5">{getDayName(selectedMonth, d)}</div>
+                                                    <th key={d} className="p-1 w-9 text-center border-r border-gray-100 font-normal">
+                                                        <div className="font-bold text-gray-700">{d}</div>
+                                                        <div className="text-[9px] text-gray-400">{getDayName(selectedMonth, d)}</div>
                                                     </th>
                                                 ))}
-                                                <th className="p-2 text-center w-16 bg-gray-50 font-bold sticky right-0">Jum</th>
-                                                <th className="p-2 w-10 sticky right-0"></th>
+                                                <th className="p-2 text-center w-16 bg-gray-50 font-bold sticky right-0 border-l border-gray-200">Jum</th>
+                                                <th className="p-2 w-10 sticky right-0 bg-gray-50"></th>
                                             </tr>
                                         </thead>
-                                        <tbody>
+                                        <tbody className="divide-y divide-gray-100">
                                             {attendanceRecord?.students?.length === 0 ? (
-                                                <tr><td colSpan={totalDays + 5} className="p-8 text-center text-gray-400">Tiada pelajar disenaraikan.</td></tr>
+                                                <tr><td colSpan={totalDays + 5} className="p-8 text-center text-gray-400 italic">Tiada pelajar disenaraikan.</td></tr>
                                             ) : (
                                                 attendanceRecord?.students?.map((student) => (
-                                                    <tr key={student.id} className="border-b hover:bg-gray-50">
-                                                        <td className="p-2 sticky left-0 bg-white border-r font-medium truncate" title={student.nama}>{student.nama}</td>
-                                                        <td className="p-2 border-r text-gray-500 truncate" title={student.icNo}>{student.icNo}</td>
-                                                        <td className="p-2 border-r text-xs">
-                                                            {student.kategoriElaun && (
-                                                                <span className="bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded text-[8.4px] leading-tight">
+                                                    <tr key={student.id} className="hover:bg-gray-50/80 transition-colors">
+                                                        <td className="p-2.5 sticky left-0 bg-white border-r border-gray-200 font-medium text-gray-900 truncate shadow-[1px_0_0_0_rgba(229,231,235,1)]" title={student.nama}>{student.nama}</td>
+                                                        <td className="p-2.5 border-r border-gray-100 text-gray-500 truncate" title={student.icNo}>{student.icNo}</td>
+                                                        <td className="p-2.5 border-r border-gray-100">
+                                                            {student.kategoriElaun ? (
+                                                                <span className="bg-yellow-50 text-yellow-700 border border-yellow-200 px-1.5 py-0.5 rounded text-[9px] font-medium leading-tight inline-block text-center min-w-[50px]">
                                                                     {student.kategoriElaun}
                                                                 </span>
+                                                            ) : (
+                                                                <div className="flex items-center justify-center text-amber-500" title="Kategori Elaun tiada. Sila kemaskini profil untuk pengiraan tepat.">
+                                                                    <AlertCircle className="h-4 w-4" />
+                                                                </div>
                                                             )}
                                                         </td>
                                                         {daysArray.map(d => {
                                                             const isChecked = student.attendance?.includes(d);
                                                             return (
-                                                                <td key={d} className="p-0 text-center border-r relative h-8">
-                                                                    <label className="cursor-pointer w-full h-full flex items-center justify-center hover:bg-blue-50 absolute inset-0">
+                                                                <td key={d} className="p-0 text-center border-r border-gray-50 relative h-9">
+                                                                    <label className="cursor-pointer w-full h-full flex items-center justify-center hover:bg-blue-50/50 transition-colors">
                                                                         <input
                                                                             type="checkbox"
-                                                                            className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
+                                                                            className="rounded-sm text-blue-600 focus:ring-blue-500/30 h-4 w-4 border-gray-300"
                                                                             checked={isChecked || false}
                                                                             onChange={() => toggleAttendance('student', student.id, d)}
                                                                         />
@@ -773,12 +813,12 @@ export default function AttendancePage() {
                                                                 </td>
                                                             );
                                                         })}
-                                                        <td className="p-2 text-center font-bold bg-gray-50 sticky right-0">
+                                                        <td className="p-2 text-center font-bold bg-gray-50/50 sticky right-0 border-l border-gray-100 text-blue-600">
                                                             {student.attendance?.length || 0}
                                                         </td>
-                                                        <td className="p-2 text-center sticky right-0">
-                                                            <button onClick={() => handleRemovePerson('student', student.id)} className="text-red-400 hover:text-red-600">
-                                                                <Trash2 className="h-4 w-4" />
+                                                        <td className="p-2 text-center sticky right-0 bg-white">
+                                                            <button onClick={() => handleRemovePerson('student', student.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50">
+                                                                <Trash2 className="h-3.5 w-3.5" />
                                                             </button>
                                                         </td>
                                                     </tr>
@@ -790,245 +830,227 @@ export default function AttendancePage() {
                             </div>
                         </div>
                     ) : (
-                        <div className="text-center py-20 bg-white rounded-lg shadow border-2 border-dashed border-gray-300">
-                            <Calendar className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-                            <h3 className="text-lg font-medium text-gray-900">Sila pilih Lokasi, Kelas dan Bulan</h3>
-                            <p className="text-gray-500">Isi pilihan di atas untuk mula mengisi kehadiran.</p>
+                        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl shadow-sm border border-dashed border-gray-300">
+                            <div className="bg-gray-50 p-4 rounded-full mb-4">
+                                <Calendar className="h-10 w-10 text-gray-400" />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900 mb-1">Sila pilih Lokasi, Kelas dan Bulan</h3>
+                            <p className="text-gray-500 text-sm max-w-sm text-center">Isi pilihan di bahagian atas untuk mula merekod kehadiran bagi kelas dan bulan yang berkenaan.</p>
                         </div>
                     )}
                 </div>
 
-                {/* Worker Selection Modal */}
+                {/* Modals are kept similar but can be refined if needed, focusing on main page design first */}
+                {/* Worker Modal */}
                 {isWorkerModalOpen && (
                     <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
                         <div className="bg-white rounded-lg max-w-lg w-full p-6 h-[80vh] flex flex-col">
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-medium text-gray-900">Pilih Pekerja</h3>
+                                <h3 className="text-lg font-bold text-gray-900">Tambah Guru / Petugas</h3>
                                 <button onClick={() => setIsWorkerModalOpen(false)}><X className="h-6 w-6 text-gray-400" /></button>
                             </div>
-                            <input
-                                type="text"
-                                placeholder="Cari pekerja..."
-                                className="w-full border p-2 rounded mb-4"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                            <div className="flex-1 overflow-y-auto space-y-2">
-                                {filteredWorkers.map(w => {
-                                    // Fallback: If worker has no state, checking if location matches a class in that state
-                                    const classInfo = classes.find(c => c.lokasi === w.lokasi);
-                                    const displayNegeri = w.negeri || classInfo?.negeri || '';
-
-                                    return (
-                                        <button
-                                            key={w.id}
-                                            onClick={() => handleAddWorker(w)}
-                                            className="w-full text-left p-3 hover:bg-gray-50 border rounded flex justify-between items-center"
-                                        >
-                                            <div>
-                                                <div className="font-medium">{w.nama}</div>
-                                                <div className="text-sm text-gray-500">
-                                                    {w.peranan}
-                                                    {w.lokasi ? ` • ${w.lokasi}` : ''}
-                                                    {displayNegeri ? `, ${displayNegeri}` : ''}
-                                                </div>
-                                            </div>
-                                            <Plus className="h-5 w-5 text-emerald-600" />
-                                        </button>
-                                    );
-                                })}
+                            <div className="mb-4">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                                    <input
+                                        type="text"
+                                        placeholder="Cari nama..."
+                                        className="w-full pl-9 pr-4 py-2 border rounded-md"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Student Selection Modal */}
-                {isStudentModalOpen && (
-                    <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-lg max-w-lg w-full p-6 h-[80vh] flex flex-col">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-medium text-gray-900">Pilih Pelajar (Data Mualaf)</h3>
-                                <button onClick={() => setIsStudentModalOpen(false)}><X className="h-6 w-6 text-gray-400" /></button>
-                            </div>
-                            <input
-                                type="text"
-                                placeholder="Cari pelajar..."
-                                className="w-full border p-2 rounded mb-4"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                            <div className="flex-1 overflow-y-auto space-y-2">
-                                {filteredStudents.slice(0, 50).map(s => (
-                                    <button
-                                        key={s.id}
-                                        onClick={() => handleAddStudent(s)}
-                                        className="w-full text-left p-3 hover:bg-gray-50 border rounded flex justify-between items-center"
-                                    >
+                            <div className="flex-1 overflow-y-auto border rounded-md">
+                                {filteredWorkers.map(w => (
+                                    <div key={w.id} className="p-3 border-b hover:bg-gray-50 flex justify-between items-center">
                                         <div>
-                                            <div className="font-medium">{s.namaAsal}</div>
-                                            <div className="text-sm text-gray-500">
-                                                {s.namaIslam} • {s.noKP}
-                                                {s.lokasi ? ` • ${s.lokasi}` : ''}
-                                                {(s.negeri || s.negeriCawangan) ? `, ${s.negeri || s.negeriCawangan}` : ''}
-                                            </div>
+                                            <div className="font-medium text-sm">{w.nama}</div>
+                                            <div className="text-xs text-gray-500">{w.peranan} • {w.lokasi}</div>
                                         </div>
-                                        <Plus className="h-5 w-5 text-blue-600" />
-                                    </button>
+                                        <button
+                                            onClick={() => handleAddWorker(w)}
+                                            className="bg-emerald-100 text-emerald-700 p-1.5 rounded hover:bg-emerald-200"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                        </button>
+                                    </div>
                                 ))}
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* Class Info Edit Modal */}
+                {/* Student Modal */}
+                {isStudentModalOpen && (
+                    <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-lg max-w-lg w-full p-6 h-[80vh] flex flex-col">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-bold text-gray-900">Tambah Pelajar</h3>
+                                <button onClick={() => setIsStudentModalOpen(false)}><X className="h-6 w-6 text-gray-400" /></button>
+                            </div>
+                            <div className="mb-4">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                                    <input
+                                        type="text"
+                                        placeholder="Cari nama / kp..."
+                                        className="w-full pl-9 pr-4 py-2 border rounded-md"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex-1 overflow-y-auto border rounded-md">
+                                {filteredStudents.map(s => (
+                                    <div key={s.id} className="p-3 border-b hover:bg-gray-50 flex justify-between items-center">
+                                        <div>
+                                            <div className="font-medium text-sm">{s.namaAsal || s.namaIslam}</div>
+                                            <div className="text-xs text-gray-500">{s.noKP}</div>
+                                        </div>
+                                        <button
+                                            onClick={() => handleAddStudent(s)}
+                                            className="bg-blue-100 text-blue-700 p-1.5 rounded hover:bg-blue-200"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Class Info Modal */}
                 {isClassInfoModalOpen && (
                     <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-medium text-gray-900">Maklumat Kelas Bulanan</h3>
-                                <button onClick={() => setIsClassInfoModalOpen(false)}><X className="h-6 w-6 text-gray-400" /></button>
-                            </div>
-
+                        <div className="bg-white rounded-lg max-w-lg w-full p-6">
+                            <h3 className="text-lg font-bold text-gray-900 mb-4">Edit Maklumat Kelas Bulan Ini</h3>
                             <div className="space-y-4">
-                                {/* Bahasa */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Bahasa</label>
-                                    <select
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                                        value={classInfoForm.bahasa}
-                                        onChange={(e) => setClassInfoForm({ ...classInfoForm, bahasa: e.target.value })}
-                                    >
-                                        <option value="Bahasa Melayu">Bahasa Melayu</option>
-                                        <option value="English">English</option>
-                                        <option value="中文">中文 (Chinese)</option>
-                                        <option value="தமிழ்">தமிழ் (Tamil)</option>
-                                    </select>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Bahasa Pengantar</label>
+                                        <select
+                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                                            value={classInfoForm.bahasa}
+                                            onChange={(e) => setClassInfoForm({ ...classInfoForm, bahasa: e.target.value })}
+                                        >
+                                            <option>Bahasa Melayu</option>
+                                            <option>Bahasa Inggeris</option>
+                                            <option>Bahasa Cina</option>
+                                            <option>Bahasa Tamil</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Kekerapan</label>
+                                        <select
+                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                                            value={classInfoForm.kekerapan}
+                                            onChange={(e) => setClassInfoForm({ ...classInfoForm, kekerapan: e.target.value })}
+                                        >
+                                            <option>Mingguan</option>
+                                            <option>Dwi-Mingguan</option>
+                                            <option>Bulanan</option>
+                                        </select>
+                                    </div>
                                 </div>
-
-                                {/* Hari & Masa */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">Hari & Masa</label>
                                     <input
                                         type="text"
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="cth: Sabtu, 9.00 Pagi"
+                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
                                         value={classInfoForm.hariMasa}
                                         onChange={(e) => setClassInfoForm({ ...classInfoForm, hariMasa: e.target.value })}
-                                        placeholder="cth: Ahad 8:00 PM - 10:00 PM"
                                     />
                                 </div>
-
-                                {/* Kekerapan Kelas */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Kekerapan Kelas</label>
-                                    <select
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                                        value={classInfoForm.kekerapan}
-                                        onChange={(e) => setClassInfoForm({ ...classInfoForm, kekerapan: e.target.value })}
-                                    >
-                                        <option value="Harian">Harian</option>
-                                        <option value="Mingguan">Mingguan</option>
-                                        <option value="Dua Minggu Sekali">Dua Minggu Sekali</option>
-                                        <option value="Bulanan">Bulanan</option>
-                                    </select>
-                                </div>
-
-                                {/* Penaja */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">Penaja</label>
                                     <input
                                         type="text"
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
                                         value={classInfoForm.penaja}
                                         onChange={(e) => setClassInfoForm({ ...classInfoForm, penaja: e.target.value })}
-                                        placeholder="cth: Lembaga Zakat Selangor"
                                     />
                                 </div>
-
-                                {/* PIC */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">PIC (Person In Charge)</label>
-                                    <input
-                                        type="text"
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                                        value={classInfoForm.pic}
-                                        onChange={(e) => setClassInfoForm({ ...classInfoForm, pic: e.target.value })}
-                                        placeholder="cth: Ustaz Ahmad bin Ali"
-                                    />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">PIC</label>
+                                        <input
+                                            type="text"
+                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                                            value={classInfoForm.pic}
+                                            onChange={(e) => setClassInfoForm({ ...classInfoForm, pic: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">No Tel PIC</label>
+                                        <input
+                                            type="text"
+                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                                            value={classInfoForm.noTelPIC}
+                                            onChange={(e) => setClassInfoForm({ ...classInfoForm, noTelPIC: e.target.value })}
+                                        />
+                                    </div>
                                 </div>
-
-                                {/* No Tel PIC */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">No Tel PIC</label>
-                                    <input
-                                        type="tel"
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                                        value={classInfoForm.noTelPIC}
-                                        onChange={(e) => setClassInfoForm({ ...classInfoForm, noTelPIC: e.target.value })}
-                                        placeholder="cth: 012-3456789"
-                                    />
-                                </div>
-
-                                {/* Catatan */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">Catatan</label>
                                     <textarea
+                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
                                         rows="3"
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
                                         value={classInfoForm.catatan}
                                         onChange={(e) => setClassInfoForm({ ...classInfoForm, catatan: e.target.value })}
-                                        placeholder="Catatan tambahan tentang kelas bulan ini..."
-                                    />
+                                    ></textarea>
+                                </div>
+                                <div className="flex justify-end space-x-3 mt-4">
+                                    <button
+                                        onClick={() => setIsClassInfoModalOpen(false)}
+                                        className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200"
+                                    >
+                                        Batal
+                                    </button>
+                                    <button
+                                        onClick={handleSaveClassInfo}
+                                        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                                    >
+                                        Simpan
+                                    </button>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                )}
 
-                            <div className="mt-6 flex justify-end space-x-3">
+                {/* Confirmation Modal for Copy */}
+                {isCopyConfirmModalOpen && (
+                    <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-lg max-w-sm w-full p-6 text-center">
+                            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-purple-100 mb-4">
+                                <Copy className="h-6 w-6 text-purple-600" />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900 mb-2">Salin dari bulan lepas?</h3>
+                            <p className="text-sm text-gray-500 mb-6">
+                                Ini akan menyalin senarai petugas, pelajar, dan maklumat kelas dari bulan sebelumnya ({getPreviousMonth(selectedMonth)}).
+                                Data sedia ada tidak akan dipadam.
+                            </p>
+                            <div className="flex justify-center space-x-3">
                                 <button
-                                    onClick={() => setIsClassInfoModalOpen(false)}
+                                    onClick={() => setIsCopyConfirmModalOpen(false)}
                                     className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50"
                                 >
                                     Batal
                                 </button>
                                 <button
-                                    onClick={handleSaveClassInfo}
-                                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center"
+                                    onClick={handleCopyFromPreviousMonth}
+                                    className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700"
                                 >
-                                    <Save className="h-4 w-4 mr-1" /> Simpan
+                                    Ya, Salin
                                 </button>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* Confirm Copy Modal */}
-                {isCopyConfirmModalOpen && (
-                    <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-lg max-w-md w-full p-6">
-                            <div className="mb-4">
-                                <h3 className="text-lg font-bold text-gray-900 mb-2">Salin Data Bulan Lepas</h3>
-                                <p className="text-gray-600 text-sm">
-                                    Adakah anda mahu menyalin maklumat kelas, senarai petugas, dan senarai mualaf dari bulan sebelumnya?
-                                </p>
-                                <p className="text-blue-600 text-xs mt-2 font-medium">
-                                    Nota: Data sedia ada tidak akan dipadam. Petugas/pelajar yang belum ada akan ditambah, dan info kelas yang kosong akan diisi.
-                                </p>
-                            </div>
-                            <div className="flex justify-end space-x-3">
-                                <button
-                                    onClick={() => setIsCopyConfirmModalOpen(false)}
-                                    className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-50"
-                                >
-                                    Batal
-                                </button>
-                                <button
-                                    onClick={handleCopyFromPreviousMonth}
-                                    className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-                                >
-                                    Ya, Salin Data
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
         </ProtectedRoute>
     );

@@ -8,7 +8,26 @@ import { getStates, getClassLevels, getClassTypes, getLocationsTable } from '@/l
 import { NEGERI_CAWANGAN_OPTIONS } from '@/lib/constants';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { Search, Plus, Edit2, Trash2, MapPin, X, CheckCircle } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, MapPin, X, CheckCircle, Download, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+
+// Helper component for filter inputs
+const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
+    <div className="relative">
+        <input
+            type="text"
+            list={listId}
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value)}
+            className="block w-full bg-white text-[10px] border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 py-0.5 px-1"
+            placeholder={placeholder || "Cari..."}
+        />
+        <datalist id={listId}>
+            {options.map(val => (
+                <option key={val} value={val} />
+            ))}
+        </datalist>
+    </div>
+);
 
 export default function ClassesPage() {
     const { user, role, profile, loading: authLoading } = useAuth();
@@ -21,9 +40,11 @@ export default function ClassesPage() {
     const [types, setTypes] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Filter State
-    const [selectedLocation, setSelectedLocation] = useState('');
-    const [searchTerm, setSearchTerm] = useState('');
+    // Filter & Sort State
+    const [columnFilters, setColumnFilters] = useState({});
+    const [sortConfig, setSortConfig] = useState({ key: 'nama', direction: 'asc' });
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 20;
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -62,11 +83,6 @@ export default function ClassesPage() {
         fetchClasses();
     }, []);
 
-    const fetchStates = async () => {
-        const { data } = await getStates();
-        if (data) setStates(data.map(s => s.name));
-    };
-
     const fetchClasses = async () => {
         setLoading(true);
         const { data, error } = await supabase
@@ -77,7 +93,13 @@ export default function ClassesPage() {
         if (error) {
             console.error("Error fetching classes:", error);
         } else {
-            setClasses(data || []);
+            // Apply permission filtering immediately
+            if (role !== 'admin' && profile?.assignedLocations && !profile.assignedLocations.includes('All')) {
+                const allowedData = data.filter(c => profile.assignedLocations.includes(c.lokasi));
+                setClasses(allowedData || []);
+            } else {
+                setClasses(data || []);
+            }
         }
         setLoading(false);
     };
@@ -85,6 +107,12 @@ export default function ClassesPage() {
     const availableLocations = (role === 'admin' || profile?.assignedLocations?.includes('All'))
         ? locations
         : locations.filter(l => profile?.assignedLocations?.includes(l.name));
+
+    // Modal Locations Filtered by State
+    const modalLocations = formData.negeri
+        ? availableLocations.filter(l => l.state_name === formData.negeri)
+        : availableLocations;
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -148,10 +176,6 @@ export default function ClassesPage() {
         } else {
             setCurrentClass(null);
             resetForm();
-            // Default location to currently selected filter if valid
-            if (selectedLocation && availableLocations.some(l => l.name === selectedLocation)) {
-                setFormData(prev => ({ ...prev, lokasi: selectedLocation }));
-            }
         }
         setIsModalOpen(true);
     };
@@ -160,116 +184,321 @@ export default function ClassesPage() {
         setFormData({
             nama: '',
             negeri: '',
-            lokasi: selectedLocation || '',
+            lokasi: '',
             jenis: 'Fizikal',
             tahap: 'Asas'
         });
     };
 
-    // Filter Logic
+    // --- Table Logic ---
+
+    // Get unique values for a column, respecting other filters
+    const getUniqueValues = (field) => {
+        const relevantSubmissions = classes.filter(sub => {
+            return Object.entries(columnFilters).every(([key, value]) => {
+                if (key === field) return true;
+                if (!value) return true;
+                return sub[key]?.toString().toLowerCase().includes(value.toLowerCase());
+            });
+        });
+
+        const values = relevantSubmissions
+            .map(sub => sub[field])
+            .filter(val => val && val !== '' && val !== null && val !== undefined);
+        return [...new Set(values)].sort();
+    };
+
+    const handleFilterChange = (field, value) => {
+        setColumnFilters(prev => {
+            const newFilters = { ...prev };
+            if (value === '') {
+                delete newFilters[field];
+            } else {
+                newFilters[field] = value;
+            }
+            return newFilters;
+        });
+        setCurrentPage(1);
+    };
+
+    const handleSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const clearAllFilters = () => {
+        setColumnFilters({});
+        setSortConfig({ key: 'nama', direction: 'asc' });
+        setCurrentPage(1);
+    };
+
     const filteredClasses = classes.filter(cls => {
-        const matchesSearch = cls.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            cls.lokasi.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesLocation = selectedLocation ? cls.lokasi === selectedLocation : true;
-
-        const isAccessible = role === 'admin' || profile?.assignedLocations?.includes('All') || (profile?.assignedLocations?.includes(cls.lokasi));
-
-        return matchesSearch && matchesLocation && isAccessible;
+        return Object.entries(columnFilters).every(([field, value]) => {
+            if (!value) return true;
+            return cls[field]?.toString().toLowerCase().includes(value.toLowerCase());
+        });
+    }).sort((a, b) => {
+        if (!sortConfig.key) return 0;
+        let aVal = a[sortConfig.key] || '';
+        let bVal = b[sortConfig.key] || '';
+        if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+        if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
     });
+
+    const exportToCSV = () => {
+        const headers = ['Nama Kelas', 'Negeri', 'Lokasi', 'Jenis', 'Tahap'];
+        const csvContent = [
+            headers.join(','),
+            ...filteredClasses.map(c => [
+                c.nama, c.negeri, c.lokasi, c.jenis, c.tahap
+            ].join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `data-kelas-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+    };
+
+    // Pagination
+    const totalPages = Math.ceil(filteredClasses.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedClasses = filteredClasses.slice(startIndex, startIndex + itemsPerPage);
+
+    // Statistics Calculation
+    const typeCounts = filteredClasses.reduce((acc, curr) => {
+        const type = curr.jenis || 'Tiada Jenis';
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+    }, {});
+
+    const levelCounts = filteredClasses.reduce((acc, curr) => {
+        const level = curr.tahap || 'Tiada Tahap';
+        acc[level] = (acc[level] || 0) + 1;
+        return acc;
+    }, {});
 
     return (
         <ProtectedRoute>
-            <div className="min-h-screen bg-gray-50">
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
                 <Navbar />
 
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-                                <MapPin className="h-6 w-6 mr-2 text-blue-600" />
-                                Pengurusan Kelas & Lokasi
-                            </h1>
-                            <p className="text-gray-500 text-sm mt-1">Senarai lokasi dan kelas pengajian.</p>
-                        </div>
+                <div className="w-full mx-auto px-2 sm:px-4 py-4">
+                    {/* Header */}
+                    <div className="mb-4">
+                        <h1 className="text-2xl font-bold text-gray-900 flex items-center mb-2">
+                            <MapPin className="h-6 w-6 mr-2 text-blue-600" />
+                            Pengurusan Kelas & Lokasi
+                        </h1>
 
-                        <div className="flex items-center space-x-4">
-                            {/* Location Dropdown */}
-                            <div className="relative">
-                                <select
-                                    value={selectedLocation}
-                                    onChange={(e) => setSelectedLocation(e.target.value)}
-                                    className="appearance-none bg-white border border-gray-300 text-gray-700 py-2 px-4 pr-8 rounded leading-tight focus:outline-none focus:bg-white focus:border-blue-500"
-                                >
-                                    <option value="">-- Semua Lokasi --</option>
-                                    {availableLocations.map(loc => (
-                                        <option key={loc.id || loc.name} value={loc.name}>{loc.name}</option>
+                        {/* Statistics Badges */}
+                        <div className="flex flex-col md:flex-row gap-4 mb-4">
+                            {/* Jenis Stats */}
+                            <div className="bg-white p-3 rounded-xl shadow-sm border border-purple-100 flex-1">
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Ringkasan Jenis</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {Object.entries(typeCounts).sort((a, b) => a[0].localeCompare(b[0])).map(([type, count]) => (
+                                        <div key={type} className="flex items-center bg-gray-50 border border-gray-100 rounded-lg px-2 py-1">
+                                            <span className="text-xs font-medium text-gray-600 mr-2">{type}</span>
+                                            <span className="bg-purple-100 text-purple-700 text-xs font-bold px-1.5 py-0.5 rounded-md min-w-[24px] text-center">{count}</span>
+                                        </div>
                                     ))}
-                                </select>
-                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                                    <MapPin className="h-4 w-4" />
                                 </div>
                             </div>
 
+                            {/* Tahap Stats */}
+                            <div className="bg-white p-3 rounded-xl shadow-sm border border-blue-100 flex-1">
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Ringkasan Tahap</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {Object.entries(levelCounts).sort((a, b) => a[0].localeCompare(b[0])).map(([level, count]) => (
+                                        <div key={level} className="flex items-center bg-gray-50 border border-gray-100 rounded-lg px-2 py-1">
+                                            <span className="text-xs font-medium text-gray-600 mr-2">{level}</span>
+                                            <span className="bg-blue-100 text-blue-700 text-xs font-bold px-1.5 py-0.5 rounded-md min-w-[24px] text-center">{count}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <p className="text-gray-600 text-xs">
+                            Jumlah {filteredClasses.length} rekod dijumpai
+                        </p>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex justify-between items-center mb-2">
+                        <div>
+                            {Object.keys(columnFilters).length > 0 && (
+                                <button
+                                    onClick={clearAllFilters}
+                                    className="px-3 py-1 bg-red-50 text-red-600 rounded text-xs font-medium hover:bg-red-100 transition-colors"
+                                >
+                                    Padam Semua Filter
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex bg-transparent space-x-2">
+                            <button
+                                onClick={exportToCSV}
+                                className="flex items-center justify-center space-x-1 whitespace-nowrap bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 px-3 py-1 rounded text-xs font-medium shadow-sm transition-colors"
+                            >
+                                <Download className="h-4 w-4" />
+                                <span>Export CSV</span>
+                            </button>
                             <button
                                 onClick={() => openModal()}
-                                className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-blue-700 shadow-sm transition-colors"
+                                className="bg-blue-600 text-white px-3 py-1 rounded text-xs font-medium hover:bg-blue-700 shadow-sm transition-colors flex items-center"
                             >
-                                <Plus className="h-5 w-5 mr-1" /> Tambah
+                                <Plus className="h-4 w-4 mr-1" /> Tambah
                             </button>
                         </div>
                     </div>
 
-                    <div className="bg-white p-4 rounded-lg shadow mb-6">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                            <input
-                                type="text"
-                                placeholder="Cari nama kelas atau lokasi..."
-                                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
-                    </div>
-
+                    {/* Table */}
                     {loading ? (
-                        <div className="text-center py-10">Loading...</div>
+                        <div className="card">
+                            <div className="space-y-4">
+                                {[1, 2, 3, 4, 5].map(i => (
+                                    <div key={i} className="animate-shimmer h-16 rounded-lg"></div>
+                                ))}
+                            </div>
+                        </div>
                     ) : filteredClasses.length === 0 ? (
-                        <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-                            Tiada kelas dijumpai.
+                        <div className="card text-center py-12">
+                            <p className="text-gray-500 text-lg">Tiada rekod dijumpai</p>
                         </div>
                     ) : (
-                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                            {filteredClasses.map((cls) => (
-                                <div key={cls.id} className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-5 border-l-4 border-blue-500">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div>
-                                            <h3 className="font-bold text-lg text-gray-900">{cls.nama}</h3>
-                                            <div className="flex items-center text-gray-500 text-sm mt-1">
-                                                <MapPin className="h-3 w-3 mr-1" />
-                                                {cls.lokasi}{cls.negeri ? `, ${cls.negeri}` : ''}
-                                            </div>
-                                        </div>
-                                        <div className="flex space-x-2">
-                                            <button onClick={() => openModal(cls)} className="text-gray-400 hover:text-blue-600 p-1">
-                                                <Edit2 className="h-4 w-4" />
-                                            </button>
-                                            <button onClick={() => handleDelete(cls.id)} className="text-gray-400 hover:text-red-500 p-1">
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    </div>
+                        <div className="card overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-xs border-collapse">
+                                    <thead>
+                                        <tr className="border-b-2 border-blue-500 bg-blue-100">
+                                            {/* Frozen: Nama */}
+                                            <th className="sticky left-0 z-20 bg-blue-200 text-left py-1 px-2 font-semibold text-gray-700 shadow-[1px_0_0_0_#3b82f6] min-w-[200px] align-top">
+                                                <div
+                                                    className="flex items-center cursor-pointer mb-1 group"
+                                                    onClick={() => handleSort('nama')}
+                                                >
+                                                    <span>Nama</span>
+                                                    {sortConfig.key === 'nama' ? (
+                                                        sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 text-blue-600" /> : <ArrowDown className="h-3 w-3 ml-1 text-blue-600" />
+                                                    ) : (
+                                                        <ArrowUpDown className="h-3 w-3 ml-1 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    )}
+                                                </div>
+                                                <FilterInput
+                                                    value={columnFilters['nama']}
+                                                    onChange={(val) => handleFilterChange('nama', val)}
+                                                    options={getUniqueValues('nama')}
+                                                    listId="list-nama"
+                                                    placeholder="Cari Nama"
+                                                />
+                                            </th>
+                                            {/* Frozen: Tindakan */}
+                                            <th className="sticky left-[200px] z-20 bg-blue-200 text-left py-1 px-2 font-semibold text-gray-700 shadow-[1px_0_0_0_#3b82f6] min-w-[100px] align-top">
+                                                <div className="mb-1">Tindakan</div>
+                                            </th>
 
-                                    <div className="flex items-center justify-between text-sm mt-4 pt-4 border-t">
-                                        <span className={`px-2 py-1 rounded text-xs font-medium ${cls.jenis === 'Online' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
-                                            {cls.jenis}
+                                            {/* Scrollable Columns */}
+                                            {[
+                                                { id: 'negeri', label: 'Negeri', width: 'min-w-[150px]' },
+                                                { id: 'lokasi', label: 'Lokasi', width: 'min-w-[150px]' },
+                                                { id: 'jenis', label: 'Jenis', width: 'min-w-[120px]' },
+                                                { id: 'tahap', label: 'Tahap', width: 'min-w-[120px]' },
+                                            ].map(col => (
+                                                <th key={col.id} className={`text-left py-1 px-2 font-semibold text-gray-700 bg-blue-100 border-r border-gray-200 ${col.width} align-top`}>
+                                                    <div
+                                                        className="flex items-center cursor-pointer mb-1 group"
+                                                        onClick={() => handleSort(col.id)}
+                                                    >
+                                                        <span>{col.label}</span>
+                                                        {sortConfig.key === col.id ? (
+                                                            sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 text-blue-600" /> : <ArrowDown className="h-3 w-3 ml-1 text-blue-600" />
+                                                        ) : (
+                                                            <ArrowUpDown className="h-3 w-3 ml-1 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                        )}
+                                                    </div>
+                                                    <FilterInput
+                                                        value={columnFilters[col.id]}
+                                                        onChange={(val) => handleFilterChange(col.id, val)}
+                                                        options={getUniqueValues(col.id)}
+                                                        listId={`list-${col.id}`}
+                                                        placeholder="Cari..."
+                                                    />
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {paginatedClasses.map((cls) => (
+                                            <tr key={cls.id} className="border-b border-gray-200 hover:bg-blue-50 transition-colors">
+                                                <td className="sticky left-0 z-10 bg-blue-50 py-1 px-2 shadow-[1px_0_0_0_#3b82f6] min-w-[200px] font-medium text-gray-900">
+                                                    {cls.nama}
+                                                </td>
+                                                <td className="sticky left-[200px] z-10 bg-blue-50 py-1 px-2 shadow-[1px_0_0_0_#3b82f6] min-w-[100px]">
+                                                    <div className="flex items-center space-x-2">
+                                                        <button onClick={() => openModal(cls)} className="text-gray-400 hover:text-blue-600 transition-colors p-1" title="Edit">
+                                                            <Edit2 className="h-4 w-4" />
+                                                        </button>
+                                                        <button onClick={() => handleDelete(cls.id)} className="text-gray-400 hover:text-red-600 transition-colors p-1" title="Padam">
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
+                                                </td>
+
+                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[150px]">{cls.negeri || '-'}</td>
+                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[150px]">{cls.lokasi || '-'}</td>
+                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">
+                                                    <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${cls.jenis === 'Online' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>
+                                                        {cls.jenis}
+                                                    </span>
+                                                </td>
+                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">
+                                                    <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full text-[10px] font-semibold">
+                                                        {cls.tahap}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Pagination */}
+                            {totalPages > 1 && (
+                                <div className="mt-6 flex items-center justify-between border-t pt-4">
+                                    <p className="text-sm text-gray-600">
+                                        Menunjukkan {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filteredClasses.length)} daripada {filteredClasses.length}
+                                    </p>
+                                    <div className="flex items-center space-x-2">
+                                        <button
+                                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                            disabled={currentPage === 1}
+                                            className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <ChevronLeft className="h-5 w-5" />
+                                        </button>
+                                        <span className="text-sm font-medium">
+                                            Halaman {currentPage} / {totalPages}
                                         </span>
-                                        <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">
-                                            {cls.tahap}
-                                        </span>
+                                        <button
+                                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                            disabled={currentPage === totalPages}
+                                            className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <ChevronRight className="h-5 w-5" />
+                                        </button>
                                     </div>
                                 </div>
-                            ))}
+                            )}
                         </div>
                     )}
                 </div>
@@ -307,7 +536,7 @@ export default function ClassesPage() {
                                             required
                                             className="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                                             value={formData.negeri}
-                                            onChange={(e) => setFormData({ ...formData, negeri: e.target.value })}
+                                            onChange={(e) => setFormData({ ...formData, negeri: e.target.value, lokasi: '' })}
                                         >
                                             <option value="">-- Sila Pilih Negeri --</option>
                                             {(states.length > 0 ? states : NEGERI_CAWANGAN_OPTIONS).map(negeri => (
@@ -319,16 +548,15 @@ export default function ClassesPage() {
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Lokasi</label>
                                         <select
                                             required
-                                            className="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                            className="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
                                             value={formData.lokasi}
                                             onChange={(e) => setFormData({ ...formData, lokasi: e.target.value })}
+                                            disabled={!formData.negeri}
                                         >
                                             <option value="">-- Sila Pilih Lokasi --</option>
-                                            {availableLocations
-                                                .filter(loc => !formData.negeri || !loc.state_name || loc.state_name === formData.negeri)
-                                                .map(loc => (
-                                                    <option key={loc.id || loc.name} value={loc.name}>{loc.name}</option>
-                                                ))}
+                                            {modalLocations.map(loc => (
+                                                <option key={loc.id || loc.name} value={loc.name}>{loc.name}</option>
+                                            ))}
                                         </select>
                                     </div>
                                 </div>

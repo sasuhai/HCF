@@ -213,40 +213,40 @@ export default function MetadataManagementPage() {
                                             <p className="max-w-xs">Tiada rekod {activeTab.name} disimpan lagi. Gunakan butang di atas untuk menambah.</p>
                                         </div>
                                     ) : (
-                                        <ul className="divide-y divide-gray-100">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
                                             {items.map((item) => (
-                                                <li key={item.id} className="p-4 hover:bg-gray-50/50 transition-colors flex items-center justify-between group">
-                                                    <div className="flex items-center space-x-4">
-                                                        <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center text-gray-400 group-hover:bg-emerald-100 group-hover:text-emerald-600 transition-colors">
-                                                            <activeTab.icon className="w-5 h-5" />
+                                                <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-3 hover:border-emerald-300 hover:shadow-sm transition-all flex items-center justify-between group">
+                                                    <div className="flex items-center space-x-3 overflow-hidden">
+                                                        <div className="flex-shrink-0 w-8 h-8 bg-gray-50 rounded-md flex items-center justify-center text-gray-400 group-hover:bg-emerald-100 group-hover:text-emerald-600 transition-colors">
+                                                            <activeTab.icon className="w-4 h-4" />
                                                         </div>
-                                                        <div>
-                                                            <p className="font-medium text-gray-900">{item.name}</p>
+                                                        <div className="min-w-0">
+                                                            <p className="font-medium text-gray-900 text-sm truncate">{item.name}</p>
                                                             {item.state_name && (
-                                                                <p className="text-xs text-gray-500">{item.state_name}</p>
+                                                                <p className="text-[10px] text-gray-500 truncate">{item.state_name}</p>
                                                             )}
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <div className="flex items-center space-x-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
                                                         <button
                                                             onClick={() => handleOpenModal(item)}
-                                                            className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                                                            className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-all"
                                                             title="Edit"
                                                         >
-                                                            <Edit2 className="w-4 h-4" />
+                                                            <Edit2 className="w-3.5 h-3.5" />
                                                         </button>
                                                         <button
                                                             onClick={() => handleDelete(item.id)}
-                                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
                                                             title="Padam"
                                                         >
-                                                            <Trash2 className="w-4 h-4" />
+                                                            <Trash2 className="w-3.5 h-3.5" />
                                                         </button>
                                                     </div>
-                                                </li>
+                                                </div>
                                             ))}
-                                        </ul>
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -255,86 +255,88 @@ export default function MetadataManagementPage() {
                 </main>
 
                 {/* Modal */}
-                {isModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                        <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-                            <div className="p-6 bg-emerald-600 text-white flex items-center justify-between">
-                                <div className="flex items-center space-x-2">
-                                    <activeTab.icon className="w-5 h-5" />
-                                    <h3 className="text-xl font-bold">{editingItem ? 'Edit' : 'Tambah'} {activeTab.name}</h3>
-                                </div>
-                                <button onClick={() => setIsModalOpen(false)} className="text-white/80 hover:text-white">
-                                    <X className="w-6 h-6" />
-                                </button>
-                            </div>
-
-                            <form onSubmit={handleSubmit} className="p-8 space-y-6">
-                                {message.text && (
-                                    <div className={`p-4 rounded-xl flex items-center space-x-3 ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                                        }`}>
-                                        {message.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-                                        <p className="text-sm font-medium">{message.text}</p>
+                {
+                    isModalOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                                <div className="p-6 bg-emerald-600 text-white flex items-center justify-between">
+                                    <div className="flex items-center space-x-2">
+                                        <activeTab.icon className="w-5 h-5" />
+                                        <h3 className="text-xl font-bold">{editingItem ? 'Edit' : 'Tambah'} {activeTab.name}</h3>
                                     </div>
-                                )}
-
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                        Nama {activeTab.name}
-                                    </label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        placeholder={`Masukkan nama ${activeTab.name.toLowerCase()}`}
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
-                                    />
+                                    <button onClick={() => setIsModalOpen(false)} className="text-white/80 hover:text-white">
+                                        <X className="w-6 h-6" />
+                                    </button>
                                 </div>
 
-                                {activeTab.id === 'locations' && (
+                                <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                                    {message.text && (
+                                        <div className={`p-4 rounded-xl flex items-center space-x-3 ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                                            }`}>
+                                            {message.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                                            <p className="text-sm font-medium">{message.text}</p>
+                                        </div>
+                                    )}
+
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                            Negeri
+                                            Nama {activeTab.name}
                                         </label>
-                                        <select
-                                            value={formData.state_name}
-                                            onChange={(e) => setFormData({ ...formData, state_name: e.target.value })}
-                                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all cursor-pointer"
-                                        >
-                                            <option value="">-- Pilih Negeri --</option>
-                                            {(statesList.length > 0 ? statesList : NEGERI_CAWANGAN_OPTIONS).map(state => (
-                                                <option key={state} value={state}>{state}</option>
-                                            ))}
-                                        </select>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                            placeholder={`Masukkan nama ${activeTab.name.toLowerCase()}`}
+                                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                                        />
                                     </div>
-                                )}
 
-                                <div className="pt-4 flex flex-col gap-3">
-                                    <button
-                                        type="submit"
-                                        disabled={actionLoading}
-                                        className="w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl hover:bg-emerald-700 disabled:opacity-50 shadow-lg shadow-emerald-100 flex items-center justify-center space-x-2 transition-all"
-                                    >
-                                        {actionLoading ? (
-                                            <Loader2 className="w-5 h-5 animate-spin" />
-                                        ) : (
-                                            <Save className="w-5 h-5" />
-                                        )}
-                                        <span>{editingItem ? 'Kemaskini' : 'Simpan'} Maklumat</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsModalOpen(false)}
-                                        className="w-full bg-gray-100 text-gray-700 font-bold py-3.5 rounded-xl hover:bg-gray-200 transition-all"
-                                    >
-                                        Batal
-                                    </button>
-                                </div>
-                            </form>
+                                    {activeTab.id === 'locations' && (
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                Negeri
+                                            </label>
+                                            <select
+                                                value={formData.state_name}
+                                                onChange={(e) => setFormData({ ...formData, state_name: e.target.value })}
+                                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all cursor-pointer"
+                                            >
+                                                <option value="">-- Pilih Negeri --</option>
+                                                {(statesList.length > 0 ? statesList : NEGERI_CAWANGAN_OPTIONS).map(state => (
+                                                    <option key={state} value={state}>{state}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
+
+                                    <div className="pt-4 flex flex-col gap-3">
+                                        <button
+                                            type="submit"
+                                            disabled={actionLoading}
+                                            className="w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl hover:bg-emerald-700 disabled:opacity-50 shadow-lg shadow-emerald-100 flex items-center justify-center space-x-2 transition-all"
+                                        >
+                                            {actionLoading ? (
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                            ) : (
+                                                <Save className="w-5 h-5" />
+                                            )}
+                                            <span>{editingItem ? 'Kemaskini' : 'Simpan'} Maklumat</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsModalOpen(false)}
+                                            className="w-full bg-gray-100 text-gray-700 font-bold py-3.5 rounded-xl hover:bg-gray-200 transition-all"
+                                        >
+                                            Batal
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
-                    </div>
-                )}
-            </div>
-        </ProtectedRoute>
+                    )
+                }
+            </div >
+        </ProtectedRoute >
     );
 }
