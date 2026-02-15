@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,7 +9,7 @@ import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Search, Save, UserPlus, FileText, CheckCircle, Trash2, Home, X, Check, Plus, Calendar, MapPin, Edit2, Copy, AlertCircle, ChevronDown, Download, Globe, Clock, User } from 'lucide-react';
 
-export default function AttendancePage() {
+function AttendancePageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user, role, profile, loading: authLoading } = useAuth();
@@ -1053,5 +1053,13 @@ export default function AttendancePage() {
 
             </div>
         </ProtectedRoute>
+    );
+}
+
+export default function AttendancePage() {
+    return (
+        <Suspense fallback={<div className="flex justify-center items-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div></div>}>
+            <AttendancePageContent />
+        </Suspense>
     );
 }

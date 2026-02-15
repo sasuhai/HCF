@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import BorangF2 from '@/components/BorangF2';
 
-export default function AttendanceDashboard() {
+function AttendanceDashboardContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user, role, profile, loading: authLoading } = useAuth();
@@ -1165,5 +1165,14 @@ export default function AttendanceDashboard() {
                 </div>
             </div>
         </ProtectedRoute>
+    );
+}
+
+
+export default function AttendanceDashboard() {
+    return (
+        <Suspense fallback={<div className="flex justify-center items-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div></div>}>
+            <AttendanceDashboardContent />
+        </Suspense>
     );
 }
