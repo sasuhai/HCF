@@ -184,6 +184,8 @@ export const processSubmissionFiles = async (files, onProgress = null) => {
         'gambarIC',
         'gambarKadIslam',
         'gambarSijilPengislaman',
+        'gambarMualaf',
+        'gambarSesiPengislaman',
         'dokumenLain1',
         'dokumenLain2',
         'dokumenLain3'

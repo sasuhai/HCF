@@ -8,6 +8,40 @@ const formatResponse = (data, error, total = 0) => {
     return { data, error: null, total };
 };
 
+// Internal helper to fetch ALL records from a query by handling Supabase's 1000-record limit
+const fetchAll = async (queryBuilder) => {
+    let allData = [];
+    let page = 0;
+    const size = 1000;
+    let hasMore = true;
+    let totalCount = 0;
+
+    while (hasMore) {
+        const from = page * size;
+        const to = from + size - 1;
+
+        // Use range on a COPY of the query to avoid mutation issues if any
+        // In current supabase-js, .range() returns a new builder instance.
+        const { data, error, count } = await queryBuilder.range(from, to);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            allData = allData.concat(data);
+            totalCount = count;
+            if (data.length < size) {
+                hasMore = false;
+            } else {
+                page++;
+            }
+        } else {
+            hasMore = false;
+        }
+    }
+
+    return { data: allData, count: totalCount };
+};
+
 // Create Submission
 export const createSubmission = async (data, userId) => {
     try {
@@ -87,6 +121,7 @@ export const getSubmission = async (id) => {
 };
 
 // Get All Submissions with filters
+// Get All Submissions with filters
 export const getSubmissions = async (filters = {}) => {
     try {
         let query = supabase
@@ -117,14 +152,15 @@ export const getSubmissions = async (filters = {}) => {
             const page = filters.page || 0;
             const from = page * filters.pageSize;
             const to = from + filters.pageSize - 1;
-            query = query.range(from, to);
+            const { data, error, count } = await query.range(from, to);
+            if (error) throw error;
+            return { data, error: null, total: count };
+        } else {
+            // Fetch ALL records using the helper
+            const { data, count } = await fetchAll(query);
+            return { data, error: null, total: count };
         }
 
-        const { data, error, count } = await query;
-
-        if (error) throw error;
-
-        return { data, error: null, total: count };
     } catch (error) {
         return { data: [], error: error.message, total: 0 };
     }
@@ -164,7 +200,7 @@ export const getStatistics = async () => {
 export const getOverallDashboardStats = async (role = 'admin', profile = {}) => {
     try {
         const stats = {
-            mualaf: { total: 0, byState: {}, trend: [], recent: [] },
+            mualaf: { total: 0, byState: [], byStateCounts: {}, stateTrends: {}, trend: [], recent: [] },
             classes: { total: 0, byState: {} },
             workers: { total: 0, byRole: {} },
             attendance: { trend: [] }
@@ -178,46 +214,84 @@ export const getOverallDashboardStats = async (role = 'admin', profile = {}) => 
         // Fetching all data to client for stats is bad practice in SQL, but good for migration parity.
         // I will attempt to fetch needed fields only.
 
-        let mualafQuery = supabase.from('submissions').select('id, negeriCawangan, createdAt, lokasi, namaPenuh, namaAsal, status, bangsa').eq('status', 'active').order('createdAt', { ascending: false });
+        let mualafQuery = supabase.from('submissions').select('id, negeriCawangan, createdAt, lokasi, namaPenuh, namaAsal, status, bangsa, tarikhPengislaman').eq('status', 'active').order('createdAt', { ascending: false });
 
         if (isRestricted && allowedLocations.length > 0) {
             mualafQuery = mualafQuery.in('lokasi', allowedLocations);
         }
 
-        const { data: mualafData, error: mualafError } = await mualafQuery;
-
-        if (mualafError) throw mualafError;
+        const { data: mualafData } = await fetchAll(mualafQuery);
 
         // Process Mualaf logic
         const now = new Date();
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(now.getMonth() - 5);
-        sixMonthsAgo.setDate(1);
-
-        const mualafTrendMap = {};
         const getMonthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
-        // Initialize Trend Map
-        for (let i = 0; i < 6; i++) {
-            const d = new Date();
-            d.setMonth(now.getMonth() - i);
-            const key = getMonthKey(d);
-            mualafTrendMap[key] = 0;
+        // Prepare Yearly Trend Map (Last 10 Years)
+        const currentYear = now.getFullYear();
+        const startYear = currentYear - 9;
+        const yearlyTrendMap = {};
+        for (let y = startYear; y <= currentYear; y++) {
+            yearlyTrendMap[y] = { registrations: 0, conversions: 0 };
         }
+
+        // Prepare Monthly Trend Map (Last 12 Months)
+        const monthlyTrendMap = {};
+        for (let i = 0; i < 12; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const key = getMonthKey(d);
+            monthlyTrendMap[key] = { registrations: 0, conversions: 0 };
+        }
+
+        const mualafByLocation = {}; // { locationName: count }
+        const locationTrendMap = {}; // { locationName: { monthKey: { registrations, conversions } } }
+        const stateTrendMap = {};    // { stateName: { monthKey: { registrations, conversions } } }
 
         stats.mualaf.total = mualafData.length;
 
         mualafData.forEach(item => {
             const state = item.negeriCawangan || 'Lain-lain';
-            stats.mualaf.byState[state] = (stats.mualaf.byState[state] || 0) + 1;
+            stats.mualaf.byStateCounts[state] = (stats.mualaf.byStateCounts[state] || 0) + 1;
+
+            const loc = item.lokasi || 'Tiada Lokasi';
+            mualafByLocation[loc] = (mualafByLocation[loc] || 0) + 1;
 
             if (item.createdAt) {
                 const date = new Date(item.createdAt);
-                if (date >= sixMonthsAgo) {
-                    const key = getMonthKey(date);
-                    if (mualafTrendMap[key] !== undefined) {
-                        mualafTrendMap[key]++;
-                    }
+                const year = date.getFullYear();
+                const monKey = getMonthKey(date);
+
+                if (yearlyTrendMap[year]) yearlyTrendMap[year].registrations++;
+                if (monthlyTrendMap[monKey]) monthlyTrendMap[monKey].registrations++;
+
+                // Per location trend
+                if (monthlyTrendMap[monKey]) {
+                    if (!locationTrendMap[loc]) locationTrendMap[loc] = {};
+                    if (!locationTrendMap[loc][monKey]) locationTrendMap[loc][monKey] = { registrations: 0, conversions: 0 };
+                    locationTrendMap[loc][monKey].registrations++;
+
+                    if (!stateTrendMap[state]) stateTrendMap[state] = {};
+                    if (!stateTrendMap[state][monKey]) stateTrendMap[state][monKey] = { registrations: 0, conversions: 0 };
+                    stateTrendMap[state][monKey].registrations++;
+                }
+            }
+
+            if (item.tarikhPengislaman) {
+                const date = new Date(item.tarikhPengislaman);
+                const year = date.getFullYear();
+                const monKey = getMonthKey(date);
+
+                if (yearlyTrendMap[year]) yearlyTrendMap[year].conversions++;
+                if (monthlyTrendMap[monKey]) monthlyTrendMap[monKey].conversions++;
+
+                // Per location/state trend
+                if (monthlyTrendMap[monKey]) {
+                    if (!locationTrendMap[loc]) locationTrendMap[loc] = {};
+                    if (!locationTrendMap[loc][monKey]) locationTrendMap[loc][monKey] = { registrations: 0, conversions: 0 };
+                    locationTrendMap[loc][monKey].conversions++;
+
+                    if (!stateTrendMap[state]) stateTrendMap[state] = {};
+                    if (!stateTrendMap[state][monKey]) stateTrendMap[state][monKey] = { registrations: 0, conversions: 0 };
+                    stateTrendMap[state][monKey].conversions++;
                 }
             }
         });
@@ -228,13 +302,67 @@ export const getOverallDashboardStats = async (role = 'admin', profile = {}) => 
             displayName: item.namaPenuh || item.namaAsal || 'Tiada Nama'
         }));
 
-        stats.mualaf.trend = Object.entries(mualafTrendMap)
+        const monthNames = ["Jan", "Feb", "Mac", "Apr", "Mei", "Jun", "Jul", "Ogo", "Sep", "Okt", "Nov", "Dis"];
+
+        // Format state data
+        stats.mualaf.byState = Object.entries(stats.mualaf.byStateCounts)
+            .sort((a, b) => b[1] - a[1])
+            .map(([name, value]) => ({ name, value }));
+
+        // Format location data
+        stats.mualaf.byLocation = Object.entries(mualafByLocation)
+            .sort((a, b) => b[1] - a[1])
+            .map(([name, value]) => ({ name, value }));
+
+        // Format location trends
+        stats.mualaf.locationTrends = {};
+        Object.entries(locationTrendMap).forEach(([loc, months]) => {
+            stats.mualaf.locationTrends[loc] = Object.entries(monthlyTrendMap)
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .map(([key]) => {
+                    const [year, mon] = key.split('-');
+                    const data = months[key] || { registrations: 0, conversions: 0 };
+                    return {
+                        name: `${monthNames[parseInt(mon) - 1]} ${year.substring(2)}`,
+                        registrations: data.registrations,
+                        conversions: data.conversions
+                    };
+                });
+        });
+
+        // Format state trends
+        stats.mualaf.stateTrends = {};
+        Object.entries(stateTrendMap).forEach(([state, months]) => {
+            stats.mualaf.stateTrends[state] = Object.entries(monthlyTrendMap)
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .map(([key]) => {
+                    const [year, mon] = key.split('-');
+                    const data = months[key] || { registrations: 0, conversions: 0 };
+                    return {
+                        name: `${monthNames[parseInt(mon) - 1]} ${year.substring(2)}`,
+                        registrations: data.registrations,
+                        conversions: data.conversions
+                    };
+                });
+        });
+
+        stats.mualaf.trend = Object.entries(yearlyTrendMap)
+            .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+            .map(([year, data]) => ({
+                name: year,
+                registrations: data.registrations,
+                conversions: data.conversions
+            }));
+
+        stats.mualaf.monthlyTrend = Object.entries(monthlyTrendMap)
             .sort((a, b) => a[0].localeCompare(b[0]))
-            .map(([date, count]) => {
-                const [year, month] = date.split('-');
-                const monthNames = ["Jan", "Feb", "Mac", "Apr", "Mei", "Jun", "Jul", "Ogo", "Sep", "Okt", "Nov", "Dis"];
-                const monthIdx = parseInt(month, 10) - 1;
-                return { name: monthNames[monthIdx], count };
+            .map(([key, data]) => {
+                const [year, mon] = key.split('-');
+                return {
+                    name: `${monthNames[parseInt(mon) - 1]} ${year.substring(2)}`,
+                    registrations: data.registrations,
+                    conversions: data.conversions
+                };
             });
 
         // 2. Classes
@@ -242,8 +370,7 @@ export const getOverallDashboardStats = async (role = 'admin', profile = {}) => 
         if (isRestricted && allowedLocations.length > 0) {
             classQuery = classQuery.in('lokasi', allowedLocations);
         }
-        const { data: classData, error: classError } = await classQuery;
-        if (classError) throw classError;
+        const { data: classData } = await fetchAll(classQuery);
 
         const allowedClassIds = new Set(classData.map(c => c.id));
         stats.classes.total = classData.length;
@@ -257,8 +384,7 @@ export const getOverallDashboardStats = async (role = 'admin', profile = {}) => 
         if (isRestricted && allowedLocations.length > 0) {
             workerQuery = workerQuery.in('lokasi', allowedLocations);
         }
-        const { data: workerData, error: workerError } = await workerQuery;
-        if (workerError) throw workerError;
+        const { data: workerData } = await fetchAll(workerQuery);
 
         stats.workers.total = workerData.length;
         workerData.forEach(w => {
@@ -276,8 +402,7 @@ export const getOverallDashboardStats = async (role = 'admin', profile = {}) => 
             attendanceQuery = attendanceQuery.in('classId', Array.from(allowedClassIds));
         }
 
-        const { data: attendanceData, error: attendanceError } = await attendanceQuery;
-        if (attendanceError) throw attendanceError;
+        const { data: attendanceData } = await fetchAll(attendanceQuery);
 
         const attendanceTrendMap = {};
         // Initialize map similar to mualaf? 

@@ -36,6 +36,7 @@ function EditRekodContent() {
     const [error, setError] = useState('');
     const [uploadProgress, setUploadProgress] = useState(0);
     const [uploadingFile, setUploadingFile] = useState('');
+    const [submission, setSubmission] = useState(null);
     const [locations, setLocations] = useState([]);
     const [states, setStates] = useState([]);
     const [races, setRaces] = useState([]);
@@ -93,6 +94,7 @@ function EditRekodContent() {
                 (data.lokasi && profile?.assignedLocations?.includes(data.lokasi));
 
             if (isAccessible) {
+                setSubmission(data);
                 reset(data);
             } else {
                 alert("Anda tidak mempunyai akses untuk mengedit rekod ini.");
@@ -115,6 +117,8 @@ function EditRekodContent() {
                 gambarIC: data.gambarIC,
                 gambarKadIslam: data.gambarKadIslam,
                 gambarSijilPengislaman: data.gambarSijilPengislaman,
+                gambarMualaf: data.gambarMualaf,
+                gambarSesiPengislaman: data.gambarSesiPengislaman,
                 dokumenLain1: data.dokumenLain1,
                 dokumenLain2: data.dokumenLain2,
                 dokumenLain3: data.dokumenLain3
@@ -130,6 +134,8 @@ function EditRekodContent() {
                         gambarIC: 'IC/Passport',
                         gambarKadIslam: 'Kad Islam',
                         gambarSijilPengislaman: 'Sijil Pengislaman',
+                        gambarMualaf: 'Gambar Mualaf',
+                        gambarSesiPengislaman: 'Gambar Sesi Pengislaman',
                         dokumenLain1: 'Dokumen 1',
                         dokumenLain2: 'Dokumen 2',
                         dokumenLain3: 'Dokumen 3'
@@ -145,12 +151,12 @@ function EditRekodContent() {
             };
 
             // Remove FileList objects
-            delete updateData.gambarIC;
-            delete updateData.gambarKadIslam;
-            delete updateData.gambarSijilPengislaman;
-            delete updateData.dokumenLain1;
-            delete updateData.dokumenLain2;
-            delete updateData.dokumenLain3;
+            const fieldsToDelete = [
+                'gambarIC', 'gambarKadIslam', 'gambarSijilPengislaman',
+                'gambarMualaf', 'gambarSesiPengislaman',
+                'dokumenLain1', 'dokumenLain2', 'dokumenLain3'
+            ];
+            fieldsToDelete.forEach(field => delete updateData[field]);
 
             // Update submission
             setUploadingFile('Menyimpan data...');
@@ -262,11 +268,10 @@ function EditRekodContent() {
                         </div>
                     )}
 
-                    {/* Form - Sama dengan borang page tetapi dengan data pre-filled */}
-                    <form onSubmit={handleSubmit(onSubmit)} className="card space-y-6">
-                        {/* Section 1: Maklumat Pegawai/Cawangan */}
+                    <form onSubmit={handleSubmit(onSubmit)} className="card space-y-8">
+                        {/* Section 1: Maklumat Pegawai & Cawangan */}
                         <div className="border-b pb-6">
-                            <h2 className="text-xl font-semibold text-gray-900 mb-4">Maklumat Pegawai/Cawangan</h2>
+                            <h2 className="text-xl font-semibold text-gray-900 mb-4">Maklumat Pegawai & Cawangan</h2>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
@@ -277,10 +282,23 @@ function EditRekodContent() {
                                         type="text"
                                         {...register('noStaf', { required: 'Wajib diisi' })}
                                         className="form-input"
+                                        placeholder="Contoh: 12345"
                                     />
                                     {errors.noStaf && (
                                         <p className="text-red-500 text-sm mt-1">{errors.noStaf.message}</p>
                                     )}
+                                </div>
+
+                                <div>
+                                    <label className="form-label">
+                                        Didaftarkan Oleh
+                                    </label>
+                                    <input
+                                        type="text"
+                                        {...register('registeredByName')}
+                                        className="form-input"
+                                        placeholder="Nama penuh pegawai pendaftar"
+                                    />
                                 </div>
 
                                 <div>
@@ -330,21 +348,18 @@ function EditRekodContent() {
                                     <label className="form-label">
                                         Kategori <span className="text-red-500">*</span>
                                     </label>
-                                    <div className="space-y-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         {KATEGORI_OPTIONS.map(option => (
-                                            <label
-                                                key={option.value}
-                                                className="flex items-start space-x-3 p-3 rounded-lg border-2 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 transition-all cursor-pointer"
-                                            >
+                                            <label key={option.value} className="flex items-start space-x-3 cursor-pointer p-3 rounded-xl border border-gray-100 hover:bg-emerald-50 hover:border-emerald-200 transition-all">
                                                 <input
                                                     type="radio"
                                                     value={option.value}
                                                     {...register('kategori', { required: 'Wajib dipilih' })}
-                                                    className="mt-1 w-4 h-4 text-emerald-600 focus:ring-emerald-600"
+                                                    className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 mt-1"
                                                 />
                                                 <div className="flex-1">
-                                                    <span className="font-medium text-gray-900">{option.label}</span>
-                                                    <p className="text-sm text-gray-600 mt-1">{option.description}</p>
+                                                    <div className="font-bold text-gray-900 text-sm">{option.label}</div>
+                                                    <div className="text-[10px] text-gray-500 mt-1 leading-tight">{option.description}</div>
                                                 </div>
                                             </label>
                                         ))}
@@ -354,329 +369,484 @@ function EditRekodContent() {
                                     )}
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="form-label">Nama Asal <span className="text-red-500">*</span></label>
-                                        <input type="text" {...register('namaAsal', { required: 'Wajib diisi' })} className="form-input" />
-                                        {errors.namaAsal && <p className="text-red-500 text-sm mt-1">{errors.namaAsal.message}</p>}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="md:col-span-1">
+                                        <label className="form-label">
+                                            Nama Asal <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            {...register('namaAsal', { required: 'Wajib diisi' })}
+                                            className="form-input"
+                                            placeholder="Contoh: Tan Ah Kow"
+                                        />
+                                        {errors.namaAsal && (
+                                            <p className="text-red-500 text-sm mt-1">{errors.namaAsal.message}</p>
+                                        )}
                                     </div>
-                                    <div>
-                                        <label className="form-label">Nama Islam</label>
-                                        <input type="text" {...register('namaIslam')} className="form-input" />
+
+                                    <div className="md:col-span-1">
+                                        <label className="form-label">
+                                            Nama Islam
+                                        </label>
+                                        <input
+                                            type="text"
+                                            {...register('namaIslam')}
+                                            className="form-input"
+                                            placeholder="Contoh: Muhammad Ali"
+                                        />
+                                    </div>
+
+                                    <div className="md:col-span-1">
+                                        <label className="form-label">
+                                            Nama Penuh (Dalam IC/Passport) <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            {...register('namaPenuh', { required: 'Wajib diisi' })}
+                                            className="form-input"
+                                            placeholder="Sama seperti dalam dokumen ID"
+                                        />
+                                        {errors.namaPenuh && (
+                                            <p className="text-red-500 text-sm mt-1">{errors.namaPenuh.message}</p>
+                                        )}
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
-                                        <label className="form-label">No KP / Passport <span className="text-red-500">*</span></label>
-                                        <input type="text" {...register('noKP', { required: 'Wajib diisi' })} className="form-input" />
-                                        {errors.noKP && <p className="text-red-500 text-sm mt-1">{errors.noKP.message}</p>}
+                                        <label className="form-label">
+                                            No Kad Pengenalan / No Passport <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            {...register('noKP', { required: 'Wajib diisi' })}
+                                            className="form-input"
+                                            placeholder="Contoh: 900101015555"
+                                        />
+                                        {errors.noKP && (
+                                            <p className="text-red-500 text-sm mt-1">{errors.noKP.message}</p>
+                                        )}
                                     </div>
+
                                     <div>
-                                        <label className="form-label">Jantina <span className="text-red-500">*</span></label>
-                                        <select {...register('jantina', { required: 'Wajib dipilih' })} className="form-input">
+                                        <label className="form-label">
+                                            Jantina <span className="text-red-500">*</span>
+                                        </label>
+                                        <select
+                                            {...register('jantina', { required: 'Wajib dipilih' })}
+                                            className="form-input"
+                                        >
                                             <option value="">Pilih jantina</option>
                                             {JANTINA_OPTIONS.map(option => (
                                                 <option key={option.value} value={option.value}>{option.label}</option>
                                             ))}
                                         </select>
-                                        {errors.jantina && <p className="text-red-500 text-sm mt-1">{errors.jantina.message}</p>}
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div>
-                                        <label className="form-label">Bangsa <span className="text-red-500">*</span></label>
-                                        <select {...register('bangsa', { required: 'Wajib dipilih' })} className="form-input">
+                                        <label className="form-label">
+                                            Bangsa <span className="text-red-500">*</span>
+                                        </label>
+                                        <select
+                                            {...register('bangsa', { required: 'Wajib dipilih' })}
+                                            className="form-input"
+                                        >
                                             <option value="">Pilih bangsa</option>
                                             {(races.length > 0 ? races : BANGSA_OPTIONS).map(option => (
                                                 <option key={option} value={option}>{option}</option>
                                             ))}
                                         </select>
-                                        {errors.bangsa && <p className="text-red-500 text-sm mt-1">{errors.bangsa.message}</p>}
                                     </div>
+
                                     <div>
-                                        <label className="form-label">Agama Asal <span className="text-red-500">*</span></label>
-                                        <select {...register('agamaAsal', { required: 'Wajib dipilih' })} className="form-input">
+                                        <label className="form-label">
+                                            Agama Asal <span className="text-red-500">*</span>
+                                        </label>
+                                        <select
+                                            {...register('agamaAsal', { required: 'Wajib dipilih' })}
+                                            className="form-input"
+                                        >
                                             <option value="">Pilih agama asal</option>
                                             {(religions.length > 0 ? religions : AGAMA_ASAL_OPTIONS).map(option => (
                                                 <option key={option} value={option}>{option}</option>
                                             ))}
                                         </select>
-                                        {errors.agamaAsal && <p className="text-red-500 text-sm mt-1">{errors.agamaAsal.message}</p>}
+                                    </div>
+
+                                    <div>
+                                        <label className="form-label">
+                                            Tarikh Lahir
+                                        </label>
+                                        <input
+                                            type="date"
+                                            {...register('tarikhLahir')}
+                                            className="form-input"
+                                        />
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
-                                        <label className="form-label">Umur</label>
-                                        <input type="number" {...register('umur')} className="form-input" />
+                                        <label className="form-label">
+                                            Umur
+                                        </label>
+                                        <input
+                                            type="number"
+                                            {...register('umur')}
+                                            className="form-input"
+                                            placeholder="Contoh: 25"
+                                        />
                                     </div>
+
                                     <div>
-                                        <label className="form-label">Warganegara <span className="text-red-500">*</span></label>
-                                        <select {...register('warganegara', { required: 'Wajib dipilih' })} className="form-input">
+                                        <label className="form-label">
+                                            Warganegara <span className="text-red-500">*</span>
+                                        </label>
+                                        <select
+                                            {...register('warganegara', { required: 'Wajib dipilih' })}
+                                            className="form-input"
+                                        >
                                             <option value="">Pilih warganegara</option>
                                             {WARGANEGARA_OPTIONS.map(option => (
                                                 <option key={option} value={option}>{option}</option>
                                             ))}
                                         </select>
-                                        {errors.warganegara && <p className="text-red-500 text-sm mt-1">{errors.warganegara.message}</p>}
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Section 3: Maklumat Pengislaman */}
+                        {/* Section 3: Maklumat Pengislaman & Saksi */}
                         <div className="border-b pb-6">
-                            <h2 className="text-xl font-semibold text-gray-900 mb-4">Maklumat Pengislaman</h2>
+                            <h2 className="text-xl font-semibold text-gray-900 mb-4">Maklumat Pengislaman & Saksi</h2>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="form-label">Tarikh Pengislaman <span className="text-red-500">*</span></label>
-                                    <input type="date" {...register('tarikhPengislaman', { required: 'Wajib diisi' })} className="form-input" />
-                                    {errors.tarikhPengislaman && <p className="text-red-500 text-sm mt-1">{errors.tarikhPengislaman.message}</p>}
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="form-label">
+                                            Tarikh Pengislaman <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="date"
+                                            {...register('tarikhPengislaman', { required: 'Wajib diisi' })}
+                                            className="form-input"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="form-label">
+                                            Masa Pengislaman
+                                        </label>
+                                        <input
+                                            type="time"
+                                            {...register('masaPengislaman')}
+                                            className="form-input"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="form-label">
+                                            Tempat Pengislaman
+                                        </label>
+                                        <input
+                                            type="text"
+                                            {...register('tempatPengislaman')}
+                                            className="form-input"
+                                            placeholder="Contoh: Masjid Wilayah"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="form-label">
+                                            Negeri Pengislaman <span className="text-red-500">*</span>
+                                        </label>
+                                        <select
+                                            {...register('negeriPengislaman', { required: 'Wajib dipilih' })}
+                                            className="form-input"
+                                        >
+                                            <option value="">Pilih negeri</option>
+                                            {(states.length > 0 ? states.filter(s => !s.includes(' - ')) : NEGERI_PENGISLAMAN_OPTIONS).map(option => (
+                                                <option key={option} value={option}>{option}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="form-label">Masa Pengislaman</label>
-                                    <input type="time" {...register('masaPengislaman')} className="form-input" />
+
+                                <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                                    <h3 className="text-sm font-bold text-emerald-800 mb-4 uppercase tracking-wider">Maklumat Pegawai Mengislamkan</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase">Nama Pegawai</label>
+                                            <input type="text" {...register('namaPegawaiMengislamkan')} className="form-input mt-1" placeholder="Nama Ustaz/Pegawai" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase">No KP Pegawai</label>
+                                            <input type="text" {...register('noKPPegawaiMengislamkan')} className="form-input mt-1" placeholder="IC Pegawai" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase">No Tel Pegawai</label>
+                                            <input type="text" {...register('noTelPegawaiMengislamkan')} className="form-input mt-1" placeholder="No Tel Pegawai" />
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="form-label">Tempat Pengislaman</label>
-                                    <input type="text" {...register('tempatPengislaman')} className="form-input" />
-                                </div>
-                                <div>
-                                    <label className="form-label">Negeri Pengislaman <span className="text-red-500">*</span></label>
-                                    <select {...register('negeriPengislaman', { required: 'Wajib dipilih' })} className="form-input">
-                                        <option value="">Pilih negeri</option>
-                                        {(states.length > 0 ? states.filter(s => !s.includes(' - ')) : NEGERI_PENGISLAMAN_OPTIONS).map(option => (
-                                            <option key={option} value={option}>{option}</option>
-                                        ))}
-                                    </select>
-                                    {errors.negeriPengislaman && <p className="text-red-500 text-sm mt-1">{errors.negeriPengislaman.message}</p>}
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 shadow-sm">
+                                        <h3 className="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wider">Saksi Pertama</h3>
+                                        <div className="space-y-3">
+                                            <div>
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">Nama Saksi 1</label>
+                                                <input type="text" {...register('namaSaksi1')} className="form-input mt-1" />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">No KP Saksi 1</label>
+                                                <input type="text" {...register('noKPSaksi1')} className="form-input mt-1" />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">No Tel Saksi 1</label>
+                                                <input type="text" {...register('noTelSaksi1')} className="form-input mt-1" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 shadow-sm">
+                                        <h3 className="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wider">Saksi Kedua</h3>
+                                        <div className="space-y-3">
+                                            <div>
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">Nama Saksi 2</label>
+                                                <input type="text" {...register('namaSaksi2')} className="form-input mt-1" />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">No KP Saksi 2</label>
+                                                <input type="text" {...register('noKPSaksi2')} className="form-input mt-1" />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">No Tel Saksi 2</label>
+                                                <input type="text" {...register('noTelSaksi2')} className="form-input mt-1" />
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Section 4: Maklumat Hubungan */}
+                        {/* Section 4: Maklumat Hubungan & Adres */}
                         <div className="border-b pb-6">
-                            <h2 className="text-xl font-semibold text-gray-900 mb-4">Maklumat Hubungan & Lain-lain</h2>
+                            <h2 className="text-xl font-semibold text-gray-900 mb-4">Maklumat Hubungan & Alamat</h2>
 
                             <div className="space-y-6">
                                 <div>
-                                    <label className="form-label">No Telefon <span className="text-red-500">*</span></label>
-                                    <input type="tel" {...register('noTelefon', { required: 'Wajib diisi' })} className="form-input" />
-                                    {errors.noTelefon && <p className="text-red-500 text-sm mt-1">{errors.noTelefon.message}</p>}
+                                    <label className="form-label">
+                                        No Telefon <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="tel"
+                                        {...register('noTelefon', { required: 'Wajib diisi' })}
+                                        className="form-input"
+                                        placeholder="Contoh: 0123456789"
+                                    />
                                 </div>
+
                                 <div>
-                                    <label className="form-label">Alamat Tempat Tinggal <span className="text-red-500">*</span></label>
-                                    <textarea {...register('alamatTinggal', { required: 'Wajib diisi' })} className="form-input" rows="3"></textarea>
-                                    {errors.alamatTinggal && <p className="text-red-500 text-sm mt-1">{errors.alamatTinggal.message}</p>}
+                                    <label className="form-label">
+                                        Alamat Tempat Tinggal <span className="text-red-500">*</span>
+                                    </label>
+                                    <textarea
+                                        {...register('alamatTinggal', { required: 'Wajib diisi' })}
+                                        className="form-input"
+                                        rows="2"
+                                        placeholder="Alamat penuh terkini"
+                                    ></textarea>
                                 </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div>
+                                        <label className="form-label text-xs">Poskod</label>
+                                        <input type="text" {...register('poskod')} className="form-input" />
+                                    </div>
+                                    <div>
+                                        <label className="form-label text-xs">Bandar</label>
+                                        <input type="text" {...register('bandar')} className="form-input" />
+                                    </div>
+                                    <div>
+                                        <label className="form-label text-xs">Negeri</label>
+                                        <select {...register('negeri')} className="form-input">
+                                            <option value="">Pilih Negeri</option>
+                                            {NEGERI_PENGISLAMAN_OPTIONS.filter(n => n !== 'Luar Negara').map(option => (
+                                                <option key={option} value={option}>{option}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
                                 <div>
-                                    <label className="form-label">Alamat Tetap</label>
-                                    <textarea {...register('alamatTetap')} className="form-input" rows="3"></textarea>
+                                    <label className="form-label">
+                                        Alamat Tetap (Ikut IC)
+                                    </label>
+                                    <textarea
+                                        {...register('alamatTetap')}
+                                        className="form-input"
+                                        rows="2"
+                                        placeholder="Jika berbeza dari alamat tinggal"
+                                    ></textarea>
                                 </div>
+
+                                <div>
+                                    <label className="form-label">
+                                        Maklumat Kenalan / Pengiring
+                                    </label>
+                                    <input
+                                        type="text"
+                                        {...register('maklumatKenalanPengiring')}
+                                        className="form-input"
+                                        placeholder="Nama dan No Telefon kenalan terdekat"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Section 5: Pekerjaan & Kewangan */}
+                        <div className="border-b pb-6">
+                            <h2 className="text-xl font-semibold text-gray-900 mb-4">Pekerjaan & Kewangan</h2>
+
+                            <div className="space-y-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label className="form-label">Pekerjaan</label>
-                                        <input type="text" {...register('pekerjaan')} className="form-input" />
+                                        <input type="text" {...register('pekerjaan')} className="form-input" placeholder="Contoh: Kerani" />
                                     </div>
                                     <div>
                                         <label className="form-label">Pendapatan Bulanan (RM)</label>
                                         <input type="number" {...register('pendapatanBulanan')} className="form-input" />
                                     </div>
                                 </div>
-                                <div>
-                                    <label className="form-label">Tahap Pendidikan</label>
-                                    <select {...register('tahapPendidikan')} className="form-input">
-                                        <option value="">Pilih tahap pendidikan</option>
-                                        {TAHAP_PENDIDIKAN_OPTIONS.map(option => (
-                                            <option key={option} value={option}>{option}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* Section 5: Maklumat Tambahan & Gambar */}
-                        <div className="border-b pb-6">
-                            <h2 className="text-xl font-semibold text-gray-900 mb-4">Maklumat Tambahan & Gambar</h2>
-
-                            <div className="space-y-6">
-                                {/* Bank */}
-                                <div>
-                                    <label className="form-label">
-                                        Bank
-                                    </label>
-                                    <select
-                                        {...register('bank')}
-                                        className="form-input"
-                                    >
-                                        <option value="">Pilih bank</option>
-                                        {(banks.length > 0 ? banks : BANK_OPTIONS).map(option => (
-                                            <option key={option} value={option}>{option}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* No Akaun */}
-                                <div>
-                                    <label className="form-label">
-                                        No Akaun
-                                    </label>
-                                    <input
-                                        type="text"
-                                        {...register('noAkaun')}
-                                        className="form-input"
-                                        placeholder="Contoh: 1234567890"
-                                    />
-                                </div>
-
-                                {/* Nama di Bank */}
-                                <div>
-                                    <label className="form-label">
-                                        Nama di Bank
-                                    </label>
-                                    <input
-                                        type="text"
-                                        {...register('namaDiBank')}
-                                        className="form-input"
-                                        placeholder="Nama seperti dalam akaun bank"
-                                    />
-                                </div>
-
-                                {/* Kategori Elaun */}
-                                <div>
-                                    <label className="form-label">
-                                        Kategori Elaun
-                                    </label>
-                                    <select
-                                        {...register('kategoriElaun')}
-                                        className="form-input"
-                                    >
-                                        <option value="">Pilih kategori elaun</option>
-                                        {MUALAF_KATEGORI_ELAUN.map(option => (
-                                            <option key={option.value} value={option.value}>{option.label}</option>
-                                        ))}
-                                    </select>
-                                    <p className="text-xs text-gray-500 mt-1">Kategori untuk kadar elaun/bayaran</p>
-                                </div>
-
-
-                                {/* File Uploads Section */}
-                                <div className="border-t pt-6">
-                                    <h3 className="text-lg font-medium text-gray-900 mb-4">Muat Naik Dokumen</h3>
-                                    <p className="text-sm text-gray-600 mb-4">
-                                        Pilih fail baru untuk menggantikan dokumen sedia ada. Jika tiada fail dipilih, dokumen asal akan dikekalkan.
-                                    </p>
-
-                                    <div className="space-y-4">
-                                        {/* Nombor IC/Passport */}
-                                        <div>
-                                            <label className="form-label">
-                                                Nombor IC / Passport
-                                            </label>
-                                            <input
-                                                type="file"
-                                                accept=".pdf,.jpg,.jpeg,.png"
-                                                {...register('gambarIC')}
-                                                className="form-input file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                                            />
-                                            <p className="text-xs text-gray-500 mt-1">Upload salinan IC atau Passport (pilih fail baru untuk ganti)</p>
-                                        </div>
-
-                                        {/* Gambar Kad Islam */}
-                                        <div>
-                                            <label className="form-label">
-                                                Gambar Kad Islam
-                                            </label>
-                                            <input
-                                                type="file"
-                                                accept=".pdf,.jpg,.jpeg,.png"
-                                                {...register('gambarKadIslam')}
-                                                className="form-input file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                                            />
-                                            <p className="text-xs text-gray-500 mt-1">Upload salinan Kad Islam (pilih fail baru untuk ganti)</p>
-                                        </div>
-
-                                        {/* Gambar Sijil Pengislaman */}
-                                        <div>
-                                            <label className="form-label">
-                                                Gambar Sijil Pengislaman
-                                            </label>
-                                            <input
-                                                type="file"
-                                                accept=".pdf,.jpg,.jpeg,.png"
-                                                {...register('gambarSijilPengislaman')}
-                                                className="form-input file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                                            />
-                                            <p className="text-xs text-gray-500 mt-1">Upload salinan Sijil Pengislaman (pilih fail baru untuk ganti)</p>
-                                        </div>
-
-                                        {/* Gambar/Dokumen Lain 1 */}
-                                        <div>
-                                            <label className="form-label">
-                                                Gambar / Dokumen Lain 1
-                                            </label>
-                                            <input
-                                                type="file"
-                                                accept=".pdf,.jpg,.jpeg,.png"
-                                                {...register('dokumenLain1')}
-                                                className="form-input file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                                            />
-                                            <p className="text-xs text-gray-500 mt-1">Upload dokumen sokongan tambahan (jika ada)</p>
-                                        </div>
-
-                                        {/* Gambar/Dokumen Lain 2 */}
-                                        <div>
-                                            <label className="form-label">
-                                                Gambar / Dokumen Lain 2
-                                            </label>
-                                            <input
-                                                type="file"
-                                                accept=".pdf,.jpg,.jpeg,.png"
-                                                {...register('dokumenLain2')}
-                                                className="form-input file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                                            />
-                                            <p className="text-xs text-gray-500 mt-1">Upload dokumen sokongan tambahan (jika ada)</p>
-                                        </div>
-
-                                        {/* Gambar/Dokumen Lain 3 */}
-                                        <div>
-                                            <label className="form-label">
-                                                Gambar / Dokumen Lain 3
-                                            </label>
-                                            <input
-                                                type="file"
-                                                accept=".pdf,.jpg,.jpeg,.png"
-                                                {...register('dokumenLain3')}
-                                                className="form-input file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                                            />
-                                            <p className="text-xs text-gray-500 mt-1">Upload dokumen sokongan tambahan (jika ada)</p>
-                                        </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="form-label">Bilangan Tanggungan</label>
+                                        <input type="number" {...register('tanggungan')} className="form-input" />
+                                    </div>
+                                    <div>
+                                        <label className="form-label">Tahap Pendidikan</label>
+                                        <select {...register('tahapPendidikan')} className="form-input">
+                                            <option value="">Pilih tahap pendidikan</option>
+                                            {TAHAP_PENDIDIKAN_OPTIONS.map(option => (
+                                                <option key={option} value={option}>{option}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
 
-                                {/* Catatan */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div>
+                                        <label className="form-label text-xs">Bank</label>
+                                        <select {...register('bank')} className="form-input">
+                                            <option value="">Pilih bank</option>
+                                            {(banks.length > 0 ? banks : BANK_OPTIONS).map(option => (
+                                                <option key={option} value={option}>{option}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="form-label text-xs">No Akaun</label>
+                                        <input type="text" {...register('noAkaun')} className="form-input" />
+                                    </div>
+                                    <div>
+                                        <label className="form-label text-xs">Nama di Bank</label>
+                                        <input type="text" {...register('namaDiBank')} className="form-input" />
+                                    </div>
+                                </div>
+
                                 <div>
-                                    <label className="form-label">
-                                        Catatan
-                                    </label>
-                                    <textarea
-                                        {...register('catatan')}
-                                        rows={4}
-                                        className="form-input"
-                                        placeholder="Masukkan sebarang catatan atau maklumat tambahan di sini (jika ada)"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        Masukkan apa-apa nota atau catatan yang perlu didokumentasikan
-                                    </p>
+                                    <label className="form-label">Kategori Elaun</label>
+                                    <select {...register('kategoriElaun')} className="form-input">
+                                        <option value="">Pilih kategori elaun</option>
+                                        {MUALAF_KATEGORI_ELAUN.map(o => (
+                                            <option key={o.value} value={o.value}>{o.label}</option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
                         </div>
 
+                        {/* Section 6: Lampiran & Gambar */}
+                        <div className="border-b pb-6">
+                            <h2 className="text-xl font-semibold text-gray-900 mb-4">Lampiran & Gambar</h2>
+                            <p className="text-sm text-gray-500 mb-4">Pilih fail baru untuk menggantikan fail sedia ada.</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="form-label text-xs">IC / Passport</label>
+                                        <input type="file" {...register('gambarIC')} className="form-input text-xs" accept="image/*,application/pdf" />
+                                    </div>
+                                    <div>
+                                        <label className="form-label text-xs">Kad Islam</label>
+                                        <input type="file" {...register('gambarKadIslam')} className="form-input text-xs" accept="image/*,application/pdf" />
+                                    </div>
+                                    <div>
+                                        <label className="form-label text-xs">Sijil Pengislaman</label>
+                                        <input type="file" {...register('gambarSijilPengislaman')} className="form-input text-xs" accept="image/*,application/pdf" />
+                                    </div>
+                                </div>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="form-label text-xs">Gambar Mualaf</label>
+                                        <input type="file" {...register('gambarMualaf')} className="form-input text-xs" accept="image/*" />
+                                    </div>
+                                    <div>
+                                        <label className="form-label text-xs">Gambar Sesi/Aktiviti</label>
+                                        <input type="file" {...register('gambarSesiPengislaman')} className="form-input text-xs" accept="image/*" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="form-label text-xs">Dokumen Lain 1</label>
+                                            <input type="file" {...register('dokumenLain1')} className="form-input text-xs" accept="image/*,application/pdf" />
+                                        </div>
+                                        <div>
+                                            <label className="form-label text-xs">Dokumen Lain 2</label>
+                                            <input type="file" {...register('dokumenLain2')} className="form-input text-xs" accept="image/*,application/pdf" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Section 7: Catatan & Remark */}
+                        <div className="pb-6">
+                            <h2 className="text-xl font-semibold text-gray-900 mb-4">Catatan & Pengesahan</h2>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="form-label">Catatan Utama</label>
+                                    <textarea {...register('catatan')} className="form-input" rows="3"></textarea>
+                                </div>
+                                <div>
+                                    <label className="form-label text-amber-700 font-bold">Catatan Audit / Remark Pejabat</label>
+                                    <textarea {...register('catatanAudit')} className="form-input border-amber-200 bg-amber-50/20" rows="2"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Metadata Info */}
+                        {submission && (
+                            <div className="pt-4 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] text-gray-400 italic">
+                                <div>
+                                    <p>Dicipta: {submission.createdAt ? new Date(submission.createdAt).toLocaleString('ms-MY') : '-'}</p>
+                                    <p>Oleh: {submission.createdBy || '-'}</p>
+                                </div>
+                                {submission.updatedAt && (
+                                    <div className="sm:text-right">
+                                        <p>Dikemaskini: {new Date(submission.updatedAt).toLocaleString('ms-MY')}</p>
+                                        <p>Oleh: {submission.updatedBy || '-'}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {/* Form Actions */}
-                        <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                        <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t">
                             <button
                                 type="submit"
                                 disabled={saving || success}

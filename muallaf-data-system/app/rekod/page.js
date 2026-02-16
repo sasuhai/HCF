@@ -130,116 +130,237 @@ function RekodDetailContent() {
                     </div>
 
                     {/* Detail Card */}
-                    <div className="card print:shadow-none">
+                    <div className="card shadow-2xl print:shadow-none border-t-4 border-emerald-500">
                         {/* Title */}
-                        <div className="border-b pb-4 mb-6">
+                        <div className="border-b pb-4 mb-6 relative">
                             <h1 className="text-2xl font-bold text-gray-900 mb-2">Butiran Rekod Penuh</h1>
-                            <div className="flex items-center space-x-4 text-sm text-gray-600">
-                                <span className={`px-3 py-1 rounded-full font-semibold ${submission.kategori === 'Non-Muslim'
-                                    ? 'bg-blue-100 text-blue-700'
-                                    : 'bg-purple-100 text-purple-700'
+                            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                                <span className={`px-3 py-1 rounded-full font-bold shadow-sm ${submission.kategori === 'Non-Muslim'
+                                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                                    : 'bg-purple-100 text-purple-700 border border-purple-200'
                                     }`}>
                                     {submission.kategori}
                                 </span>
-                                <span>ID: {submission.id}</span>
+                                <span className="flex items-center bg-gray-100 px-3 py-1 rounded-full border border-gray-200">
+                                    <span className="font-bold mr-1">ID:</span> {submission.id}
+                                </span>
+                                {submission.lokasi && (
+                                    <span className="flex items-center bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 text-emerald-700 font-medium">
+                                        <MapPin className="h-4 w-4 mr-1" />
+                                        {submission.lokasi}
+                                    </span>
+                                )}
                             </div>
                         </div>
 
-                        {/* Section 1: Maklumat Pegawai */}
-                        <div className="mb-8">
-                            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        {/* Section 1: Maklumat Pegawai & Cawangan */}
+                        <div className="mb-10 group">
+                            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center border-l-4 border-emerald-600 pl-3">
                                 <Briefcase className="h-5 w-5 mr-2 text-emerald-600" />
-                                Maklumat Pegawai/Cawangan
+                                Maklumat Pegawai & Cawangan
                             </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-4 rounded-xl border border-gray-50 shadow-sm group-hover:shadow-md transition-shadow">
                                 <DetailItem label="No Staf / No RH" value={submission.noStaf} />
+                                <DetailItem label="Didaftarkan Oleh" value={submission.registeredByName || '-'} />
                                 <DetailItem label="Negeri / Cawangan" value={submission.negeriCawangan} />
+                                <DetailItem label="Lokasi" value={submission.lokasi || '-'} />
                             </div>
                         </div>
 
                         {/* Section 2: Maklumat Peribadi */}
-                        <div className="mb-8">
-                            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                <User className="h-5 w-5 mr-2 text-emerald-600" />
+                        <div className="mb-10 group">
+                            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center border-l-4 border-blue-600 pl-3">
+                                <User className="h-5 w-5 mr-2 text-blue-600" />
                                 Maklumat Peribadi
                             </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-4 rounded-xl border border-gray-50 shadow-sm group-hover:shadow-md transition-shadow">
                                 <DetailItem label="Nama Asal" value={submission.namaAsal} />
                                 <DetailItem label="Nama Islam" value={submission.namaIslam || '-'} />
+                                <DetailItem label="Nama Penuh (Dalam IC/Passport)" value={submission.namaPenuh || '-'} fullWidth />
                                 <DetailItem label="No KP / Passport" value={submission.noKP} />
                                 <DetailItem label="Jantina" value={submission.jantina} />
                                 <DetailItem label="Bangsa" value={submission.bangsa} />
                                 <DetailItem label="Agama Asal" value={submission.agamaAsal} />
+                                <DetailItem label="Tarikh Lahir" value={submission.tarikhLahir || '-'} />
                                 <DetailItem label="Umur" value={submission.umur || '-'} />
                                 <DetailItem label="Warganegara" value={submission.warganegara} />
                             </div>
                         </div>
 
-                        {/* Section 3: Maklumat Pengislaman */}
-                        <div className="mb-8">
-                            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                <Calendar className="h-5 w-5 mr-2 text-emerald-600" />
-                                Maklumat Pengislaman
+                        {/* Section 3: Maklumat Pengislaman & Saksi */}
+                        <div className="mb-10 group">
+                            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center border-l-4 border-purple-600 pl-3">
+                                <Calendar className="h-5 w-5 mr-2 text-purple-600" />
+                                Maklumat Pengislaman & Saksi
                             </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <DetailItem label="Tarikh Pengislaman" value={submission.tarikhPengislaman} />
-                                <DetailItem label="Masa Pengislaman" value={submission.masaPengislaman || '-'} />
-                                <DetailItem label="Tempat Pengislaman" value={submission.tempatPengislaman || '-'} />
-                                <DetailItem label="Negeri Pengislaman" value={submission.negeriPengislaman} />
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-4 rounded-xl border border-gray-50 shadow-sm group-hover:shadow-md transition-shadow">
+                                    <DetailItem label="Tarikh Pengislaman" value={submission.tarikhPengislaman} />
+                                    <DetailItem label="Masa Pengislaman" value={submission.masaPengislaman || '-'} />
+                                    <DetailItem label="Tempat Pengislaman" value={submission.tempatPengislaman || '-'} />
+                                    <DetailItem label="Negeri Pengislaman" value={submission.negeriPengislaman} />
+                                </div>
+
+                                <div className="p-5 bg-emerald-50 rounded-xl border border-emerald-100">
+                                    <h3 className="text-sm font-bold text-emerald-800 mb-4 uppercase tracking-wider flex items-center">
+                                        <div className="w-2 h-4 bg-emerald-500 mr-2 rounded-sm"></div>
+                                        Pegawai Mengislamkan
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <DetailItem label="Nama Pegawai" value={submission.namaPegawaiMengislamkan || '-'} />
+                                        <DetailItem label="No KP Pegawai" value={submission.noKPPegawaiMengislamkan || '-'} />
+                                        <DetailItem label="No Tel Pegawai" value={submission.noTelPegawaiMengislamkan || '-'} />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="p-5 bg-gray-50 rounded-xl border border-gray-100">
+                                        <h3 className="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wider flex items-center">
+                                            <div className="w-2 h-4 bg-gray-400 mr-2 rounded-sm"></div>
+                                            Saksi Pertama
+                                        </h3>
+                                        <div className="space-y-4">
+                                            <DetailItem label="Nama Saksi 1" value={submission.namaSaksi1 || '-'} />
+                                            <DetailItem label="No KP Saksi 1" value={submission.noKPSaksi1 || '-'} />
+                                            <DetailItem label="No Tel Saksi 1" value={submission.noTelSaksi1 || '-'} />
+                                        </div>
+                                    </div>
+
+                                    <div className="p-5 bg-gray-50 rounded-xl border border-gray-100">
+                                        <h3 className="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wider flex items-center">
+                                            <div className="w-2 h-4 bg-gray-400 mr-2 rounded-sm"></div>
+                                            Saksi Kedua
+                                        </h3>
+                                        <div className="space-y-4">
+                                            <DetailItem label="Nama Saksi 2" value={submission.namaSaksi2 || '-'} />
+                                            <DetailItem label="No KP Saksi 2" value={submission.noKPSaksi2 || '-'} />
+                                            <DetailItem label="No Tel Saksi 2" value={submission.noTelSaksi2 || '-'} />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Section 4: Maklumat Hubungan */}
-                        <div className="mb-8">
-                            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                <Phone className="h-5 w-5 mr-2 text-emerald-600" />
-                                Maklumat Hubungan
+                        {/* Section 4: Hubungan & Alamat */}
+                        <div className="mb-10 group">
+                            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center border-l-4 border-orange-600 pl-3">
+                                <Phone className="h-5 w-5 mr-2 text-orange-600" />
+                                Maklumat Hubungan & Lokasi
                             </h2>
-                            <div className="space-y-4">
+                            <div className="bg-white p-4 rounded-xl border border-gray-50 shadow-sm group-hover:shadow-md transition-shadow">
                                 <DetailItem label="No Telefon" value={submission.noTelefon} />
-                                <DetailItem label="Alamat Tempat Tinggal" value={submission.alamatTinggal} fullWidth />
-                                <DetailItem label="Alamat Tetap" value={submission.alamatTetap || '-'} fullWidth />
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+                                    <DetailItem label="Poskod" value={submission.poskod || '-'} />
+                                    <DetailItem label="Bandar" value={submission.bandar || '-'} />
+                                    <DetailItem label="Negeri" value={submission.negeri || '-'} />
+                                </div>
+                                <div className="mt-4">
+                                    <DetailItem label="Alamat Tempat Tinggal" value={submission.alamatTinggal} fullWidth />
+                                </div>
+                                <div className="mt-4">
+                                    <DetailItem label="Alamat Tetap (Ikut IC)" value={submission.alamatTetap || '-'} fullWidth />
+                                </div>
+                                <div className="mt-4">
+                                    <DetailItem label="Maklumat Kenalan / Pengiring" value={submission.maklumatKenalanPengiring || '-'} fullWidth />
+                                </div>
                             </div>
                         </div>
 
-                        {/* Section 5: Maklumat Lain-lain */}
-                        <div className="mb-8">
-                            <h2 className="text-lg font-semibold text-gray-900 mb-4">Maklumat Tambahan</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <DetailItem label="Pekerjaan" value={submission.pekerjaan || '-'} />
-                                <DetailItem label="Pendapatan Bulanan" value={submission.pendapatanBulanan ? `RM ${submission.pendapatanBulanan}` : '-'} />
-                                <DetailItem label="Tahap Pendidikan" value={submission.tahapPendidikan || '-'} />
+                        {/* Section 5: Pekerjaan & Kewangan */}
+                        <div className="mb-10 group">
+                            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center border-l-4 border-indigo-600 pl-3">
+                                <Briefcase className="h-5 w-5 mr-2 text-indigo-600" />
+                                Pekerjaan & Kewangan
+                            </h2>
+                            <div className="space-y-6 bg-white p-4 rounded-xl border border-gray-50 shadow-sm group-hover:shadow-md transition-shadow">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <DetailItem label="Pekerjaan" value={submission.pekerjaan || '-'} />
+                                    <DetailItem label="Pendapatan Bulanan" value={submission.pendapatanBulanan ? `RM ${submission.pendapatanBulanan}` : '-'} />
+                                    <DetailItem label="Bilangan Tanggungan" value={submission.tanggungan || '-'} />
+                                    <DetailItem label="Tahap Pendidikan" value={submission.tahapPendidikan || '-'} />
+                                </div>
+
+                                <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                                    <h3 className="text-sm font-bold text-indigo-800 mb-4 uppercase tracking-wider">Maklumat Perbankan</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <DetailItem label="Bank" value={submission.bank || '-'} />
+                                        <DetailItem label="No Akaun" value={submission.noAkaun || '-'} />
+                                        <DetailItem label="Nama di Bank" value={submission.namaDiBank || '-'} />
+                                    </div>
+                                </div>
+
                                 <div>
-                                    <dt className="text-sm font-medium text-gray-600 mb-1">Kategori Elaun</dt>
-                                    <dd className="text-base text-gray-900 bg-gray-50 px-4 py-2 rounded-lg">
-                                        {submission.kategoriElaun ? (
-                                            <span className="inline-flex px-2 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800">
-                                                {submission.kategoriElaun}
-                                            </span>
-                                        ) : '-'}
+                                    <dt className="text-sm font-bold text-gray-500 uppercase tracking-tight mb-2">Kategori Elaun</dt>
+                                    <dd className="inline-flex px-4 py-2 rounded-xl text-base font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                                        {submission.kategoriElaun || 'N/A'}
                                     </dd>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Audit Trail */}
-                        {submission.createdAt && (
-                            <div className="border-t pt-6 mt-6">
-                                <h2 className="text-sm font-semibold text-gray-700 mb-3">Maklumat Sistem</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-600">
-                                    <div>
-                                        <span className="font-medium">Dicipta pada:</span>{' '}
-                                        {submission.createdAt?.toDate?.().toLocaleString('ms-MY') || submission.createdAt}
-                                    </div>
-                                    {submission.updatedAt && (
-                                        <div>
-                                            <span className="font-medium">Dikemaskini pada:</span>{' '}
-                                            {submission.updatedAt?.toDate?.().toLocaleString('ms-MY') || submission.updatedAt}
-                                        </div>
-                                    )}
-                                </div>
+                        {/* Section 6: Gambar & Dokumen */}
+                        <div className="mb-10 group">
+                            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center border-l-4 border-cyan-600 pl-3">
+                                <MapPin className="h-5 w-5 mr-2 text-cyan-600" />
+                                Gambar & Dokumen
+                            </h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                                <ImagePreview label="Gambar Mualaf" src={submission.gambarMualaf} />
+                                <ImagePreview label="Gambar Aktiviti" src={submission.gambarSesiPengislaman} />
+                                <ImagePreview label="Salinan IC" src={submission.gambarIC} />
+                                <ImagePreview label="Kad Islam" src={submission.gambarKadIslam} />
+                                <ImagePreview label="Sijil Pengislaman" src={submission.gambarSijilPengislaman} />
+                                <ImagePreview label="Dokumen 1" src={submission.dokumenLain1} />
+                                <ImagePreview label="Dokumen 2" src={submission.dokumenLain2} />
+                                <ImagePreview label="Dokumen 3" src={submission.dokumenLain3} />
                             </div>
-                        )}
+                        </div>
+
+                        {/* Section 7: Catatan */}
+                        <div className="mb-8">
+                            <h2 className="text-lg font-bold text-gray-900 mb-4">Catatan & Remark</h2>
+                            <div className="space-y-4">
+                                <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 min-h-[100px]">
+                                    <p className="text-sm font-bold text-gray-500 uppercase mb-2">Catatan Utama</p>
+                                    <p className="text-gray-800 whitespace-pre-wrap">{submission.catatan || 'Tiada catatan.'}</p>
+                                </div>
+                                {submission.catatanAudit && (
+                                    <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                                        <p className="text-sm font-bold text-amber-800 uppercase mb-2">Remark Pejabat / Audit</p>
+                                        <p className="text-amber-900 whitespace-pre-wrap">{submission.catatanAudit}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Audit Trail */}
+                        <div className="border-t pt-6 mt-6 bg-gray-50 -mx-6 -mb-6 p-6 rounded-b-2xl">
+                            <h2 className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-widest">Maklumat Sistem</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[10px] text-gray-500 uppercase">
+                                <div className="space-y-1">
+                                    <div className="flex items-center space-x-2">
+                                        <span className="font-bold text-gray-400">DICIUPTA:</span>
+                                        <span>{submission.createdAt}</span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <span className="font-bold text-gray-400">OLEH:</span>
+                                        <span className="truncate">{submission.createdBy || '-'}</span>
+                                    </div>
+                                </div>
+                                {submission.updatedAt && (
+                                    <div className="space-y-1">
+                                        <div className="flex items-center space-x-2">
+                                            <span className="font-bold text-gray-400">DIKEMASKINI:</span>
+                                            <span>{submission.updatedAt}</span>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <span className="font-bold text-gray-400">OLEH:</span>
+                                            <span className="truncate">{submission.updatedBy || '-'}</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -250,11 +371,56 @@ function RekodDetailContent() {
 function DetailItem({ label, value, fullWidth = false }) {
     return (
         <div className={fullWidth ? 'col-span-full' : ''}>
-            <dt className="text-sm font-medium text-gray-600 mb-1">{label}</dt>
-            <dd className="text-base text-gray-900 bg-gray-50 px-4 py-2 rounded-lg">{value}</dd>
+            <dt className="text-xs font-bold text-gray-500 uppercase tracking-tight mb-1">{label}</dt>
+            <dd className="text-base text-gray-900 font-medium">{value}</dd>
         </div>
     );
 }
+
+function ImagePreview({ label, src }) {
+    if (!src) return null;
+
+    const isPdf = typeof src === 'string' && src.startsWith('data:application/pdf');
+
+    return (
+        <div className="flex flex-col">
+            <span className="text-xs font-bold text-gray-500 uppercase mb-2">{label}</span>
+            <div className="relative group aspect-square rounded-xl overflow-hidden border border-gray-100 bg-gray-50 shadow-sm hover:shadow-md transition-all">
+                {isPdf ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center p-4">
+                        <Calendar className="h-12 w-12 text-red-400 mb-2" />
+                        <span className="text-[10px] font-bold text-gray-400">DOKUMEN PDF</span>
+                        <a
+                            href={src}
+                            download={`${label}.pdf`}
+                            className="mt-2 text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded-full font-bold hover:bg-red-100"
+                        >
+                            MUAT TURUN
+                        </a>
+                    </div>
+                ) : (
+                    <>
+                        <img
+                            src={src}
+                            alt={label}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                            <a
+                                href={src}
+                                download={`${label}.jpg`}
+                                className="bg-white text-gray-900 px-3 py-1 rounded-full text-xs font-bold shadow-lg"
+                            >
+                                Lihat / Muat Turun
+                            </a>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+}
+
 
 export default function RekodDetailPage() {
     return (
