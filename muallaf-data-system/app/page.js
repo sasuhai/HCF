@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   LayoutDashboard,
@@ -21,9 +22,18 @@ import {
 } from 'lucide-react';
 
 export default function LandingPage() {
-  const { user, role, loading } = useAuth();
+  const { user, role, loading, isRecovery } = useAuth();
+  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Handle Password Recovery Redirect
+  useEffect(() => {
+    if (isRecovery) {
+      console.log("LandingPage: Password recovery detected, redirecting to login/reset...");
+      router.push('/login');
+    }
+  }, [isRecovery, router]);
 
   // Handle scroll effect for navbar
   useEffect(() => {

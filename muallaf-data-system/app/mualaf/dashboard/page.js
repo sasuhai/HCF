@@ -334,7 +334,7 @@ function AttendanceDashboardContent() {
                         totalSessionsInMonth: attendance.length,
                         allowance: allowance,
                         // Enhanced details for Borang F2
-                        noIc: details.noKP || details.noIc || '-',
+                        noIc: person.icNo || person.noKP || details.noKP || details.noIc || '-',
                         bank: details.bank || details.namaBank || '-',
                         noAkaun: details.noAkaun || '-',
                         namaDiBank: details.namaDiBank || details.namaPenuh || details.nama || '-'
@@ -428,7 +428,7 @@ function AttendanceDashboardContent() {
                 if (!people.has(p.id)) {
                     const details = workerDetails[p.id] || {};
                     const role = details.peranan || details.kategoriElaun || p.kategoriElaun || 'Petugas';
-                    const ic = details.noKP || details.noIc || '-';
+                    const ic = p.icNo || p.noKP || details.noKP || details.noIc || '-';
                     const name = details.nama || p.nama || p.namaAsal || 'Tiada Nama';
                     const location = details.lokasi || classLocation;
 
@@ -449,7 +449,7 @@ function AttendanceDashboardContent() {
                 if (!people.has(p.id)) {
                     const details = studentDetails[p.id] || {};
                     const role = details.kategori || p.kategoriElaun || 'Pelajar';
-                    const ic = details.noIc || details.noKP || '-';
+                    const ic = p.icNo || p.noKP || details.noIc || details.noKP || '-';
                     const name = details.namaPenuh || details.nama || p.nama || p.namaAsal || 'Tiada Nama';
                     const location = details.lokasi || classLocation;
 
@@ -540,34 +540,61 @@ function AttendanceDashboardContent() {
 
     /* --- Reports Logic --- */
     const fetchBankDetails = async (rows) => {
-        // ... (Logic kept same, or optimized using pre-fetched maps if rewrite needed, but keeping for safety as report might need fresh data)
-        // Actually, we can assume workerDetails/studentDetails map is enough?
-        // Let's stick to existing fetch logic for reports to ensure absolute freshness and complete data for ALL rows (maps might be partial if filtered?)
-        // Wait, mMaps are loaded fully in useEffect. So we could use them.
-        // But for safety and minimal change risk, keep existing function. 
-        // Just need to import it or define it. It IS defined in the file.
-        // I will copy the implementation.
-
         setLoading(true);
         const detailsMap = new Map();
 
-        // Use PRE-FETCHED maps to speed up
+        // 1. Collect all unique IDs needed
+        const workerIds = new Set();
+        const studentIds = new Set();
+
         rows.forEach(row => {
             row.participants.forEach(p => {
-                let d = null;
-                if (p.role === 'Petugas') d = workerDetails[p.id];
-                else d = studentDetails[p.id];
-
-                if (d) {
-                    detailsMap.set(p.id, {
-                        bank: d.bank,
-                        noAkaun: d.noAkaun,
-                        noIc: d.noIc || d.noKP, // Handle both
-                        namaDiBank: d.namaDiBank || d.nama || d.namaPenuh
-                    });
-                }
+                if (p.role === 'Petugas') workerIds.add(p.id);
+                else studentIds.add(p.id);
             });
         });
+
+        // 2. Fetch Workers
+        const wIdsArray = Array.from(workerIds);
+        if (wIdsArray.length > 0) {
+            const { data: wData } = await supabase
+                .from('workers')
+                .select('id, bank, noAkaun, noKP, nama, namaAsal, namaDiBank')
+                .in('id', wIdsArray);
+
+            wData?.forEach(d => {
+                detailsMap.set(d.id, {
+                    bank: d.bank,
+                    noAkaun: d.noAkaun,
+                    noIc: d.noKP,
+                    namaDiBank: d.namaDiBank || d.nama || d.namaAsal
+                });
+            });
+        }
+
+        // 3. Fetch Students (with batching to avoid URL limit)
+        const sIdsArray = Array.from(studentIds);
+        if (sIdsArray.length > 0) {
+            const batchSize = 500;
+            for (let i = 0; i < sIdsArray.length; i += batchSize) {
+                const batchIds = sIdsArray.slice(i, i + batchSize);
+                const { data: sData, error: sError } = await supabase
+                    .from('submissions')
+                    .select('id, bank, noAkaun, noKP, namaIslam, namaAsal, namaDiBank, namaPenuh')
+                    .in('id', batchIds);
+
+                if (sError) console.error("Error fetching students for report:", sError);
+
+                sData?.forEach(d => {
+                    detailsMap.set(d.id, {
+                        bank: d.bank,
+                        noAkaun: d.noAkaun,
+                        noIc: d.noKP,
+                        namaDiBank: d.namaDiBank || d.namaIslam || d.namaAsal || d.namaPenuh
+                    });
+                });
+            }
+        }
 
         setLoading(false);
         return detailsMap;

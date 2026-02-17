@@ -60,6 +60,16 @@ export const AuthProvider = ({ children }) => {
             }
         };
 
+        // Check for recovery mode in URL hash or query on mount
+        if (typeof window !== 'undefined') {
+            const isRecoveryFlow = window.location.hash.includes('recovery') ||
+                window.location.search.includes('type=recovery');
+            if (isRecoveryFlow) {
+                console.log("AuthProvider: Recovery detected in URL");
+                setIsRecovery(true);
+            }
+        }
+
         checkSession();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {

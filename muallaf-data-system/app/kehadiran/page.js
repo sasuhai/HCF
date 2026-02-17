@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { Search, Save, UserPlus, FileText, CheckCircle, Trash2, Home, X, Check, Plus, Calendar, MapPin, Edit2, Copy, AlertCircle, ChevronDown, Download, Globe, Clock, User } from 'lucide-react';
+import { Search, Save, UserPlus, FileText, CheckCircle, Trash2, Home, X, Check, Plus, Calendar, MapPin, Edit2, Copy, AlertCircle, ChevronDown, Download, Globe, Clock, User, ChevronLeft, ChevronRight } from 'lucide-react';
 
 function AttendancePageContent() {
     const router = useRouter();
@@ -144,9 +144,10 @@ function AttendancePageContent() {
             if (data) {
                 setAttendanceRecord(data);
 
-                // Auto-sync kategoriElaun if missing
-                if (data.workers?.some(w => !w.kategoriElaun) || data.students?.some(s => !s.kategoriElaun)) {
-                    setTimeout(() => syncKategoriElaunForRecord(data), 500);
+                // Auto-sync missing data (icNo, stafId, kategoriElaun) if needed
+                if (data.workers?.some(w => !w.kategoriElaun || !w.icNo) ||
+                    data.students?.some(s => !s.kategoriElaun || !s.icNo || !s.stafId)) {
+                    setTimeout(() => syncMissingDataForRecord(data), 500);
                 }
             } else {
                 // Not found, init new
@@ -172,27 +173,37 @@ function AttendancePageContent() {
         fetchRecord();
     }, [selectedClassId, selectedMonth]);
 
-    // Sync kategoriElaun from profiles to attendance record
-    const syncKategoriElaunForRecord = async (record) => {
+    // Sync missing data (kategoriElaun, icNo, stafId) from profiles to attendance record
+    const syncMissingDataForRecord = async (record) => {
         if (!record) return;
 
         let updated = false;
 
-        // Optimisation: Fetch all needed workers/students in one go if possible, but for now map is ok for small arrays
         const updatedWorkers = await Promise.all(
             (record.workers || []).map(async (worker) => {
-                if (!worker.kategoriElaun) {
+                if (!worker.kategoriElaun || !worker.icNo) {
                     const { data } = await supabase
                         .from('workers')
-                        .select('kategoriElaun')
+                        .select('kategoriElaun, noKP')
                         .eq('id', worker.id)
                         .single();
 
                     if (data) {
-                        const newKategori = data.kategoriElaun || '';
-                        if (worker.kategoriElaun !== newKategori) {
+                        let newWorker = { ...worker };
+                        let changed = false;
+
+                        if (!worker.kategoriElaun && data.kategoriElaun) {
+                            newWorker.kategoriElaun = data.kategoriElaun;
+                            changed = true;
+                        }
+                        if (!worker.icNo && data.noKP) {
+                            newWorker.icNo = data.noKP;
+                            changed = true;
+                        }
+
+                        if (changed) {
                             updated = true;
-                            return { ...worker, kategoriElaun: newKategori };
+                            return newWorker;
                         }
                     }
                 }
@@ -202,18 +213,33 @@ function AttendancePageContent() {
 
         const updatedStudents = await Promise.all(
             (record.students || []).map(async (student) => {
-                if (!student.kategoriElaun) {
+                if (!student.kategoriElaun || !student.icNo || !student.stafId) {
                     const { data } = await supabase
                         .from('submissions')
-                        .select('kategoriElaun')
+                        .select('kategoriElaun, noKP, noStaf')
                         .eq('id', student.id)
                         .single();
 
                     if (data) {
-                        const newKategori = data.kategoriElaun || '';
-                        if (student.kategoriElaun !== newKategori) {
+                        let newStudent = { ...student };
+                        let changed = false;
+
+                        if (!student.kategoriElaun && data.kategoriElaun) {
+                            newStudent.kategoriElaun = data.kategoriElaun;
+                            changed = true;
+                        }
+                        if (!student.icNo && data.noKP) {
+                            newStudent.icNo = data.noKP;
+                            changed = true;
+                        }
+                        if (!student.stafId && data.noStaf) {
+                            newStudent.stafId = data.noStaf;
+                            changed = true;
+                        }
+
+                        if (changed) {
                             updated = true;
-                            return { ...student, kategoriElaun: newKategori };
+                            return newStudent;
                         }
                     }
                 }
@@ -292,6 +318,7 @@ function AttendancePageContent() {
             id: worker.id,
             nama: worker.nama,
             role: worker.peranan,
+            icNo: worker.noKP || '',
             kategoriElaun: worker.kategoriElaun || '',
             attendance: []
         }];
@@ -309,8 +336,9 @@ function AttendancePageContent() {
 
         const newList = [...currentList, {
             id: student.id,
-            nama: student.namaAsal, // Or namaIslam
+            nama: student.namaIslam || student.namaAsal,
             icNo: student.noKP,
+            stafId: student.noStaf || '-',
             kategoriElaun: student.kategoriElaun || '',
             attendance: []
         }];
@@ -325,6 +353,27 @@ function AttendancePageContent() {
         const listName = type === 'worker' ? 'workers' : 'students';
         const list = attendanceRecord[listName].filter(p => p.id !== personId);
         await saveAttendance({ [listName]: list });
+    };
+
+    // Navigation for month
+    const handlePrevMonth = () => {
+        if (!selectedMonth) return;
+        const [year, month] = selectedMonth.split('-').map(Number);
+        const date = new Date(year, month - 1, 1);
+        date.setMonth(date.getMonth() - 1);
+        const newYear = date.getFullYear();
+        const newMonth = String(date.getMonth() + 1).padStart(2, '0');
+        setSelectedMonth(`${newYear}-${newMonth}`);
+    };
+
+    const handleNextMonth = () => {
+        if (!selectedMonth) return;
+        const [year, month] = selectedMonth.split('-').map(Number);
+        const date = new Date(year, month - 1, 1);
+        date.setMonth(date.getMonth() + 1);
+        const newYear = date.getFullYear();
+        const newMonth = String(date.getMonth() + 1).padStart(2, '0');
+        setSelectedMonth(`${newYear}-${newMonth}`);
     };
 
     // Get previous month in YYYY-MM format
@@ -377,6 +426,7 @@ function AttendancePageContent() {
                         id: prevWorker.id,
                         nama: prevWorker.nama,
                         role: prevWorker.role,
+                        icNo: prevWorker.icNo || prevWorker.noKP || '',
                         kategoriElaun: prevWorker.kategoriElaun || '',
                         attendance: [] // Reset attendance
                     });
@@ -394,7 +444,8 @@ function AttendancePageContent() {
                     newStudents.push({
                         id: prevStudent.id,
                         nama: prevStudent.nama,
-                        icNo: prevStudent.icNo,
+                        icNo: prevStudent.icNo || prevStudent.noKP || '',
+                        stafId: prevStudent.stafId || prevStudent.noStaf || '-',
                         kategoriElaun: prevStudent.kategoriElaun || '',
                         attendance: [] // Reset attendance
                     });
@@ -562,45 +613,64 @@ function AttendancePageContent() {
                             </div>
 
                             {/* Month Selector */}
-                            <div className="w-40 flex-shrink-0">
+                            <div className="w-64 flex-shrink-0">
                                 <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Bulan</label>
-                                <input
-                                    type="month"
-                                    value={selectedMonth}
-                                    onChange={(e) => setSelectedMonth(e.target.value)}
-                                    className="w-full bg-white text-gray-900 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
-                                />
-                            </div>
-
-                            {/* Copy from Previous Month Button */}
-                            {selectedClassId && selectedMonth && (
-                                <div className="flex-none">
-                                    <label className="block text-[10px] font-bold text-transparent mb-1.5">&nbsp;</label>
+                                <div className="flex items-center gap-1">
                                     <button
-                                        onClick={() => setIsCopyConfirmModalOpen(true)}
-                                        className="h-[42px] bg-purple-600 hover:bg-purple-700 text-white px-4 rounded-lg flex items-center text-sm font-medium shadow-sm shadow-purple-200 transition-all transform active:scale-95 whitespace-nowrap"
-                                        title="Salin data dari bulan sebelumnya"
+                                        onClick={handlePrevMonth}
+                                        className="flex-shrink-0 p-2.5 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-lg border border-gray-200 transition-colors"
+                                        title="Bulan Sebelumnya"
                                     >
-                                        <Copy className="h-4 w-4 mr-2" />
-                                        Salin Dari Bulan Lepas
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </button>
+                                    <input
+                                        type="month"
+                                        value={selectedMonth}
+                                        onChange={(e) => setSelectedMonth(e.target.value)}
+                                        className="flex-1 bg-white text-gray-900 border border-gray-200 rounded-lg px-2 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm min-w-0"
+                                        style={{ WebkitAppearance: 'none' }}
+                                    />
+                                    <button
+                                        onClick={handleNextMonth}
+                                        className="flex-shrink-0 p-2.5 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-lg border border-gray-200 transition-colors"
+                                        title="Bulan Seterusnya"
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
                                     </button>
                                 </div>
-                            )}
-                        </div>
-
-                        {/* Report Button - Visible only if data loaded AND has participants */}
-                        {selectedClassId && attendanceRecord && (attendanceRecord.workers?.length > 0 || attendanceRecord.students?.length > 0) && (
-                            <div className="flex-none w-full lg:w-auto">
-                                <label className="block text-[10px] font-bold text-transparent mb-1.5 hidden lg:block">&nbsp;</label>
-                                <button
-                                    onClick={handleGenerateReport}
-                                    className="h-[42px] w-full lg:w-auto flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 rounded-lg text-sm font-medium transition-colors border border-blue-100"
-                                >
-                                    <FileText className="h-4 w-4 mr-2" />
-                                    <span>Jana Borang F2 (Laporan & Pembayaran)</span>
-                                </button>
                             </div>
-                        )}
+
+                            {/* Action Buttons (Iconized to prevent overlapping) */}
+                            <div className="flex items-end gap-2">
+                                {/* Copy from Previous Month Button */}
+                                {selectedClassId && selectedMonth && (
+                                    <div className="flex-none">
+                                        <label className="block text-[10px] font-bold text-transparent mb-1.5">&nbsp;</label>
+                                        <button
+                                            onClick={() => setIsCopyConfirmModalOpen(true)}
+                                            className="h-[42px] w-[42px] bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center justify-center shadow-sm shadow-purple-200 transition-all transform active:scale-95"
+                                            title="Salin data dari bulan lepas"
+                                        >
+                                            <Copy className="h-5 w-5" />
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Report Button */}
+                                {selectedClassId && attendanceRecord && (attendanceRecord.workers?.length > 0 || attendanceRecord.students?.length > 0) && (
+                                    <div className="flex-none">
+                                        <label className="block text-[10px] font-bold text-transparent mb-1.5">&nbsp;</label>
+                                        <button
+                                            onClick={handleGenerateReport}
+                                            className="h-[42px] w-[42px] flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg border border-blue-100 shadow-sm transition-all transform active:scale-95"
+                                            title="Jana Borang F2 (Laporan & Pembayaran)"
+                                        >
+                                            <FileText className="h-5 w-5" />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     {/* Class Information Card */}
@@ -705,7 +775,10 @@ function AttendancePageContent() {
                                             ) : (
                                                 attendanceRecord?.workers?.map((worker) => (
                                                     <tr key={worker.id} className="hover:bg-gray-50/80 transition-colors">
-                                                        <td className="p-2.5 sticky left-0 bg-white border-r border-gray-200 font-medium text-gray-900 truncate shadow-[1px_0_0_0_rgba(229,231,235,1)]">{worker.nama}</td>
+                                                        <td className="p-2.5 sticky left-0 bg-white border-r border-gray-200 shadow-[1px_0_0_0_rgba(229,231,235,1)]">
+                                                            <div className="font-medium text-gray-900 truncate" title={worker.nama}>{worker.nama}</div>
+                                                            <div className="text-[10px] text-gray-400 font-mono">{worker.icNo || worker.noKP || '-'}</div>
+                                                        </td>
                                                         <td className="p-2.5 border-r border-gray-100 text-gray-600">{worker.role}</td>
                                                         <td className="p-2.5 border-r border-gray-100">
                                                             {worker.kategoriElaun ? (
@@ -722,7 +795,10 @@ function AttendancePageContent() {
                                                             const isChecked = worker.attendance?.includes(d);
                                                             return (
                                                                 <td key={d} className="p-0 text-center border-r border-gray-50 relative h-9">
-                                                                    <label className="cursor-pointer w-full h-full flex items-center justify-center hover:bg-emerald-50/50 transition-colors">
+                                                                    <label
+                                                                        className="cursor-pointer w-full h-full flex items-center justify-center hover:bg-emerald-50/50 transition-colors"
+                                                                        title={`${d}/${selectedMonth.split('-')[1]}/${selectedMonth.split('-')[0]}`}
+                                                                    >
                                                                         <input
                                                                             type="checkbox"
                                                                             className="rounded-sm text-emerald-600 focus:ring-emerald-500/30 h-4 w-4 border-gray-300"
@@ -767,7 +843,7 @@ function AttendancePageContent() {
                                         <thead>
                                             <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase">
                                                 <th className="p-3 text-left sticky left-0 bg-gray-50 z-10 w-48 font-semibold border-r border-gray-200 shadow-[1px_0_0_0_rgba(229,231,235,1)]">Nama</th>
-                                                <th className="p-3 text-left w-32 font-semibold border-r border-gray-200">Data Mualaf</th>
+                                                <th className="p-3 text-left w-24 font-semibold border-r border-gray-200">Staf ID</th>
                                                 <th className="p-3 text-left w-24 font-semibold border-r border-gray-200 text-[10px]">Kategori Elaun</th>
                                                 {daysArray.map(d => (
                                                     <th key={d} className="p-1 w-9 text-center border-r border-gray-100 font-normal">
@@ -785,8 +861,11 @@ function AttendancePageContent() {
                                             ) : (
                                                 attendanceRecord?.students?.map((student) => (
                                                     <tr key={student.id} className="hover:bg-gray-50/80 transition-colors">
-                                                        <td className="p-2.5 sticky left-0 bg-white border-r border-gray-200 font-medium text-gray-900 truncate shadow-[1px_0_0_0_rgba(229,231,235,1)]" title={student.nama}>{student.nama}</td>
-                                                        <td className="p-2.5 border-r border-gray-100 text-gray-500 truncate" title={student.icNo}>{student.icNo}</td>
+                                                        <td className="p-2.5 sticky left-0 bg-white border-r border-gray-200 shadow-[1px_0_0_0_rgba(229,231,235,1)]">
+                                                            <div className="font-medium text-gray-900 truncate" title={student.nama}>{student.nama}</div>
+                                                            <div className="text-[10px] text-gray-400 font-mono">{student.icNo || '-'}</div>
+                                                        </td>
+                                                        <td className="p-2.5 border-r border-gray-100 text-gray-600 font-mono">{student.stafId || student.noStaf || '-'}</td>
                                                         <td className="p-2.5 border-r border-gray-100">
                                                             {student.kategoriElaun ? (
                                                                 <span className="bg-yellow-50 text-yellow-700 border border-yellow-200 px-1.5 py-0.5 rounded text-[9px] font-medium leading-tight inline-block text-center min-w-[50px]">
@@ -802,7 +881,10 @@ function AttendancePageContent() {
                                                             const isChecked = student.attendance?.includes(d);
                                                             return (
                                                                 <td key={d} className="p-0 text-center border-r border-gray-50 relative h-9">
-                                                                    <label className="cursor-pointer w-full h-full flex items-center justify-center hover:bg-blue-50/50 transition-colors">
+                                                                    <label
+                                                                        className="cursor-pointer w-full h-full flex items-center justify-center hover:bg-blue-50/50 transition-colors"
+                                                                        title={`${d}/${selectedMonth.split('-')[1]}/${selectedMonth.split('-')[0]}`}
+                                                                    >
                                                                         <input
                                                                             type="checkbox"
                                                                             className="rounded-sm text-blue-600 focus:ring-blue-500/30 h-4 w-4 border-gray-300"
@@ -906,7 +988,12 @@ function AttendancePageContent() {
                                     <div key={s.id} className="p-3 border-b hover:bg-gray-50 flex justify-between items-center">
                                         <div>
                                             <div className="font-medium text-sm">{s.namaIslam || s.namaAsal}</div>
-                                            <div className="text-xs text-gray-500">{s.noKP} • {s.lokasi || 'Tiada Lokasi'} • {s.kategoriElaun || 'Tiada Elaun'}</div>
+                                            <div className="text-[10px] text-gray-500 font-mono">
+                                                {s.noStaf && <span className="text-blue-600 font-bold">{s.noStaf}</span>}
+                                                {s.noStaf && s.noKP && <span className="mx-1 opacity-30">•</span>}
+                                                {s.noKP}
+                                            </div>
+                                            <div className="text-[10px] text-gray-400">{s.lokasi || 'Tiada Lokasi'} • {s.kategoriElaun || 'Tiada Elaun'}</div>
                                         </div>
                                         <button
                                             onClick={() => handleAddStudent(s)}

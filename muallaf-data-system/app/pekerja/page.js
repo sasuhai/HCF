@@ -121,6 +121,12 @@ export default function WorkersPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            // Validation
+            if (!formData.nama || !formData.noKP || !formData.negeri || !formData.lokasi) {
+                alert("Sila isi semua maklumat mandatori (Nama, No KP, Negeri, dan Lokasi).");
+                return;
+            }
+
             if (currentWorker) {
                 const { error } = await supabase
                     .from('workers')
@@ -532,7 +538,7 @@ export default function WorkersPage() {
 
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700">Nama Penuh</label>
+                                    <label className="block text-sm font-medium text-gray-700">Nama Penuh <span className="text-red-500">*</span></label>
                                     <input
                                         type="text"
                                         required
@@ -545,9 +551,10 @@ export default function WorkersPage() {
                                 <div className="grid grid-cols-2 gap-4">
                                     {/* Moved Negeri first */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">Negeri</label>
+                                        <label className="block text-sm font-medium text-gray-700">Negeri <span className="text-red-500">*</span></label>
                                         <select
                                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                            required
                                             value={formData.negeri}
                                             onChange={(e) => setFormData({ ...formData, negeri: e.target.value, lokasi: '' })}
                                         >
@@ -558,7 +565,7 @@ export default function WorkersPage() {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">Lokasi</label>
+                                        <label className="block text-sm font-medium text-gray-700">Lokasi <span className="text-red-500">*</span></label>
                                         <select
                                             required
                                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -591,9 +598,10 @@ export default function WorkersPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700">No. Kad Pengenalan</label>
+                                    <label className="block text-sm font-medium text-gray-700">No. Kad Pengenalan <span className="text-red-500">*</span></label>
                                     <input
                                         type="text"
+                                        required
                                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
                                         value={formData.noKP}
                                         onChange={(e) => setFormData({ ...formData, noKP: e.target.value })}
