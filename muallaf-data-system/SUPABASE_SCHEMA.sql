@@ -44,17 +44,41 @@ create table "submissions" (
   "tahapPendidikan" text,
   "lokasi" text, -- From code analysis
   "namaPenuh" text, -- Helper field sometimes used
+  "registeredByName" text,
+  "tarikhLahir" date,
+  "namaPegawaiMengislamkan" text,
+  "noKPPegawaiMengislamkan" text,
+  "noTelPegawaiMengislamkan" text,
+  "namaSaksi1" text,
+  "noKPSaksi1" text,
+  "noTelSaksi1" text,
+  "namaSaksi2" text,
+  "noKPSaksi2" text,
+  "noTelSaksi2" text,
+  "poskod" text,
+  "bandar" text,
+  "negeri" text,
+  "maklumatKenalanPengiring" text,
+  "tanggungan" numeric,
+  "bank" text,
+  "noAkaun" text,
+  "namaDiBank" text,
+  "kategoriElaun" text,
   
-  -- Document Files (Stored as JSONB with Base64)
+  -- Document Files (Stored as JSONB with Base64/URL)
   "gambarIC" jsonb,
   "gambarKadIslam" jsonb,
   "gambarSijilPengislaman" jsonb,
+  "gambarMualaf" jsonb,
+  "gambarSesiPengislaman" jsonb,
   "dokumenLain1" jsonb,
   "dokumenLain2" jsonb,
   "dokumenLain3" jsonb,
   
   -- Metadata
   "status" text default 'active',
+  "catatan" text,
+  "catatanAudit" text,
   "createdAt" timestamptz default now(),
   "createdBy" uuid, -- references auth.users(id)
   "updatedAt" timestamptz default now(),

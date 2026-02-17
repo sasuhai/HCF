@@ -150,6 +150,16 @@ function EditRekodContent() {
                 ...processedFiles  // Add new file data if any
             };
 
+            // Sanitize numeric fields - Convert empty strings to null or number
+            const numericFields = ['umur', 'pendapatanBulanan', 'tanggungan'];
+            numericFields.forEach(field => {
+                if (updateData[field] === '' || updateData[field] === undefined) {
+                    updateData[field] = null;
+                } else {
+                    updateData[field] = Number(updateData[field]);
+                }
+            });
+
             // Remove FileList objects
             const fieldsToDelete = [
                 'gambarIC', 'gambarKadIslam', 'gambarSijilPengislaman',

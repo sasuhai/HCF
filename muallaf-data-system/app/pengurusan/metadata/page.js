@@ -29,7 +29,8 @@ import {
     AlertCircle,
     Heart,
     Landmark,
-    Users
+    Users,
+    Search
 } from 'lucide-react';
 
 const TABS = [
@@ -50,6 +51,7 @@ export default function MetadataManagementPage() {
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
+    const [searchTerm, setSearchTerm] = useState('');
 
     // Modal/Edit state
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -59,6 +61,7 @@ export default function MetadataManagementPage() {
     // Fetch data when tab changes
     useEffect(() => {
         fetchData();
+        setSearchTerm(''); // Reset search when switching tabs
     }, [activeTab]);
 
     useEffect(() => {
@@ -194,9 +197,29 @@ export default function MetadataManagementPage() {
                         {/* Content Area */}
                         <div className="lg:col-span-3">
                             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                                <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-emerald-50/30">
-                                    <h2 className="text-lg font-semibold text-gray-900">Senarai {activeTab.name}</h2>
-                                    <span className="text-sm text-gray-500">{items.length} rekod dijumpai</span>
+                                <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-emerald-50/30">
+                                    <div className="flex flex-col">
+                                        <h2 className="text-lg font-semibold text-gray-900">Senarai {activeTab.name}</h2>
+                                        <span className="text-xs text-gray-500">{items.length} rekod dijumpai</span>
+                                    </div>
+                                    <div className="relative flex-1 max-w-xs">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <input
+                                            type="text"
+                                            placeholder={`Cari ${activeTab.name.toLowerCase()}...`}
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all bg-white"
+                                        />
+                                        {searchTerm && (
+                                            <button
+                                                onClick={() => setSearchTerm('')}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                            >
+                                                <X className="w-3.5 h-3.5" />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div className="p-0">
@@ -213,22 +236,25 @@ export default function MetadataManagementPage() {
                                             <p className="max-w-xs">Tiada rekod {activeTab.name} disimpan lagi. Gunakan butang di atas untuk menambah.</p>
                                         </div>
                                     ) : (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
-                                            {items.map((item) => (
-                                                <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-3 hover:border-emerald-300 hover:shadow-sm transition-all flex items-center justify-between group">
-                                                    <div className="flex items-center space-x-3 overflow-hidden">
+                                        <div className="divide-y divide-gray-100">
+                                            {items.filter(item =>
+                                                item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                (item.state_name && item.state_name.toLowerCase().includes(searchTerm.toLowerCase()))
+                                            ).map((item) => (
+                                                <div key={item.id} className="p-4 py-2 hover:bg-emerald-50/50 transition-all flex items-center justify-between group">
+                                                    <div className="flex items-center space-x-4 min-w-0">
                                                         <div className="flex-shrink-0 w-8 h-8 bg-gray-50 rounded-md flex items-center justify-center text-gray-400 group-hover:bg-emerald-100 group-hover:text-emerald-600 transition-colors">
                                                             <activeTab.icon className="w-4 h-4" />
                                                         </div>
                                                         <div className="min-w-0">
-                                                            <p className="font-medium text-gray-900 text-sm truncate">{item.name}</p>
+                                                            <p className="font-medium text-gray-900 text-sm break-words">{item.name}</p>
                                                             {item.state_name && (
-                                                                <p className="text-[10px] text-gray-500 truncate">{item.state_name}</p>
+                                                                <p className="text-[10px] text-gray-500">{item.state_name}</p>
                                                             )}
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex items-center space-x-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <div className="flex items-center space-x-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity ml-4 flex-shrink-0">
                                                         <button
                                                             onClick={() => handleOpenModal(item)}
                                                             className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-all"

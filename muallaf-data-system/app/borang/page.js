@@ -105,6 +105,16 @@ export default function BorangPage() {
                 ...processedFiles  // Add Base64 file data directly to document
             };
 
+            // Sanitize numeric fields - Convert empty strings to null or number
+            const numericFields = ['umur', 'pendapatanBulanan', 'tanggungan'];
+            numericFields.forEach(field => {
+                if (submissionData[field] === '' || submissionData[field] === undefined) {
+                    submissionData[field] = null;
+                } else {
+                    submissionData[field] = Number(submissionData[field]);
+                }
+            });
+
             // Remove FileList objects from data (keep only Base64)
             const fieldsToDelete = [
                 'gambarIC', 'gambarKadIslam', 'gambarSijilPengislaman',
