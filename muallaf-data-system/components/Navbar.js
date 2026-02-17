@@ -101,6 +101,9 @@ export default function Navbar() {
                                         <Link href="/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
                                             <BarChart2 className="w-4 h-4 mr-2" /> Dashboard Utama
                                         </Link>
+                                        <Link href="/map-intelligence" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                                            <MapPin className="w-4 h-4 mr-2" /> Peta Taburan
+                                        </Link>
                                         <Link href="/mualaf/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
                                             <FileText className="w-4 h-4 mr-2" /> Analisis & Laporan
                                         </Link>
@@ -186,6 +189,7 @@ export default function Navbar() {
                             <Link href="/pengurusan/metadata" className="block pl-6 py-2 text-sm text-emerald-600 font-medium hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Tetapan Metadata</Link>
                         )}
                         <Link href="/dashboard" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Dashboard Utama</Link>
+                        <Link href="/map-intelligence" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Peta Taburan</Link>
                         <Link href="/mualaf/dashboard" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Analisis & Laporan</Link>
 
                         {role === 'admin' && (

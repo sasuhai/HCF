@@ -332,18 +332,38 @@ export const getOverallDashboardStats = async (role = 'admin', profile = {}) => 
 
         // Format state trends
         stats.mualaf.stateTrends = {};
+        stats.mualaf.stateStats = {};
         Object.entries(stateTrendMap).forEach(([state, months]) => {
+            let regTotal = 0;
+            let convTotal = 0;
+
             stats.mualaf.stateTrends[state] = Object.entries(monthlyTrendMap)
                 .sort((a, b) => a[0].localeCompare(b[0]))
                 .map(([key]) => {
                     const [year, mon] = key.split('-');
                     const data = months[key] || { registrations: 0, conversions: 0 };
+                    regTotal += data.registrations;
+                    convTotal += data.conversions;
                     return {
                         name: `${monthNames[parseInt(mon) - 1]} ${year.substring(2)}`,
                         registrations: data.registrations,
                         conversions: data.conversions
                     };
                 });
+
+            stats.mualaf.stateStats[state] = { registrations: regTotal, conversions: convTotal };
+        });
+
+        // Add location stats aggregation
+        stats.mualaf.locationStats = {};
+        Object.entries(locationTrendMap).forEach(([loc, months]) => {
+            let regTotal = 0;
+            let convTotal = 0;
+            Object.values(months).forEach(m => {
+                regTotal += m.registrations;
+                convTotal += m.conversions;
+            });
+            stats.mualaf.locationStats[loc] = { registrations: regTotal, conversions: convTotal };
         });
 
         stats.mualaf.trend = Object.entries(yearlyTrendMap)
@@ -409,7 +429,7 @@ export const getOverallDashboardStats = async (role = 'admin', profile = {}) => 
         // Logic in original code iterates over all records.
         // We need to group by month
 
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 12; i++) {
             const d = new Date();
             d.setMonth(now.getMonth() - i);
             const key = getMonthKey(d);
@@ -424,37 +444,49 @@ export const getOverallDashboardStats = async (role = 'admin', profile = {}) => 
 
         attendanceData.forEach(record => {
             let { year, month } = record;
-            // Handle ID parsing if needed? Logic: "if (!year || !month) ..."
-            if (!year || !month && record.id) {
-                const part = record.id.split('_').pop();
-                if (part && part.includes('-')) [year, month] = part.split('-');
+
+            // Handle ID parsing if fields are missing (ID format: classId_YYYY-MM)
+            if ((!year || !month) && record.id) {
+                const parts = record.id.split('_');
+                const datePart = parts[parts.length - 1]; // Get the YYYY-MM part
+                if (datePart && datePart.includes('-')) {
+                    const [y, m] = datePart.split('-');
+                    year = y;
+                    month = m;
+                }
             }
 
             if (year && month) {
-                const key = `${year}-${parseInt(month).toString().padStart(2, '0')}`;
+                // Ensure month is just the 1-12 numeric part (some records have YYYY-MM in the month field)
+                let monthNum = String(month);
+                if (monthNum.includes('-')) {
+                    monthNum = monthNum.split('-').pop(); // Get the "MM" part
+                }
+
+                const key = `${year}-${String(parseInt(monthNum)).padStart(2, '0')}`;
                 if (attendanceTrendMap[key]) {
                     const students = record.students || [];
                     const workers = record.workers || [];
 
-                    let mualafVisits = 0;
                     // students is jsonb array
                     if (Array.isArray(students)) {
                         students.forEach(s => {
-                            if (s.attendance && Array.isArray(s.attendance)) mualafVisits += s.attendance.length;
-                            attendanceTrendMap[key].uniqueMualaf.add(s.id);
+                            // Only count if they have at least one attendance day recorded
+                            if (s.attendance && Array.isArray(s.attendance) && s.attendance.length > 0) {
+                                attendanceTrendMap[key].uniqueMualaf.add(s.id);
+                                attendanceTrendMap[key].totalMualafVisits += s.attendance.length;
+                            }
                         });
                     }
 
-                    let workerVisits = 0;
                     if (Array.isArray(workers)) {
                         workers.forEach(w => {
-                            if (w.attendance && Array.isArray(w.attendance)) workerVisits += w.attendance.length;
-                            attendanceTrendMap[key].uniqueWorkers.add(w.id);
+                            if (w.attendance && Array.isArray(w.attendance) && w.attendance.length > 0) {
+                                attendanceTrendMap[key].uniqueWorkers.add(w.id);
+                                attendanceTrendMap[key].totalWorkerVisits += w.attendance.length;
+                            }
                         });
                     }
-
-                    attendanceTrendMap[key].totalMualafVisits += mualafVisits;
-                    attendanceTrendMap[key].totalWorkerVisits += workerVisits;
                 }
             }
         });

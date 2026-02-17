@@ -298,8 +298,10 @@ function AttendanceDashboardContent() {
                 let isPresent = daysAttended > 0;
 
                 if (selectedDay) {
-                    const dayStr = selectedDay.toString().padStart(2, '0');
-                    if (!attendance.includes(dayStr)) {
+                    const targetDay = parseInt(selectedDay, 10);
+                    const hasAttendance = (attendance || []).some(d => parseInt(d, 10) === targetDay);
+
+                    if (!hasAttendance) {
                         isPresent = false;
                         daysAttended = 0;
                     } else {

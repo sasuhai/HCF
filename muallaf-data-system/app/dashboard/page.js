@@ -17,6 +17,7 @@ import {
     ResponsiveContainer,
     AreaChart,
     Area,
+    ReferenceLine,
 } from 'recharts';
 
 import {
@@ -34,7 +35,8 @@ import {
     Filter,
     ArrowUpRight,
     Database,
-    Clock
+    Clock,
+    Map
 } from 'lucide-react';
 
 const COLORS = {
@@ -69,10 +71,7 @@ export default function DashboardPage() {
         fetchStats();
     }, [authLoading, role, profile]);
 
-    // Trend Data processing
-    const currentTrendData = trendView === 'yearly'
-        ? stats?.mualaf.trend
-        : stats?.mualaf.monthlyTrend;
+
 
     // Location Drill-down Data
     const locationData = stats?.mualaf.byLocation || [];
@@ -105,11 +104,19 @@ export default function DashboardPage() {
 
     const formatDate = (dateString) => {
         if (!dateString) return '-';
-        return new Date(dateString).toLocaleDateString('ms-MY', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return dateString;
+
+            const day = String(date.getDate()).padStart(2, '0');
+            const months = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
+            const month = months[date.getMonth()];
+            const year = date.getFullYear();
+
+            return `${day}/${month}/${year}`;
+        } catch (e) {
+            return dateString;
+        }
     };
 
     const formatXAxisLabel = (value) => {
@@ -129,6 +136,28 @@ export default function DashboardPage() {
         }
         return value;
     };
+
+    const getAvg = (data, key) => {
+        if (!data || data.length === 0) return 0;
+        const sum = data.reduce((acc, curr) => acc + (curr[key] || 0), 0);
+        return parseFloat((sum / data.length).toFixed(2));
+    };
+
+    const stateAvgReg = getAvg(selectedStateTrend, 'registrations');
+    const stateAvgConv = getAvg(selectedStateTrend, 'conversions');
+    const locAvgReg = getAvg(selectedLocationTrend, 'registrations');
+    const locAvgConv = getAvg(selectedLocationTrend, 'conversions');
+
+    const attendanceTrend = stats?.attendance.trend || [];
+    const avgMualafAttend = getAvg(attendanceTrend, 'mualafCount');
+    const avgWorkerAttend = getAvg(attendanceTrend, 'workerCount');
+
+    const currentTrendData = trendView === 'yearly'
+        ? stats?.mualaf.trend || []
+        : stats?.mualaf.monthlyTrend || [];
+
+    const mainAvgReg = getAvg(currentTrendData, 'registrations');
+    const mainAvgConv = getAvg(currentTrendData, 'conversions');
 
     if (loading) {
         return (
@@ -179,9 +208,9 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Stats Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
                         {/* Total Mualaf */}
-                        <div className="relative overflow-hidden bg-white rounded-3xl p-7 border border-slate-200/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] transition-all duration-500 group">
+                        <div className="relative overflow-hidden bg-white rounded-3xl p-7 border border-slate-200/60 shadow-[0_8px_30px_rgb(0,0,0,0.4)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] transition-all duration-500 group">
                             <div className="absolute top-0 right-0 -mr-6 -mt-6 w-32 h-32 bg-emerald-50 rounded-full opacity-50 group-hover:scale-110 transition-transform duration-700"></div>
                             <div className="relative z-10">
                                 <div className="flex justify-between items-start mb-4">
@@ -249,7 +278,29 @@ export default function DashboardPage() {
                             </div>
                         </div>
 
-                        {/* Quick Link Card - Premium Gradient */}
+                        {/* Link Card: Map Intelligence */}
+                        <Link href="/map-intelligence" className="group">
+                            <div className="relative overflow-hidden bg-white rounded-3xl p-7 border-2 border-dashed border-slate-200 hover:border-emerald-500 transition-all duration-500 h-full flex flex-col justify-between group">
+                                <div className="absolute -right-4 -top-4 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-all duration-500">
+                                    <Map className="w-32 h-32 text-slate-900" />
+                                </div>
+                                <div className="relative z-10">
+                                    <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-emerald-500 transition-colors duration-300">
+                                        <Map className="w-6 h-6 text-emerald-600 group-hover:text-white" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-slate-900 leading-tight">Peta Pintar<br />Geospatial</h3>
+                                    <p className="text-slate-500 text-xs font-medium mt-2">Analisis taburan mualaf melalui peta interaktif.</p>
+                                </div>
+                                <div className="relative z-10 mt-6 flex items-center justify-between">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">Kecerdasan</span>
+                                    <div className="bg-slate-100 p-2 rounded-full group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300">
+                                        <ArrowRight className="w-5 h-5" />
+                                    </div>
+                                </div>
+                            </div>
+                        </Link>
+
+                        {/* Quick Link Card - Analytics */}
                         <Link href="/mualaf/dashboard" className="group">
                             <div className="relative overflow-hidden bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-3xl p-7 shadow-xl h-full flex flex-col justify-between hover:scale-[1.02] transition-all duration-500 transform-gpu">
                                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity duration-500">
@@ -342,6 +393,12 @@ export default function DashboardPage() {
                                         barSize={trendView === 'yearly' ? 40 : 25}
                                         label={{ position: 'top', fill: '#3B82F6', fontSize: 10, fontWeight: 'bold', offset: 8 }}
                                     />
+                                    {mainAvgReg > 0 && (
+                                        <ReferenceLine y={mainAvgReg} label={{ position: 'right', value: `Purata Pendaftaran: ${mainAvgReg}`, fill: '#10B981', fontSize: 10, fontWeight: 'bold' }} stroke="#10B981" strokeDasharray="3 3" />
+                                    )}
+                                    {mainAvgConv > 0 && (
+                                        <ReferenceLine y={mainAvgConv} label={{ position: 'right', value: `Purata Pengislaman: ${mainAvgConv}`, fill: '#3B82F6', fontSize: 10, fontWeight: 'bold' }} stroke="#3B82F6" strokeDasharray="3 3" />
+                                    )}
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -433,8 +490,11 @@ export default function DashboardPage() {
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                                                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 9, fontWeight: 600 }} tickFormatter={formatXAxisLabel} />
                                                         <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 9, fontWeight: 600 }} />
-                                                        <Tooltip contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                                                        <Tooltip contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 / 0.1)' }} />
                                                         <Bar dataKey="registrations" name="Pendaftaran" fill="#10B981" barSize={14} radius={[4, 4, 4, 4]} label={{ position: 'top', fontSize: 9, fill: '#10B981', fontWeight: 'bold', offset: 5 }} />
+                                                        {stateAvgReg > 0 && (
+                                                            <ReferenceLine y={stateAvgReg} label={{ position: 'right', value: `Purata: ${stateAvgReg}`, fill: '#10B981', fontSize: 10, fontWeight: 'bold' }} stroke="#10B981" strokeDasharray="3 3" />
+                                                        )}
                                                     </BarChart>
                                                 </ResponsiveContainer>
                                             </div>
@@ -450,8 +510,11 @@ export default function DashboardPage() {
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                                                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 9, fontWeight: 600 }} tickFormatter={formatXAxisLabel} />
                                                         <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 9, fontWeight: 600 }} />
-                                                        <Tooltip contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                                                        <Tooltip contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 / 0.1)' }} />
                                                         <Bar dataKey="conversions" name="Pengislaman" fill="#3B82F6" barSize={14} radius={[4, 4, 4, 4]} label={{ position: 'top', fontSize: 9, fill: '#3B82F6', fontWeight: 'bold', offset: 5 }} />
+                                                        {stateAvgConv > 0 && (
+                                                            <ReferenceLine y={stateAvgConv} label={{ position: 'right', value: `Purata: ${stateAvgConv}`, fill: '#3B82F6', fontSize: 10, fontWeight: 'bold' }} stroke="#3B82F6" strokeDasharray="3 3" />
+                                                        )}
                                                     </BarChart>
                                                 </ResponsiveContainer>
                                             </div>
@@ -558,8 +621,11 @@ export default function DashboardPage() {
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                                                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 9, fontWeight: 600 }} tickFormatter={formatXAxisLabel} />
                                                         <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 9, fontWeight: 600 }} />
-                                                        <Tooltip contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                                                        <Tooltip contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 / 0.1)' }} />
                                                         <Bar dataKey="registrations" name="Pendaftaran" fill="#10B981" barSize={12} radius={[4, 4, 4, 4]} label={{ position: 'top', fontSize: 9, fill: '#10B981', fontWeight: 'bold', offset: 5 }} />
+                                                        {locAvgReg > 0 && (
+                                                            <ReferenceLine y={locAvgReg} label={{ position: 'right', value: `Purata: ${locAvgReg}`, fill: '#10B981', fontSize: 10, fontWeight: 'bold' }} stroke="#10B981" strokeDasharray="3 3" />
+                                                        )}
                                                     </BarChart>
                                                 </ResponsiveContainer>
                                             </div>
@@ -575,8 +641,11 @@ export default function DashboardPage() {
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                                                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 9, fontWeight: 600 }} tickFormatter={formatXAxisLabel} />
                                                         <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 9, fontWeight: 600 }} />
-                                                        <Tooltip contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                                                        <Tooltip contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 / 0.1)' }} />
                                                         <Bar dataKey="conversions" name="Pengislaman" fill="#3B82F6" barSize={12} radius={[4, 4, 4, 4]} label={{ position: 'top', fontSize: 9, fill: '#3B82F6', fontWeight: 'bold', offset: 5 }} />
+                                                        {locAvgConv > 0 && (
+                                                            <ReferenceLine y={locAvgConv} label={{ position: 'right', value: `Purata: ${locAvgConv}`, fill: '#3B82F6', fontSize: 10, fontWeight: 'bold' }} stroke="#3B82F6" strokeDasharray="3 3" />
+                                                        )}
                                                     </BarChart>
                                                 </ResponsiveContainer>
                                             </div>
@@ -617,17 +686,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="h-80 w-full mt-2">
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={stats?.attendance.trend}>
-                                    <defs>
-                                        <linearGradient id="colorMualaf" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#10B981" stopOpacity={0.2} />
-                                            <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-                                        </linearGradient>
-                                        <linearGradient id="colorWorker" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#6366F1" stopOpacity={0.2} />
-                                            <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
+                                <BarChart data={attendanceTrend}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
                                     <XAxis
                                         dataKey="name"
@@ -650,27 +709,29 @@ export default function DashboardPage() {
                                         }}
                                         itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
                                     />
-                                    <Area
-                                        type="monotone"
+                                    <Bar
                                         dataKey="mualafCount"
                                         name="Mualaf"
-                                        stroke="#10B981"
-                                        strokeWidth={3}
-                                        fillOpacity={1}
-                                        fill="url(#colorMualaf)"
+                                        fill="#10B981"
+                                        barSize={20}
+                                        radius={[4, 4, 0, 0]}
                                         animationDuration={1500}
                                     />
-                                    <Area
-                                        type="monotone"
+                                    <Bar
                                         dataKey="workerCount"
                                         name="Petugas"
-                                        stroke="#6366F1"
-                                        strokeWidth={3}
-                                        fillOpacity={1}
-                                        fill="url(#colorWorker)"
+                                        fill="#6366F1"
+                                        barSize={20}
+                                        radius={[4, 4, 0, 0]}
                                         animationDuration={1500}
                                     />
-                                </AreaChart>
+                                    {avgMualafAttend > 0 && (
+                                        <ReferenceLine y={avgMualafAttend} label={{ position: 'right', value: `Avg Mualaf: ${avgMualafAttend}`, fill: '#10B981', fontSize: 10, fontWeight: 'bold' }} stroke="#10B981" strokeDasharray="3 3" />
+                                    )}
+                                    {avgWorkerAttend > 0 && (
+                                        <ReferenceLine y={avgWorkerAttend} label={{ position: 'right', value: `Avg Petugas: ${avgWorkerAttend}`, fill: '#6366F1', fontSize: 10, fontWeight: 'bold' }} stroke="#6366F1" strokeDasharray="3 3" />
+                                    )}
+                                </BarChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
