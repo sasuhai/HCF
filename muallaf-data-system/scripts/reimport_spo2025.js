@@ -26,59 +26,101 @@ const monthMap = {
 
 const parseDate = (dateStr) => {
     if (!dateStr) return null;
+    let trimmed = dateStr.toString().trim();
+    if (!trimmed) return null;
 
-    // Check if it already matches YYYY-MM-DD or similar ISO
-    if (dateStr.includes('T')) return dateStr;
+    if (trimmed.includes('T')) return trimmed;
 
-    // Handle DD-Mon-YYYY or DD/Mon/YYYY
-    // Example: 02-Dec-2025 or 17-Oct-2024
-    if (isNaN(dateStr.charAt(0)) === false && dateStr.split(/[\/\-]/).length === 3) {
-        const parts = dateStr.split(/[\/\-\s]/);
-        if (parts.length >= 3) {
-            const day = parts[0].padStart(2, '0');
-            const monthStr = parts[1];
-            let year = parts[2];
+    const parts = trimmed.split(/[\/\-\s]+/).filter(p => p.length > 0);
+    if (parts.length < 3) return null;
 
-            if (year.length === 2) year = '20' + year;
+    const now = new Date();
 
-            let month = monthStr;
-            if (isNaN(monthStr)) {
-                month = monthMap[monthStr] || monthMap[monthStr.substring(0, 3)];
-            } else {
-                month = monthStr.padStart(2, '0');
+    // Extract year
+    let yearStr = parts[2].replace(/\D/g, '');
+    if (yearStr.length === 2) yearStr = '20' + yearStr;
+    if (yearStr.length > 4) yearStr = yearStr.substring(0, 4);
+    const y = parseInt(yearStr);
+    if (isNaN(y)) return null;
+
+    let m, d;
+
+    if (isNaN(parts[1])) {
+        m = parseInt(monthMap[parts[1]] || monthMap[parts[1].substring(0, 3)]);
+        d = parseInt(parts[0].replace(/\D/g, ''));
+
+        if (isNaN(m) || isNaN(d)) return null;
+
+        let testDate = new Date(y, m - 1, d);
+        if (testDate > now && d <= 12) {
+            let testOpposite = new Date(y, d - 1, m);
+            if (testOpposite <= now) {
+                const temp = m;
+                m = d;
+                d = temp;
             }
+        }
+    } else {
+        let p0 = parseInt(parts[0].replace(/\D/g, ''));
+        let p1 = parseInt(parts[1].replace(/\D/g, ''));
+        if (isNaN(p0) || isNaN(p1)) return null;
 
-            if (month) {
-                // If there's time info: 12/02/2025 12:19:40
-                let time = '00:00:00.000Z';
-                if (parts[3]) {
-                    time = parts[3] + '.000Z';
+        if (p0 > 12) {
+            m = p1; d = p0;
+        } else if (p1 > 12) {
+            m = p0; d = p1;
+        } else {
+            m = p0; d = p1;
+            let testDate = new Date(y, m - 1, d);
+            if (testDate > now) {
+                let testOpposite = new Date(y, d - 1, m);
+                if (testOpposite <= now) {
+                    m = p1; d = p0;
                 }
-                return `${year}-${month}-${day}T${time}`;
             }
         }
     }
 
-    // Fallback attempt with native Date
-    try {
-        const d = new Date(dateStr);
-        if (!isNaN(d.getTime())) return d.toISOString();
-    } catch (e) { }
+    if (isNaN(m) || isNaN(d) || m < 1 || m > 12 || d < 1 || d > 31) return null;
 
-    return null;
+    let time = '00:00:00.000Z';
+    const timeMatch = trimmed.match(/(\d{1,2}:\d{1,2}:\d{1,2})/);
+    if (timeMatch) {
+        const [hh, mm, ss] = timeMatch[1].split(':');
+        time = `${hh.padStart(2, '0')}:${mm.padStart(2, '0')}:${ss.padStart(2, '0')}.000Z`;
+    }
+
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}T${time}`;
 };
 
 const clean = (val) => {
-    if (!val) return null;
-    // Remove non-breaking spaces and redundant whitespace
-    let cleaned = val.toString().replace(/[\u00A0]/g, ' ').replace(/\s+/g, ' ').trim();
-    return cleaned || null;
+    if (val === undefined || val === null) return null;
+    let s = val.toString().replace(/[\u00A0]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!s) return null;
+
+    // 1. Detect and expand scientific notation (e.g., 9.70717E+11)
+    // This often happens when Excel saves long numbers as strings.
+    if (/^[0-9.]+[Ee]\+[0-9]+$/.test(s)) {
+        const num = Number(s);
+        if (!isNaN(num)) {
+            s = num.toFixed(0);
+        }
+    }
+
+    // 2. Healing truncated leading zeros
+    // Normal Malaysian IC is 12 digits. Excel often strips the leading '0'.
+    // Phone numbers often strip the leading '0' as well (e.g., 161234567 -> 0161234567).
+    if (/^\d{8,11}$/.test(s)) {
+        s = '0' + s;
+    }
+
+    return s;
 };
 
 const cleanNum = (val) => {
     if (!val) return null;
-    const cleaned = val.toString().replace(/[^0-9.]/g, '');
-    return cleaned ? parseFloat(cleaned) : null;
+    let s = val.toString().replace(/[^0-9.]/g, '');
+    return s ? parseFloat(s) : null;
 };
 
 const mapRecord = (row) => {
