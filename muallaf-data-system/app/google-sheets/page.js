@@ -1,335 +1,242 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSubmissions } from '@/lib/supabase/database';
 import { supabase } from '@/lib/supabase/client';
-import { Loader2, RefreshCw, Send, Table as TableIcon, LogIn, AlertCircle, CheckCircle2, ChevronRight, FileSpreadsheet, Info } from 'lucide-react';
+import { Loader2, RefreshCw, Database, Save, AlertCircle, CheckCircle2 } from 'lucide-react';
+
+const NEGERI_OPTIONS = ['SEMUA', 'SELANGOR', 'KUALA LUMPUR', 'JOHOR', 'PULAU PINANG', 'PERAK', 'NEGERI SEMBILAN', 'MELAKA', 'PAHANG', 'TERENGGANU', 'KELANTAN', 'KEDAH', 'PERLIS', 'SABAH', 'SARAWAK', 'LABUAN'];
+
+const normalize = (val) => {
+    if (val === null || val === undefined) return "";
+    const s = String(val).trim();
+    if (s.toUpperCase() === 'TRUE') return 'TRUE';
+    if (s.toUpperCase() === 'FALSE') return 'FALSE';
+    return s;
+};
+
+const getFingerprint = (item) => {
+    if (!item) return '';
+    const keys = Object.keys(item).sort();
+    let fp = "";
+    for (const k of keys) {
+        if (['updatedAt', 'updatedBy', 'createdAt', 'createdBy'].includes(k)) continue;
+        fp += normalize(item[k]) + "|";
+    }
+    return fp;
+};
 
 function GoogleSheetsContent() {
     const { user, role, loading: authLoading, signIn } = useAuth();
     const [loading, setLoading] = useState(false);
+    const [progress, setProgress] = useState(0);
     const [status, setStatus] = useState({ type: '', message: '' });
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [selectedTable, setSelectedTable] = useState('submissions');
 
-    // Bridge to communicate with Google Apps Script
+    const [selectedTable, setSelectedTable] = useState(() => {
+        if (typeof window !== 'undefined') return localStorage.getItem('gs_table') || 'submissions';
+        return 'submissions';
+    });
+
+    const [selectedState, setSelectedState] = useState(() => {
+        if (typeof window !== 'undefined') return localStorage.getItem('gs_state') || 'SEMUA';
+        return 'SEMUA';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('gs_table', selectedTable);
+        localStorage.setItem('gs_state', selectedState);
+    }, [selectedTable, selectedState]);
+
+    const getPersistentFingerprints = () => {
+        try {
+            const data = sessionStorage.getItem(`sync_v33_${selectedTable}`);
+            return data ? JSON.parse(data) : {};
+        } catch (e) { return {}; }
+    };
+
+    const savePersistentFingerprints = (allData) => {
+        const fps = {};
+        allData.forEach(item => { fps[item.id] = getFingerprint(item); });
+        try {
+            sessionStorage.setItem(`sync_v33_${selectedTable}`, JSON.stringify(fps));
+        } catch (e) { }
+    };
+
     const runGAS = (functionName, ...args) => {
         return new Promise((resolve, reject) => {
             const id = Math.random().toString(36).substring(7);
-
             const listener = (event) => {
-                // Ignore messages not from our parent or not intended for us
                 if (event.data?.type === 'GS_RESPONSE' && event.data?.callId === id) {
                     window.removeEventListener('message', listener);
                     if (event.data.error) reject(event.data.error);
                     else resolve(event.data.result);
                 }
             };
-
             window.addEventListener('message', listener);
-
-            // Send request to parent (the GAS Sidebar)
-            if (window.parent && window.parent !== window) {
-                window.parent.postMessage({
-                    type: 'GS_REQUEST',
-                    callId: id,
-                    functionName,
-                    args
-                }, '*');
-            } else {
-                window.removeEventListener('message', listener);
-                reject('Tool ini mesti dijalankan dari dalam Google Sheets (Sidebar).');
-            }
-
-            // Timeout after 45 seconds (increased for large datasets)
-            setTimeout(() => {
-                window.removeEventListener('message', listener);
-                reject('GAS Call Timeout. Sila pastikan anda telah memberikan kebenaran (Authorization) kepada script Google.');
-            }, 45000);
+            window.parent.postMessage({ type: 'GS_REQUEST', callId: id, functionName, args }, '*');
+            setTimeout(() => { window.removeEventListener('message', listener); reject('Timeout'); }, 300000);
         });
-    };
-
-    const handleLogin = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setStatus({ type: '', message: '' });
-        try {
-            const result = await signIn(email, password);
-            if (result.error) throw result.error;
-            setStatus({ type: 'success', message: 'Log masuk berjaya!' });
-        } catch (err) {
-            setStatus({ type: 'error', message: err.message });
-        } finally {
-            setLoading(false);
-        }
     };
 
     const loadDataToSheets = async () => {
         setLoading(true);
-        setStatus({ type: 'info', message: `Sedang menarik data ${selectedTable}...` });
-
+        setProgress(0);
+        setStatus({ type: 'info', message: 'Tarik data...' });
         try {
-            let data = [];
-            if (selectedTable === 'submissions') {
-                const res = await getSubmissions({ pageSize: 1500 });
-                data = res.data;
-            } else if (selectedTable === 'attendance_records') {
-                const { data: attData, error } = await supabase.from('attendance_records').select('*').limit(1000);
+            let allData = [];
+            let page = 0, size = 1000, hasMore = true;
+            while (hasMore) {
+                let q = supabase.from(selectedTable).select('*', { count: 'exact' });
+                if (selectedTable === 'submissions') {
+                    q = q.eq('status', 'active');
+                    if (selectedState !== 'SEMUA') q = q.ilike('negeriCawangan', selectedState);
+                }
+                const { data, error, count } = await q.range(page * size, (page * size) + size - 1).order('createdAt', { ascending: false });
                 if (error) throw error;
-                data = attData.map(r => ({
-                    id: r.id,
-                    classId: r.classId,
-                    year: r.year,
-                    month: r.month,
-                    status: r.status,
-                    updatedAt: r.updatedAt
+                allData = [...allData, ...data];
+                setProgress(Math.round((allData.length / count) * 40));
+                if (data.length < size) hasMore = false; else page++;
+            }
+
+            if (allData.length === 0) throw "Tiada data dikesan.";
+
+            savePersistentFingerprints(allData);
+
+            const headers = Object.keys(allData[0]);
+            const finalHeaders = await runGAS('prepareSheet', selectedTable, headers);
+
+            const chunkSize = 2000;
+            const totalChunks = Math.ceil(allData.length / chunkSize);
+            for (let i = 0; i < totalChunks; i++) {
+                const chunk = allData.slice(i * chunkSize, (i + 1) * chunkSize);
+                setStatus({ type: 'info', message: `Batch ${i + 1}/${totalChunks}...` });
+                const rows = chunk.map(item => finalHeaders.map(h => {
+                    const val = item[h];
+                    if (val === null || val === undefined) return '';
+                    return typeof val === 'object' ? JSON.stringify(val) : val;
                 }));
+                await runGAS('appendDataToSheet', selectedTable, rows);
+                setProgress(40 + Math.round(((i + 1) / totalChunks) * 60));
             }
-
-            if (!data || data.length === 0) {
-                setStatus({ type: 'info', message: 'Tiada data dijumpai.' });
-                setLoading(false);
-                return;
-            }
-
-            const headers = Object.keys(data[0]);
-            const rows = data.map(item => headers.map(h => {
-                const val = item[h];
-                if (val === null || val === undefined) return '';
-                if (typeof val === 'object') return JSON.stringify(val);
-                return val;
-            }));
-
-            await runGAS('writeDataToSheet', selectedTable, [headers, ...rows]);
-
-            setStatus({ type: 'success', message: `Berjaya memuatkan ${data.length} rekod ke Google Sheets.` });
+            setStatus({ type: 'success', message: `${allData.length} rekod dimuatkan.` });
         } catch (err) {
-            setStatus({ type: 'error', message: 'Gagal: ' + err });
+            setStatus({ type: 'error', message: 'Ralat: ' + err });
         } finally {
             setLoading(false);
+            setProgress(0);
         }
     };
 
-    const syncChangesFromSheets = async () => {
-        if (role !== 'admin' && role !== 'editor') {
-            setStatus({ type: 'error', message: 'Akses dinafikan. Anda perlu peranan Admin atau Editor.' });
-            return;
-        }
-
+    const handleSync = async () => {
         setLoading(true);
-        setStatus({ type: 'info', message: 'Sedang membaca data dari Sheets...' });
-
+        setStatus({ type: 'info', message: 'Membaca Sheet...' });
         try {
             const sheetData = await runGAS('readDataFromSheet', selectedTable);
 
-            if (!sheetData || sheetData.length < 2) {
-                setStatus({ type: 'error', message: 'Format data tidak sah atau jadual kosong.' });
+            // Clean empty rows locally to be safe
+            const cleanData = (sheetData || []).filter(row =>
+                row && row.some(cell => cell && cell.toString().trim() !== "")
+            );
+
+            if (cleanData.length < 2) {
+                throw `Sheet '${selectedTable}' nampak kosong. Sila pastikan data anda ada di bawah header.`;
+            }
+
+            const headers = cleanData[0];
+            const rows = cleanData.slice(1);
+            const idIdx = headers.indexOf('id');
+            if (idIdx === -1) throw "Lajur 'id' tiada! Klik 'Tarik Data' semula.";
+
+            const fingerprints = getPersistentFingerprints();
+            if (Object.keys(fingerprints).length === 0) {
+                throw "Sesi Sync tamat. Sila klik 'Tarik Data' sekali lagi sebelum Sync.";
+            }
+
+            const toUpdate = [];
+            rows.forEach(row => {
+                const id = row[idIdx];
+                if (!id) return;
+                const cur = {};
+                headers.forEach((h, j) => {
+                    let v = row[j];
+                    if (v === "") v = null;
+                    cur[h] = v;
+                });
+                if (fingerprints[id] !== getFingerprint(cur)) toUpdate.push({ id, data: cur });
+            });
+
+            if (toUpdate.length === 0) {
+                setStatus({ type: 'success', message: 'Tiada perubahan dikesan.' });
                 setLoading(false);
                 return;
             }
 
-            const headers = sheetData[0];
-            const rows = sheetData.slice(1);
-            const idIndex = headers.indexOf('id');
-
-            if (idIndex === -1) {
-                throw new Error("Lajur 'id' tidak dijumpai.");
+            setStatus({ type: 'info', message: `Menyimpan ${toUpdate.length} rekod...` });
+            let success = 0, fail = 0;
+            for (let i = 0; i < toUpdate.length; i++) {
+                const { id, data } = toUpdate[i];
+                const p = {};
+                headers.forEach(h => { if (!['id', 'createdAt', 'createdBy', 'updatedAt', 'updatedBy'].includes(h)) p[h] = data[h]; });
+                const { error } = await supabase.from(selectedTable).update({ ...p, updatedAt: new Date().toISOString(), updatedBy: user.id }).eq('id', id);
+                if (error) fail++; else success++;
+                setProgress(Math.round(((i + 1) / toUpdate.length) * 100));
             }
-
-            let successCount = 0;
-            let errorCount = 0;
-
-            for (const row of rows) {
-                const id = row[idIndex];
-                if (!id) continue;
-
-                const updateData = {};
-                headers.forEach((h, i) => {
-                    if (h !== 'id' && h !== 'createdAt' && h !== 'createdBy' && h !== 'updatedAt' && h !== 'updatedBy') {
-                        let val = row[i];
-                        if (typeof val === 'string' && (val.startsWith('{') || val.startsWith('['))) {
-                            try { val = JSON.parse(val); } catch (e) { }
-                        }
-                        updateData[h] = val;
-                    }
-                });
-
-                const { error } = await supabase
-                    .from(selectedTable)
-                    .update({
-                        ...updateData,
-                        updatedAt: new Date().toISOString(),
-                        updatedBy: user.id
-                    })
-                    .eq('id', id);
-
-                if (error) {
-                    errorCount++;
-                } else {
-                    successCount++;
-                }
-            }
-
-            setStatus({
-                type: 'success',
-                message: `Sync Selesai: ${successCount} dikemaskini, ${errorCount} gagal.`
-            });
+            setStatus({ type: fail > 0 ? 'error' : 'success', message: `Selesai: ${success} berjaya, ${fail} gagal.` });
         } catch (err) {
-            setStatus({ type: 'error', message: 'Gagal Sync: ' + err });
+            setStatus({ type: 'error', message: 'Ralat Sync: ' + err });
         } finally {
             setLoading(false);
+            setProgress(0);
         }
     };
 
-    if (authLoading) {
-        return (
-            <div className="flex flex-col items-center justify-center p-8 h-screen bg-white">
-                <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mb-4" />
-                <p className="text-gray-500">Menyemak akses...</p>
-            </div>
-        );
-    }
-
-    if (!user) {
-        return (
-            <div className="p-6 bg-white min-h-screen flex flex-col">
-                <div className="flex items-center gap-3 mb-8 border-b pb-4">
-                    <div className="w-10 h-10 bg-emerald-700 rounded-lg flex items-center justify-center shadow-lg text-white">
-                        <FileSpreadsheet className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <h1 className="text-xl font-bold text-gray-900 leading-none">Sheets Connector</h1>
-                        <p className="text-[10px] text-gray-500 mt-1 uppercase tracking-wider font-semibold">HCF iSantuni Database</p>
-                    </div>
-                </div>
-
-                <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-6">
-                    <div className="flex gap-3 text-amber-700">
-                        <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                        <p className="text-sm">
-                            Sila log masuk menggunakan akaun iSantuni anda.
-                        </p>
-                    </div>
-                </div>
-
-                <form onSubmit={handleLogin} className="space-y-4">
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Emel Kakitangan</label>
-                        <input
-                            type="email"
-                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-black transition-all"
-                            placeholder="nama@hcf.org.my"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Kata Laluan</label>
-                        <input
-                            type="password"
-                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-black transition-all"
-                            placeholder="••••••••"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-emerald-600 text-white py-3.5 rounded-xl font-bold hover:bg-emerald-700 shadow-lg transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
-                    >
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
-                        Log Masuk
-                    </button>
-                    {status.message && (
-                        <div className={`p-3 rounded-lg text-sm font-medium ${status.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                            {status.message}
-                        </div>
-                    )}
-                </form>
-            </div>
-        );
-    }
+    if (authLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-emerald-600 w-8 h-8" /></div>;
+    if (!user) return <div className="p-10 text-center font-bold text-gray-400">Log Masuk iSantuni diperlukan.</div>;
 
     return (
-        <div className="p-6 bg-white min-h-screen flex flex-col">
-            <div className="flex items-center gap-3 mb-6 border-b pb-4">
-                <div className="w-10 h-10 bg-emerald-700 rounded-lg flex items-center justify-center shadow-lg text-white">
-                    <FileSpreadsheet className="w-6 h-6" />
-                </div>
-                <div>
-                    <h1 className="text-xl font-bold text-gray-900 leading-none">Sheets Tool</h1>
-                    <div className="flex items-center gap-2 mt-1">
-                        <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                        <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">User: {role || 'Editor'}</p>
-                    </div>
-                </div>
+        <div className="p-6 bg-white min-h-screen">
+            <div className="flex items-center gap-3 mb-8 pb-4 border-b">
+                <Database className="text-emerald-700" />
+                <h1 className="text-xl font-bold text-gray-800">iSantuni v3.3</h1>
             </div>
 
             <div className="space-y-6">
                 <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">Pilih Jadual Data</label>
-                    <div className="relative">
-                        <select
-                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-black bg-white appearance-none transition-all shadow-sm"
-                            value={selectedTable}
-                            onChange={(e) => setSelectedTable(e.target.value)}
-                        >
-                            <option value="submissions">Submissions (Mualaf)</option>
-                            <option value="attendance_records">Attendance (Kehadiran)</option>
-                        </select>
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                            <ChevronRight className="w-4 h-4 rotate-90" />
-                        </div>
-                    </div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Jadual</label>
+                    <select className="w-full p-4 border-2 border-gray-100 rounded-2xl font-bold bg-gray-50 text-sm" value={selectedTable} onChange={e => setSelectedTable(e.target.value)}>
+                        <option value="submissions">Submissions</option>
+                        <option value="attendance_records">Attendance</option>
+                    </select>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
-                    <button
-                        onClick={loadDataToSheets}
-                        disabled={loading}
-                        className="w-full bg-white border-2 border-emerald-600 text-emerald-600 py-3.5 rounded-xl font-bold hover:bg-emerald-50 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
-                    >
-                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
-                        Tarik ke Google Sheets
-                    </button>
+                <div className="bg-emerald-50 p-5 rounded-3xl border-2 border-emerald-100">
+                    <label className="text-[10px] font-black text-emerald-800 uppercase block mb-3 opacity-60">Negeri</label>
+                    <select className="w-full p-3 border-0 rounded-xl font-bold bg-white" value={selectedState} onChange={e => setSelectedState(e.target.value)}>
+                        {NEGERI_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                </div>
 
-                    <button
-                        onClick={syncChangesFromSheets}
-                        disabled={loading || (role !== 'admin' && role !== 'editor')}
-                        className="w-full bg-emerald-600 text-white py-3.5 rounded-xl font-bold hover:bg-emerald-700 shadow-xl transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
-                    >
-                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                        Hantar Perubahan (Sync)
+                <div className="flex flex-col gap-3 pt-2">
+                    <button onClick={loadDataToSheets} disabled={loading} className="w-full bg-white border-4 border-emerald-600 text-emerald-600 py-4 rounded-2xl font-black flex items-center justify-center gap-3 active:scale-95 transition-all">
+                        <RefreshCw className={loading ? 'animate-spin' : ''} size={18} /> TARIK DATA
+                    </button>
+                    <button onClick={handleSync} disabled={loading} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all">
+                        <Save size={18} /> SIMPAN / SYNC
                     </button>
                 </div>
 
-                {status.message && (
-                    <div className={`p-4 rounded-xl border flex gap-3 ${status.type === 'error'
-                            ? 'bg-red-50 border-red-100 text-red-700'
-                            : status.type === 'info'
-                                ? 'bg-blue-50 border-blue-100 text-blue-700'
-                                : 'bg-green-50 border-green-100 text-green-700'
-                        }`}>
-                        <p className="text-sm font-medium leading-tight">{status.message}</p>
+                {loading && (
+                    <div className="space-y-2">
+                        <div className="flex justify-between text-[10px] font-black text-emerald-700 uppercase"><span>{status.message}</span><span>{progress}%</span></div>
+                        <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden"><div className="bg-emerald-600 h-full transition-all duration-300" style={{ width: `${progress}%` }}></div></div>
                     </div>
                 )}
-            </div>
 
-            <div className="mt-8 pt-4 border-t border-gray-100 space-y-4">
-                <div className="bg-blue-50 p-3 rounded-lg flex gap-2">
-                    <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-[10px] text-blue-700">
-                        <strong>Timeout?</strong> Jika ini kali pertama, pastikan anda telah "Review Permissions" dalam Apps Script editor dan klik "Allow".
-                    </p>
-                </div>
-                <div className="text-[9px] text-gray-400 italic text-center">
-                    Mempunyai sambungan selamat ke Google Apps Script.
-                </div>
+                {status.message && !loading && (
+                    <div className={`p-4 rounded-2xl border-2 text-xs font-bold leading-relaxed shadow-sm ${status.type === 'error' ? 'bg-red-50 border-red-100 text-red-700' : 'bg-green-50 border-green-100 text-green-700'}`}>
+                        {status.message}
+                    </div>
+                )}
             </div>
         </div>
     );
