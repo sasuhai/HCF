@@ -63,7 +63,7 @@ function RekodDetailContent() {
     if (loading) {
         return (
             <ProtectedRoute>
-                <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
+                <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 pt-16">
                     <Navbar />
                     <div className="max-w-4xl mx-auto px-4 py-8">
                         <div className="card animate-shimmer h-96"></div>
@@ -76,7 +76,7 @@ function RekodDetailContent() {
     if (!submission) {
         return (
             <ProtectedRoute>
-                <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
+                <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 pt-16">
                     <Navbar />
                     <div className="max-w-4xl mx-auto px-4 py-8">
                         <div className="card text-center py-12">
@@ -93,7 +93,7 @@ function RekodDetailContent() {
 
     return (
         <ProtectedRoute>
-            <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
+            <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 pt-16">
                 <Navbar />
 
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -426,7 +426,7 @@ function ImagePreview({ label, src }) {
 
 export default function RekodDetailPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading...</div>}>
+        <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center pt-16">Loading...</div>}>
             <RekodDetailContent />
         </Suspense>
     );

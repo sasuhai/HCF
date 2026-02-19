@@ -160,3 +160,16 @@ body {
 .delay-300 {
   animation-delay: 0.3s;
 }
+
+/* Sticky Table Utilities */
+.sticky-scroll-wrapper {
+  overflow-x: auto;
+  overflow-y: clip;
+  position: relative;
+}
+
+/* Ensure sticky headers work with border-separate */
+.sticky-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}

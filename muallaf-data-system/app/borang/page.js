@@ -222,7 +222,7 @@ export default function BorangPage() {
 
     return (
         <ProtectedRoute>
-            <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
+            <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 pt-16">
                 <Navbar />
 
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

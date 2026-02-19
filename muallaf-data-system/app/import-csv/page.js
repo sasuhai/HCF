@@ -105,7 +105,7 @@ export default function ImportPage() {
 
     return (
         <ProtectedRoute>
-            <div className="min-h-screen bg-gray-50">
+            <div className="min-h-screen bg-gray-50 pt-16">
                 <Navbar />
                 <div className="max-w-6xl mx-auto p-8">
                     <h1 className="text-2xl font-bold mb-4 text-gray-800">CSV Import Utility</h1>

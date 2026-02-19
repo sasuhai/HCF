@@ -190,13 +190,6 @@ export default function LandingPage() {
                 <span className={`text-sm font-medium ${scrolled ? 'text-gray-600' : 'text-white/90'}`}>
                   {user.email}
                 </span>
-                <button
-                  onClick={scrollToMenu}
-                  className="group flex items-center space-x-2 bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-2 rounded-full font-medium transition-all shadow-lg hover:shadow-yellow-500/40 hover:-translate-y-0.5 active:translate-y-0"
-                >
-                  <span>Menu Utama</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </button>
               </div>
             ) : (
               <Link href="/login">

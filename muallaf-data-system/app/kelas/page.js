@@ -300,7 +300,7 @@ export default function ClassesPage() {
 
     return (
         <ProtectedRoute>
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50 pt-16">
                 <Navbar />
 
                 <div className="w-full mx-auto px-2 sm:px-4 py-4">

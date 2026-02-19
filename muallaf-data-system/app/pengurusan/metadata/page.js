@@ -135,7 +135,7 @@ export default function MetadataManagementPage() {
         return (
             <ProtectedRoute>
                 <Navbar />
-                <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="flex items-center justify-center min-h-[60vh] pt-16">
                     <p className="text-gray-500">Hanya Admin boleh mengakses halaman ini.</p>
                 </div>
             </ProtectedRoute>
@@ -144,7 +144,7 @@ export default function MetadataManagementPage() {
 
     return (
         <ProtectedRoute>
-            <div className="min-h-screen bg-gray-50 flex flex-col">
+            <div className="min-h-screen bg-gray-50 flex flex-col pt-16">
                 <Navbar />
 
                 <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">

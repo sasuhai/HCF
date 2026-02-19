@@ -310,7 +310,7 @@ export default function WorkersPage() {
 
     return (
         <ProtectedRoute>
-            <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
+            <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 pt-16">
                 <Navbar />
 
                 <div className="w-full mx-auto px-2 sm:px-4 py-4">

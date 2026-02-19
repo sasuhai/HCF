@@ -186,8 +186,8 @@ export default function MapImplementation({ stats, viewMode = 'locations', selec
                                 <Popup className="hcf-popup">
                                     <div className="p-2 min-w-[150px]">
                                         <h5 className="font-extrabold text-slate-900 border-b pb-1 mb-2 text-sm">Negeri: {stateName}</h5>
-                                        <p className="text-xs font-bold text-slate-600">Pendaftaran: <span className="text-emerald-600">${stateStats.registrations}</span></p>
-                                        <p className="text-xs font-bold text-slate-600">Pengislaman: <span className="text-indigo-600">${stateStats.conversions}</span></p>
+                                        <p className="text-xs font-bold text-slate-600">Pendaftaran: <span className="text-emerald-600">{stateStats.registrations}</span></p>
+                                        <p className="text-xs font-bold text-slate-600">Pengislaman: <span className="text-indigo-600">{stateStats.conversions}</span></p>
                                     </div>
                                 </Popup>
                             </Marker>

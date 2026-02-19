@@ -275,7 +275,7 @@ export default function DashboardPage() {
     if (loading) {
         return (
             <ProtectedRoute>
-                <div className="min-h-screen bg-gray-50 flex flex-col">
+                <div className="min-h-screen bg-gray-50 flex flex-col pt-16">
                     <Navbar />
                     <div className="flex-1 flex items-center justify-center">
                         <div className="flex flex-col items-center space-y-4">
@@ -290,7 +290,7 @@ export default function DashboardPage() {
 
     return (
         <ProtectedRoute>
-            <div className="min-h-screen bg-gray-50 font-sans">
+            <div className="min-h-screen bg-gray-50 font-sans pt-16">
                 <Navbar />
 
                 <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
@@ -317,7 +317,7 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Global Analytics Filter Bar */}
-                    <div className="sticky top-[72px] z-40 bg-white/95 backdrop-blur-xl backdrop-saturate-150 px-7 py-5 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-white/50 flex flex-col md:flex-row items-center justify-between gap-5 mt-4 group transition-[shadow,transform] duration-300 hover:shadow-[0_25px_60px_rgba(0,0,0,0.15)] transform-gpu backface-visibility-hidden">
+                    <div className="sticky top-[64px] z-40 bg-white/95 backdrop-blur-xl backdrop-saturate-150 px-7 py-5 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-white/50 flex flex-col md:flex-row items-center justify-between gap-5 mt-4 group transition-[shadow,transform] duration-300 hover:shadow-[0_25px_60px_rgba(0,0,0,0.15)] transform-gpu backface-visibility-hidden">
                         <div className="flex items-center space-x-6">
                             <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50 shadow-inner">
                                 <button

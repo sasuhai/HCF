@@ -42,23 +42,44 @@ export default function MapIntelligencePage() {
         }
     }, [authLoading, role, profile]);
 
-    // Aggregate conversions if missing
-    const totalConversions = useMemo(() => {
-        if (!stats) return 0;
-        return Object.values(stats?.mualaf?.stateStats || {}).reduce((acc, curr) => acc + (curr.conversions || 0), 0);
+    // Normalize stats ONLY for map-intelligence (Aggregate Sabah - Tawau, etc -> Sabah)
+    const normalizedStats = useMemo(() => {
+        if (!stats) return null;
+
+        const stateStats = {};
+        Object.entries(stats.mualaf?.stateStats || {}).forEach(([full, data]) => {
+            const clean = full.split('-')[0].trim();
+            if (!stateStats[clean]) stateStats[clean] = { registrations: 0, conversions: 0 };
+            stateStats[clean].registrations += (data.registrations || 0);
+            stateStats[clean].conversions += (data.conversions || 0);
+        });
+
+        return {
+            ...stats,
+            mualaf: {
+                ...stats.mualaf,
+                stateStats
+            }
+        };
     }, [stats]);
 
+    // Aggregate conversions if missing
+    const totalConversions = useMemo(() => {
+        if (!normalizedStats) return 0;
+        return Object.values(normalizedStats.mualaf.stateStats).reduce((acc, curr) => acc + (curr.conversions || 0), 0);
+    }, [normalizedStats]);
+
     const rankingData = useMemo(() => {
-        if (!stats) return [];
-        return Object.entries(stats?.mualaf?.stateStats || {})
+        if (!normalizedStats) return [];
+        return Object.entries(normalizedStats.mualaf.stateStats)
             .map(([name, data]) => ({ name, ...data }))
             .sort((a, b) => (b.registrations || 0) - (a.registrations || 0));
-    }, [stats]);
+    }, [normalizedStats]);
 
     if (loading || authLoading) {
         return (
             <ProtectedRoute>
-                <div className="min-h-screen bg-slate-50 flex flex-col">
+                <div className="min-h-screen bg-slate-50 flex flex-col pt-16">
                     <Navbar />
                     <div className="flex-1 flex items-center justify-center">
                         <Loader className="w-10 h-10 text-emerald-500 animate-spin" />
@@ -70,7 +91,7 @@ export default function MapIntelligencePage() {
 
     return (
         <ProtectedRoute>
-            <div className="min-h-screen bg-[#F8FAFC]">
+            <div className="min-h-screen bg-[#F8FAFC] pt-16">
                 <Navbar />
 
                 <main className="max-w-[1800px] mx-auto px-6 py-6 font-primary">
@@ -130,7 +151,7 @@ export default function MapIntelligencePage() {
                         <div className="xl:col-span-9 bg-white rounded-[3rem] shadow-sm border border-slate-200/60 relative overflow-hidden group">
                             <div className="w-full h-full relative z-10 transition-transform duration-700">
                                 <MalaysiaMap
-                                    stats={stats}
+                                    stats={normalizedStats}
                                     viewMode={viewMode}
                                     selectedState={selectedState}
                                     onSelect={(name) => setSelectedState(name)}
@@ -151,11 +172,11 @@ export default function MapIntelligencePage() {
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100/30 text-center">
                                                 <p className="text-[8px] font-bold text-emerald-600/60 uppercase tracking-tighter mb-1">Reg</p>
-                                                <p className="text-xl font-black text-emerald-600">{stats?.mualaf?.stateStats?.[selectedState]?.registrations || 0}</p>
+                                                <p className="text-xl font-black text-emerald-600">{normalizedStats?.mualaf?.stateStats?.[selectedState]?.registrations || 0}</p>
                                             </div>
                                             <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100/30 text-center">
                                                 <p className="text-[8px] font-bold text-indigo-600/60 uppercase tracking-tighter mb-1">Conv</p>
-                                                <p className="text-xl font-black text-indigo-600">{stats?.mualaf?.stateStats?.[selectedState]?.conversions || 0}</p>
+                                                <p className="text-xl font-black text-indigo-600">{normalizedStats?.mualaf?.stateStats?.[selectedState]?.conversions || 0}</p>
                                             </div>
                                         </div>
                                     </div>
