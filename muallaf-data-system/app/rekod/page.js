@@ -188,58 +188,60 @@ function RekodDetailContent() {
                         </div>
 
                         {/* Section 3: Maklumat Pengislaman & Saksi */}
-                        <div className="mb-10 group">
-                            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center border-l-4 border-purple-600 pl-3">
-                                <Calendar className="h-5 w-5 mr-2 text-purple-600" />
-                                Maklumat Pengislaman & Saksi
-                            </h2>
-                            <div className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-4 rounded-xl border border-gray-50 shadow-sm group-hover:shadow-md transition-shadow">
-                                    <DetailItem label="Tarikh Pengislaman" value={submission.tarikhPengislaman} />
-                                    <DetailItem label="Masa Pengislaman" value={submission.masaPengislaman || '-'} />
-                                    <DetailItem label="Tempat Pengislaman" value={submission.tempatPengislaman || '-'} />
-                                    <DetailItem label="Negeri Pengislaman" value={submission.negeriPengislaman} />
-                                </div>
-
-                                <div className="p-5 bg-emerald-50 rounded-xl border border-emerald-100">
-                                    <h3 className="text-sm font-bold text-emerald-800 mb-4 uppercase tracking-wider flex items-center">
-                                        <div className="w-2 h-4 bg-emerald-500 mr-2 rounded-sm"></div>
-                                        Pegawai Mengislamkan
-                                    </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <DetailItem label="Nama Pegawai" value={submission.namaPegawaiMengislamkan || '-'} />
-                                        <DetailItem label="No KP Pegawai" value={submission.noKPPegawaiMengislamkan || '-'} />
-                                        <DetailItem label="No Tel Pegawai" value={submission.noTelPegawaiMengislamkan || '-'} />
+                        {submission.kategori !== 'Non-Muslim' && (
+                            <div className="mb-10 group">
+                                <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center border-l-4 border-purple-600 pl-3">
+                                    <Calendar className="h-5 w-5 mr-2 text-purple-600" />
+                                    Maklumat Pengislaman & Saksi
+                                </h2>
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-4 rounded-xl border border-gray-50 shadow-sm group-hover:shadow-md transition-shadow">
+                                        <DetailItem label="Tarikh Pengislaman" value={submission.tarikhPengislaman} />
+                                        <DetailItem label="Masa Pengislaman" value={submission.masaPengislaman || '-'} />
+                                        <DetailItem label="Tempat Pengislaman" value={submission.tempatPengislaman || '-'} />
+                                        <DetailItem label="Negeri Pengislaman" value={submission.negeriPengislaman} />
                                     </div>
-                                </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="p-5 bg-gray-50 rounded-xl border border-gray-100">
-                                        <h3 className="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wider flex items-center">
-                                            <div className="w-2 h-4 bg-gray-400 mr-2 rounded-sm"></div>
-                                            Saksi Pertama
+                                    <div className="p-5 bg-emerald-50 rounded-xl border border-emerald-100">
+                                        <h3 className="text-sm font-bold text-emerald-800 mb-4 uppercase tracking-wider flex items-center">
+                                            <div className="w-2 h-4 bg-emerald-500 mr-2 rounded-sm"></div>
+                                            Pegawai Mengislamkan
                                         </h3>
-                                        <div className="space-y-4">
-                                            <DetailItem label="Nama Saksi 1" value={submission.namaSaksi1 || '-'} />
-                                            <DetailItem label="No KP Saksi 1" value={submission.noKPSaksi1 || '-'} />
-                                            <DetailItem label="No Tel Saksi 1" value={submission.noTelSaksi1 || '-'} />
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <DetailItem label="Nama Pegawai" value={submission.namaPegawaiMengislamkan || '-'} />
+                                            <DetailItem label="No KP Pegawai" value={submission.noKPPegawaiMengislamkan || '-'} />
+                                            <DetailItem label="No Tel Pegawai" value={submission.noTelPegawaiMengislamkan || '-'} />
                                         </div>
                                     </div>
 
-                                    <div className="p-5 bg-gray-50 rounded-xl border border-gray-100">
-                                        <h3 className="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wider flex items-center">
-                                            <div className="w-2 h-4 bg-gray-400 mr-2 rounded-sm"></div>
-                                            Saksi Kedua
-                                        </h3>
-                                        <div className="space-y-4">
-                                            <DetailItem label="Nama Saksi 2" value={submission.namaSaksi2 || '-'} />
-                                            <DetailItem label="No KP Saksi 2" value={submission.noKPSaksi2 || '-'} />
-                                            <DetailItem label="No Tel Saksi 2" value={submission.noTelSaksi2 || '-'} />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="p-5 bg-gray-50 rounded-xl border border-gray-100">
+                                            <h3 className="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wider flex items-center">
+                                                <div className="w-2 h-4 bg-gray-400 mr-2 rounded-sm"></div>
+                                                Saksi Pertama
+                                            </h3>
+                                            <div className="space-y-4">
+                                                <DetailItem label="Nama Saksi 1" value={submission.namaSaksi1 || '-'} />
+                                                <DetailItem label="No KP Saksi 1" value={submission.noKPSaksi1 || '-'} />
+                                                <DetailItem label="No Tel Saksi 1" value={submission.noTelSaksi1 || '-'} />
+                                            </div>
+                                        </div>
+
+                                        <div className="p-5 bg-gray-50 rounded-xl border border-gray-100">
+                                            <h3 className="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wider flex items-center">
+                                                <div className="w-2 h-4 bg-gray-400 mr-2 rounded-sm"></div>
+                                                Saksi Kedua
+                                            </h3>
+                                            <div className="space-y-4">
+                                                <DetailItem label="Nama Saksi 2" value={submission.namaSaksi2 || '-'} />
+                                                <DetailItem label="No KP Saksi 2" value={submission.noKPSaksi2 || '-'} />
+                                                <DetailItem label="No Tel Saksi 2" value={submission.noTelSaksi2 || '-'} />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* Section 4: Hubungan & Alamat */}
                         <div className="mb-10 group">

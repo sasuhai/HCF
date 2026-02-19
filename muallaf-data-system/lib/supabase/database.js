@@ -226,20 +226,35 @@ export const getOverallDashboardStats = async (role = 'admin', profile = {}) => 
         const now = new Date();
         const getMonthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
-        // Prepare Yearly Trend Map (Last 10 Years)
+        // Find the absolute minimum year in data
+        let absMinYear = 2012; // Default floor
+        mualafData.forEach(item => {
+            if (item.createdAt) {
+                const y = new Date(item.createdAt).getFullYear();
+                if (y < absMinYear && y > 1900) absMinYear = y;
+            }
+            if (item.tarikhPengislaman) {
+                const y = new Date(item.tarikhPengislaman).getFullYear();
+                if (y < absMinYear && y > 1900) absMinYear = y;
+            }
+        });
+
+        const minYear = absMinYear;
         const currentYear = now.getFullYear();
-        const startYear = currentYear - 9;
+        stats.mualaf.availableYears = Array.from({ length: currentYear - minYear + 1 }, (_, i) => minYear + i);
+        stats.mualaf.rawData = mualafData; // Pass raw data for client-side aggregation
         const yearlyTrendMap = {};
-        for (let y = startYear; y <= currentYear; y++) {
+        for (let y = minYear; y <= currentYear; y++) {
             yearlyTrendMap[y] = { registrations: 0, conversions: 0 };
         }
 
-        // Prepare Monthly Trend Map (Last 12 Months)
+        // Prepare Monthly Trend Map (All months from 2012)
         const monthlyTrendMap = {};
-        for (let i = 0; i < 12; i++) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const key = getMonthKey(d);
+        let tempDate = new Date(minYear, 0, 1);
+        while (tempDate <= now) {
+            const key = getMonthKey(tempDate);
             monthlyTrendMap[key] = { registrations: 0, conversions: 0 };
+            tempDate.setMonth(tempDate.getMonth() + 1);
         }
 
         const mualafByLocation = {}; // { locationName: count }
@@ -323,6 +338,7 @@ export const getOverallDashboardStats = async (role = 'admin', profile = {}) => 
                     const [year, mon] = key.split('-');
                     const data = months[key] || { registrations: 0, conversions: 0 };
                     return {
+                        key,
                         name: `${monthNames[parseInt(mon) - 1]} ${year.substring(2)}`,
                         registrations: data.registrations,
                         conversions: data.conversions
@@ -345,6 +361,7 @@ export const getOverallDashboardStats = async (role = 'admin', profile = {}) => 
                     regTotal += data.registrations;
                     convTotal += data.conversions;
                     return {
+                        key,
                         name: `${monthNames[parseInt(mon) - 1]} ${year.substring(2)}`,
                         registrations: data.registrations,
                         conversions: data.conversions
@@ -379,6 +396,7 @@ export const getOverallDashboardStats = async (role = 'admin', profile = {}) => 
             .map(([key, data]) => {
                 const [year, mon] = key.split('-');
                 return {
+                    key: key, // Keep YYYY-MM for sorting/filtering
                     name: `${monthNames[parseInt(mon) - 1]} ${year.substring(2)}`,
                     registrations: data.registrations,
                     conversions: data.conversions
@@ -429,10 +447,9 @@ export const getOverallDashboardStats = async (role = 'admin', profile = {}) => 
         // Logic in original code iterates over all records.
         // We need to group by month
 
-        for (let i = 0; i < 12; i++) {
-            const d = new Date();
-            d.setMonth(now.getMonth() - i);
-            const key = getMonthKey(d);
+        let attDate = new Date(minYear, 0, 1);
+        while (attDate <= now) {
+            const key = getMonthKey(attDate);
             attendanceTrendMap[key] = {
                 month: key,
                 totalMualafVisits: 0,
@@ -440,6 +457,7 @@ export const getOverallDashboardStats = async (role = 'admin', profile = {}) => 
                 uniqueMualaf: new Set(),
                 uniqueWorkers: new Set()
             };
+            attDate.setMonth(attDate.getMonth() + 1);
         }
 
         attendanceData.forEach(record => {
@@ -498,7 +516,8 @@ export const getOverallDashboardStats = async (role = 'admin', profile = {}) => 
                 const monthNames = ["Jan", "Feb", "Mac", "Apr", "Mei", "Jun", "Jul", "Ogo", "Sep", "Okt", "Nov", "Dis"];
                 const monthIdx = parseInt(month, 10) - 1;
                 return {
-                    name: monthNames[monthIdx],
+                    key: date, // Keep YYYY-MM for filtering
+                    name: `${monthNames[monthIdx]} ${year.substring(2)}`,
                     mualafCount: val.uniqueMualaf.size,
                     workerCount: val.uniqueWorkers.size,
                     mualafVisits: val.totalMualafVisits,

@@ -5,8 +5,9 @@ import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useData } from '@/contexts/DataContext';
 import { getSubmissions, deleteSubmission } from '@/lib/supabase/database';
-import { Search, Eye, Edit, Trash2, Download, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Search, Eye, Edit, Trash2, Download, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, RefreshCw } from 'lucide-react';
 
 // Helper component for filter inputs - Moved outside to prevent re-renders
 const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
@@ -28,8 +29,8 @@ const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
 );
 
 export default function SenaraiPage() {
-    const [submissions, setSubmissions] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { submissions, setSubmissions, needsRefresh, markAsClean, markAsDirty } = useData();
+    const [loading, setLoading] = useState(false);
     const [columnFilters, setColumnFilters] = useState({});
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
     const [currentPage, setCurrentPage] = useState(1);
@@ -38,7 +39,10 @@ export default function SenaraiPage() {
 
     useEffect(() => {
         if (!authLoading) {
-            loadSubmissions();
+            // Only auto-load if we have no data at all
+            if (submissions.length === 0) {
+                loadSubmissions();
+            }
         }
     }, [authLoading, profile]);
 
@@ -53,6 +57,7 @@ export default function SenaraiPage() {
             } else {
                 setSubmissions(data);
             }
+            markAsClean('submissions');
         }
         setLoading(false);
     };
@@ -61,7 +66,10 @@ export default function SenaraiPage() {
         if (confirm('Adakah anda pasti ingin memadam rekod ini?')) {
             const { error } = await deleteSubmission(id);
             if (!error) {
-                loadSubmissions();
+                // Instead of loadSubmissions(), just mark as dirty and let user refresh
+                // OR we can update local state to keep it snappy
+                setSubmissions(prev => prev.filter(s => s.id !== id));
+                markAsDirty('submissions');
             } else {
                 alert('Ralat memadam rekod: ' + error);
             }
@@ -75,14 +83,23 @@ export default function SenaraiPage() {
             return Object.entries(columnFilters).every(([key, value]) => {
                 if (key === field) return true; // Ignore current field's filter
                 if (!value) return true;
+                if (value === '(Kosong)') {
+                    return !sub[key] || sub[key] === '';
+                }
                 return sub[key]?.toString().toLowerCase().includes(value.toLowerCase());
             });
         });
 
+        const hasBlanks = relevantSubmissions.some(sub => !sub[field] || sub[field] === '');
         const values = relevantSubmissions
             .map(sub => sub[field])
             .filter(val => val && val !== '' && val !== null && val !== undefined);
-        return [...new Set(values)].sort();
+
+        const uniqueValues = [...new Set(values)].sort();
+        if (hasBlanks) {
+            return ['(Kosong)', ...uniqueValues];
+        }
+        return uniqueValues;
     };
 
     // Handle column filter change
@@ -119,6 +136,9 @@ export default function SenaraiPage() {
     const filteredSubmissions = submissions.filter(submission => {
         return Object.entries(columnFilters).every(([field, value]) => {
             if (!value) return true;
+            if (value === '(Kosong)') {
+                return !submission[field] || submission[field] === '';
+            }
             // Changed strict equality to includes for search functionalities
             return submission[field]?.toString().toLowerCase().includes(value.toLowerCase());
         });
@@ -334,13 +354,24 @@ export default function SenaraiPage() {
 
                     {/* Actions */}
                     <div className="flex justify-between items-center mb-2">
-                        <div>
+                        <div className="flex items-center space-x-2">
                             {Object.keys(columnFilters).length > 0 && (
                                 <button
                                     onClick={clearAllFilters}
                                     className="px-3 py-1 bg-red-50 text-red-600 rounded text-xs font-medium hover:bg-red-100 transition-colors"
                                 >
                                     Padam Semua Filter
+                                </button>
+                            )}
+
+                            {needsRefresh.submissions && submissions.length > 0 && (
+                                <button
+                                    onClick={loadSubmissions}
+                                    disabled={loading}
+                                    className="flex items-center space-x-1 px-3 py-1 bg-amber-50 text-amber-600 rounded text-xs font-bold border border-amber-200 hover:bg-amber-100 transition-colors shadow-sm animate-pulse hover:animate-none"
+                                >
+                                    <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+                                    <span>Ada Perubahan (Klik untuk Refresh)</span>
                                 </button>
                             )}
                         </div>
@@ -361,10 +392,6 @@ export default function SenaraiPage() {
                                     <div key={i} className="animate-shimmer h-16 rounded-lg"></div>
                                 ))}
                             </div>
-                        </div>
-                    ) : paginatedSubmissions.length === 0 ? (
-                        <div className="card text-center py-12">
-                            <p className="text-gray-500 text-lg">Tiada rekod dijumpai</p>
                         </div>
                     ) : (
                         <div className="card overflow-hidden">
@@ -486,7 +513,13 @@ export default function SenaraiPage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {paginatedSubmissions.map((submission, idx) => (
+                                        {paginatedSubmissions.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="50" className="py-12 text-center text-gray-500 text-sm bg-white border-b">
+                                                    Tiada rekod dijumpai. Sila laraskan semula filter atau carian anda.
+                                                </td>
+                                            </tr>
+                                        ) : paginatedSubmissions.map((submission, idx) => (
                                             <tr key={submission.id} className="border-b border-gray-200 hover:bg-emerald-50 transition-colors">
                                                 {/* Frozen columns with solid white backgrounds */}
                                                 <td className="sticky left-0 z-10 bg-emerald-50 py-1 px-2 shadow-[1px_0_0_0_#10b981] min-w-[90px]">

@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useData } from '@/contexts/DataContext';
 import { createSubmission, getLocations, getStates, getLookupData } from '@/lib/supabase/database';
 import {
     NEGERI_CAWANGAN_OPTIONS,
@@ -23,8 +24,10 @@ import { Save, RotateCcw, CheckCircle, AlertCircle, Zap, Upload } from 'lucide-r
 import { processSubmissionFiles } from '@/lib/supabase/storage';
 
 export default function BorangPage() {
+    const { markAsDirty } = useData();
     const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm();
     const selectedNegeri = watch('negeriCawangan');
+    const selectedKategori = watch('kategori');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
@@ -130,6 +133,9 @@ export default function BorangPage() {
             if (submitError) {
                 throw new Error(submitError);
             }
+
+            // Mark as dirty so list page knows to show refresh button
+            markAsDirty('submissions');
 
             setSuccess(true);
             setUploadProgress(100);
@@ -516,118 +522,130 @@ export default function BorangPage() {
                         </div>
 
                         {/* Section 3: Maklumat Pengislaman & Saksi */}
-                        <div className="border-b pb-6">
-                            <h2 className="text-xl font-semibold text-gray-900 mb-4">Maklumat Pengislaman & Saksi</h2>
+                        {selectedKategori !== 'Non-Muslim' && (
+                            <div className="border-b pb-6">
+                                <h2 className="text-xl font-semibold text-gray-900 mb-4">Maklumat Pengislaman & Saksi</h2>
 
-                            <div className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="form-label">
-                                            Tarikh Pengislaman <span className="text-red-500">*</span>
-                                        </label>
-                                        <input
-                                            type="date"
-                                            {...register('tarikhPengislaman', { required: 'Wajib diisi' })}
-                                            className="form-input"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="form-label">
-                                            Masa Pengislaman
-                                        </label>
-                                        <input
-                                            type="time"
-                                            {...register('masaPengislaman')}
-                                            className="form-input"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="form-label">
-                                            Tempat Pengislaman
-                                        </label>
-                                        <input
-                                            type="text"
-                                            {...register('tempatPengislaman')}
-                                            className="form-input"
-                                            placeholder="Contoh: Masjid Wilayah"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="form-label">
-                                            Negeri Pengislaman <span className="text-red-500">*</span>
-                                        </label>
-                                        <select
-                                            {...register('negeriPengislaman', { required: 'Wajib dipilih' })}
-                                            className="form-input"
-                                        >
-                                            <option value="">Pilih negeri</option>
-                                            {(states.length > 0 ? states.filter(s => !s.includes(' - ')) : NEGERI_PENGISLAMAN_OPTIONS).map(option => (
-                                                <option key={option} value={option}>{option}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-                                    <h3 className="text-sm font-bold text-emerald-800 mb-4 uppercase tracking-wider">Maklumat Pegawai Mengislamkan</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase">Nama Pegawai</label>
-                                            <input type="text" {...register('namaPegawaiMengislamkan')} className="form-input mt-1" placeholder="Nama Ustaz/Pegawai" />
+                                            <label className="form-label">
+                                                Tarikh Pengislaman <span className="text-red-500">*</span>
+                                            </label>
+                                            <input
+                                                type="date"
+                                                {...register('tarikhPengislaman', {
+                                                    required: selectedKategori !== 'Non-Muslim' ? 'Wajib diisi' : false
+                                                })}
+                                                className="form-input"
+                                            />
+                                            {errors.tarikhPengislaman && (
+                                                <p className="text-red-500 text-sm mt-1">{errors.tarikhPengislaman.message}</p>
+                                            )}
                                         </div>
+
                                         <div>
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase">No KP Pegawai</label>
-                                            <input type="text" {...register('noKPPegawaiMengislamkan')} className="form-input mt-1" placeholder="IC Pegawai" />
+                                            <label className="form-label">
+                                                Masa Pengislaman
+                                            </label>
+                                            <input
+                                                type="time"
+                                                {...register('masaPengislaman')}
+                                                className="form-input"
+                                            />
                                         </div>
+
                                         <div>
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase">No Tel Pegawai</label>
-                                            <input type="text" {...register('noTelPegawaiMengislamkan')} className="form-input mt-1" placeholder="No Tel Pegawai" />
+                                            <label className="form-label">
+                                                Tempat Pengislaman
+                                            </label>
+                                            <input
+                                                type="text"
+                                                {...register('tempatPengislaman')}
+                                                className="form-input"
+                                                placeholder="Contoh: Masjid Wilayah"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="form-label">
+                                                Negeri Pengislaman <span className="text-red-500">*</span>
+                                            </label>
+                                            <select
+                                                {...register('negeriPengislaman', {
+                                                    required: selectedKategori !== 'Non-Muslim' ? 'Wajib dipilih' : false
+                                                })}
+                                                className="form-input"
+                                            >
+                                                <option value="">Pilih negeri</option>
+                                                {(states.length > 0 ? states.filter(s => !s.includes(' - ')) : NEGERI_PENGISLAMAN_OPTIONS).map(option => (
+                                                    <option key={option} value={option}>{option}</option>
+                                                ))}
+                                            </select>
+                                            {errors.negeriPengislaman && (
+                                                <p className="text-red-500 text-sm mt-1">{errors.negeriPengislaman.message}</p>
+                                            )}
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 shadow-sm">
-                                        <h3 className="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wider">Saksi Pertama</h3>
-                                        <div className="space-y-3">
+                                    <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                                        <h3 className="text-sm font-bold text-emerald-800 mb-4 uppercase tracking-wider">Maklumat Pegawai Mengislamkan</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                             <div>
-                                                <label className="text-[10px] font-bold text-gray-500 uppercase">Nama Saksi 1</label>
-                                                <input type="text" {...register('namaSaksi1')} className="form-input mt-1" />
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">Nama Pegawai</label>
+                                                <input type="text" {...register('namaPegawaiMengislamkan')} className="form-input mt-1" placeholder="Nama Ustaz/Pegawai" />
                                             </div>
                                             <div>
-                                                <label className="text-[10px] font-bold text-gray-500 uppercase">No KP Saksi 1</label>
-                                                <input type="text" {...register('noKPSaksi1')} className="form-input mt-1" />
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">No KP Pegawai</label>
+                                                <input type="text" {...register('noKPPegawaiMengislamkan')} className="form-input mt-1" placeholder="IC Pegawai" />
                                             </div>
                                             <div>
-                                                <label className="text-[10px] font-bold text-gray-500 uppercase">No Tel Saksi 1</label>
-                                                <input type="text" {...register('noTelSaksi1')} className="form-input mt-1" />
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">No Tel Pegawai</label>
+                                                <input type="text" {...register('noTelPegawaiMengislamkan')} className="form-input mt-1" placeholder="No Tel Pegawai" />
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 shadow-sm">
-                                        <h3 className="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wider">Saksi Kedua</h3>
-                                        <div className="space-y-3">
-                                            <div>
-                                                <label className="text-[10px] font-bold text-gray-500 uppercase">Nama Saksi 2</label>
-                                                <input type="text" {...register('namaSaksi2')} className="form-input mt-1" />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 shadow-sm">
+                                            <h3 className="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wider">Saksi Pertama</h3>
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <label className="text-[10px] font-bold text-gray-500 uppercase">Nama Saksi 1</label>
+                                                    <input type="text" {...register('namaSaksi1')} className="form-input mt-1" />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-bold text-gray-500 uppercase">No KP Saksi 1</label>
+                                                    <input type="text" {...register('noKPSaksi1')} className="form-input mt-1" />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-bold text-gray-500 uppercase">No Tel Saksi 1</label>
+                                                    <input type="text" {...register('noTelSaksi1')} className="form-input mt-1" />
+                                                </div>
                                             </div>
-                                            <div>
-                                                <label className="text-[10px] font-bold text-gray-500 uppercase">No KP Saksi 2</label>
-                                                <input type="text" {...register('noKPSaksi2')} className="form-input mt-1" />
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] font-bold text-gray-500 uppercase">No Tel Saksi 2</label>
-                                                <input type="text" {...register('noTelSaksi2')} className="form-input mt-1" />
+                                        </div>
+
+                                        <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 shadow-sm">
+                                            <h3 className="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wider">Saksi Kedua</h3>
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <label className="text-[10px] font-bold text-gray-500 uppercase">Nama Saksi 2</label>
+                                                    <input type="text" {...register('namaSaksi2')} className="form-input mt-1" />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-bold text-gray-500 uppercase">No KP Saksi 2</label>
+                                                    <input type="text" {...register('noKPSaksi2')} className="form-input mt-1" />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-bold text-gray-500 uppercase">No Tel Saksi 2</label>
+                                                    <input type="text" {...register('noTelSaksi2')} className="form-input mt-1" />
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* Section 4: Maklumat Hubungan & Adres */}
                         <div className="border-b pb-6">

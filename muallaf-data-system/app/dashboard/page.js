@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -58,6 +58,17 @@ export default function DashboardPage() {
     const [selectedLokasi, setSelectedLokasi] = useState(null);
     const [selectedNegeri, setSelectedNegeri] = useState(null);
 
+    // Date Range Selectors
+    const currentYear = new Date().getFullYear();
+    const [yearFrom, setYearFrom] = useState(2012);
+    const [yearTo, setYearTo] = useState(currentYear);
+
+    // Last 12 months for default monthly view
+    const lastYear = new Date();
+    lastYear.setFullYear(lastYear.getFullYear() - 1);
+    const [monthFrom, setMonthFrom] = useState(`${lastYear.getFullYear()}-${String(lastYear.getMonth() + 1).padStart(2, '0')}`);
+    const [monthTo, setMonthTo] = useState(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`);
+
     useEffect(() => {
         if (authLoading) return;
 
@@ -73,46 +84,15 @@ export default function DashboardPage() {
 
 
 
-    // Location Drill-down Data
-    const locationData = stats?.mualaf.byLocation || [];
-
-    // 1. Isolate "Tiada Lokasi"
-    const tiadaLokasiItem = locationData.find(l => l.name === 'Tiada Lokasi');
-    const filteredLocations = locationData.filter(l => l.name !== 'Tiada Lokasi');
-
-    // 2. Get Top 20 from known locations
-    const top20 = filteredLocations.slice(0, 20);
-    const remainingKnown = filteredLocations.slice(20);
-
-    // 3. Combine remaining known into "Lain-lain"
-    const lainLainCount = remainingKnown.reduce((acc, curr) => acc + curr.value, 0);
-
-    // 4. Build final list
-    const finalLocationData = [...top20];
-    if (lainLainCount > 0) {
-        finalLocationData.push({ name: 'Lain-lain Lokasi', value: lainLainCount });
-    }
-    if (tiadaLokasiItem && tiadaLokasiItem.value > 0) {
-        finalLocationData.push({ name: 'Tiada Lokasi', value: tiadaLokasiItem.value });
-    }
-
-    const selectedLocationTrend = selectedLokasi ? stats?.mualaf.locationTrends[selectedLokasi] : null;
-
-    // State Drill-down Data
-    const stateData = stats?.mualaf.byState || [];
-    const selectedStateTrend = selectedNegeri ? stats?.mualaf.stateTrends[selectedNegeri] : null;
-
     const formatDate = (dateString) => {
         if (!dateString) return '-';
         try {
             const date = new Date(dateString);
             if (isNaN(date.getTime())) return dateString;
-
             const day = String(date.getDate()).padStart(2, '0');
             const months = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
             const month = months[date.getMonth()];
             const year = date.getFullYear();
-
             return `${day}/${month}/${year}`;
         } catch (e) {
             return dateString;
@@ -121,8 +101,6 @@ export default function DashboardPage() {
 
     const formatXAxisLabel = (value) => {
         if (!value || typeof value !== 'string') return value;
-
-        // Handle Monthly labels like "Apr 25" or "Dis 25"
         const parts = value.split(' ');
         if (parts.length === 2) {
             const monthMap = {
@@ -143,18 +121,153 @@ export default function DashboardPage() {
         return parseFloat((sum / data.length).toFixed(2));
     };
 
+    // Aggregated Stats based on Filters
+    const filteredStats = useMemo(() => {
+        if (!stats) return null;
+
+        const getMonthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+        // 1. Filter Mualaf Data
+        const filteredRaw = (stats.mualaf.rawData || []).filter(item => {
+            if (trendView === 'yearly') {
+                const yearReg = item.createdAt ? new Date(item.createdAt).getFullYear() : null;
+                const yearConv = item.tarikhPengislaman ? new Date(item.tarikhPengislaman).getFullYear() : null;
+                const year = yearReg || yearConv;
+                return year && year >= yearFrom && year <= yearTo;
+            } else {
+                const monReg = item.createdAt ? getMonthKey(new Date(item.createdAt)) : null;
+                const monConv = item.tarikhPengislaman ? getMonthKey(new Date(item.tarikhPengislaman)) : null;
+                const mon = monReg || monConv;
+                return mon && mon >= monthFrom && mon <= monthTo;
+            }
+        });
+
+        // 2. Re-calculate distribution
+        const byStateCounts = {};
+        const byLocationCounts = {};
+        filteredRaw.forEach(item => {
+            const state = item.negeriCawangan || 'Lain-lain';
+            byStateCounts[state] = (byStateCounts[state] || 0) + 1;
+            const loc = item.lokasi || 'Tiada Lokasi';
+            byLocationCounts[loc] = (byLocationCounts[loc] || 0) + 1;
+        });
+
+        const byState = Object.entries(byStateCounts)
+            .sort((a, b) => b[1] - a[1])
+            .map(([name, value]) => ({ name, value }));
+
+        const byLocation = Object.entries(byLocationCounts)
+            .sort((a, b) => b[1] - a[1])
+            .map(([name, value]) => ({ name, value }));
+
+        return {
+            total: filteredRaw.length,
+            byState,
+            byLocation,
+            filteredRaw
+        };
+    }, [stats, trendView, yearFrom, yearTo, monthFrom, monthTo]);
+
+    const stateData = filteredStats?.byState || [];
+    const locationData = filteredStats?.byLocation || [];
+    const tiadaLokasiItem = locationData.find(l => l.name === 'Tiada Lokasi');
+    const filteredLocations = locationData.filter(l => l.name !== 'Tiada Lokasi');
+    const top20 = filteredLocations.slice(0, 20);
+    const lainLainCount = filteredLocations.slice(20).reduce((acc, curr) => acc + curr.value, 0);
+
+    const finalLocationData = [...top20];
+    if (lainLainCount > 0) finalLocationData.push({ name: 'Lain-lain Lokasi', value: lainLainCount });
+    if (tiadaLokasiItem && tiadaLokasiItem.value > 0) finalLocationData.push({ name: 'Tiada Lokasi', value: tiadaLokasiItem.value });
+
+    const selectedLocationTrend = useMemo(() => {
+        if (!selectedLokasi || !stats) return null;
+        const rawTrend = stats.mualaf.locationTrends[selectedLokasi] || [];
+        const filtered = rawTrend.filter(item => {
+            if (trendView === 'yearly') {
+                const year = parseInt(item.key.split('-')[0]);
+                return year >= yearFrom && year <= yearTo;
+            } else {
+                return item.key >= monthFrom && item.key <= monthTo;
+            }
+        });
+        return filtered.slice(-12);
+    }, [selectedLokasi, stats, trendView, yearFrom, yearTo, monthFrom, monthTo]);
+
+    const selectedStateTrend = useMemo(() => {
+        if (!selectedNegeri || !stats) return null;
+        const rawTrend = stats.mualaf.stateTrends[selectedNegeri] || [];
+        const filtered = rawTrend.filter(item => {
+            if (trendView === 'yearly') {
+                const year = parseInt(item.key.split('-')[0]);
+                return year >= yearFrom && year <= yearTo;
+            } else {
+                return item.key >= monthFrom && item.key <= monthTo;
+            }
+        });
+        return filtered.slice(-12);
+    }, [selectedNegeri, stats, trendView, yearFrom, yearTo, monthFrom, monthTo]);
+
     const stateAvgReg = getAvg(selectedStateTrend, 'registrations');
     const stateAvgConv = getAvg(selectedStateTrend, 'conversions');
     const locAvgReg = getAvg(selectedLocationTrend, 'registrations');
     const locAvgConv = getAvg(selectedLocationTrend, 'conversions');
 
-    const attendanceTrend = stats?.attendance.trend || [];
+    const attendanceTrend = useMemo(() => {
+        if (!stats) return [];
+        const raw = stats.attendance.trend || [];
+
+        if (trendView === 'yearly') {
+            const yearlyMap = {};
+            raw.forEach(item => {
+                const year = item.key.split('-')[0];
+                if (!yearlyMap[year]) {
+                    yearlyMap[year] = {
+                        key: year,
+                        name: year,
+                        mualafCount: 0,
+                        workerCount: 0,
+                        mualafVisits: 0,
+                        workerVisits: 0
+                    };
+                }
+                yearlyMap[year].mualafCount += item.mualafCount;
+                yearlyMap[year].workerCount += item.workerCount;
+                yearlyMap[year].mualafVisits += item.mualafVisits;
+                yearlyMap[year].workerVisits += item.workerVisits;
+            });
+
+            return Object.values(yearlyMap)
+                .filter(item => {
+                    const year = parseInt(item.key);
+                    return year >= yearFrom && year <= yearTo;
+                })
+                .sort((a, b) => a.key.localeCompare(b.key));
+        } else {
+            const filtered = raw.filter(item => {
+                return item.key >= monthFrom && item.key <= monthTo;
+            });
+            return filtered.slice(-12);
+        }
+    }, [stats, trendView, yearFrom, yearTo, monthFrom, monthTo]);
+
     const avgMualafAttend = getAvg(attendanceTrend, 'mualafCount');
     const avgWorkerAttend = getAvg(attendanceTrend, 'workerCount');
 
-    const currentTrendData = trendView === 'yearly'
-        ? stats?.mualaf.trend || []
-        : stats?.mualaf.monthlyTrend || [];
+    // Filtered Trend Data
+    const currentTrendData = (() => {
+        if (!stats) return [];
+        if (trendView === 'yearly') {
+            return (stats.mualaf.trend || []).filter(item => {
+                const year = parseInt(item.name);
+                return year >= yearFrom && year <= yearTo;
+            });
+        } else {
+            const filtered = (stats.mualaf.monthlyTrend || []).filter(item => {
+                return item.key >= monthFrom && item.key <= monthTo;
+            });
+            return filtered.slice(-12);
+        }
+    })();
 
     const mainAvgReg = getAvg(currentTrendData, 'registrations');
     const mainAvgConv = getAvg(currentTrendData, 'conversions');
@@ -200,10 +313,90 @@ export default function DashboardPage() {
                             <div className="bg-emerald-50 p-2 rounded-lg">
                                 <Clock className="w-4 h-4 text-emerald-600" />
                             </div>
-                            <div>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Status Terkini</p>
-                                <span className="font-semibold">{new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                        </div>
+                    </div>
+
+                    {/* Global Analytics Filter Bar */}
+                    <div className="sticky top-[72px] z-40 bg-white/95 backdrop-blur-xl backdrop-saturate-150 px-7 py-5 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-white/50 flex flex-col md:flex-row items-center justify-between gap-5 mt-4 group transition-[shadow,transform] duration-300 hover:shadow-[0_25px_60px_rgba(0,0,0,0.15)] transform-gpu backface-visibility-hidden">
+                        <div className="flex items-center space-x-6">
+                            <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50 shadow-inner">
+                                <button
+                                    onClick={() => setTrendView('yearly')}
+                                    className={`px-5 py-2 text-[11px] font-bold rounded-xl transition-all duration-300 ${trendView === 'yearly' ? 'bg-white text-slate-900 shadow-md transform scale-105' : 'text-slate-500 hover:text-slate-800'}`}
+                                >
+                                    TAHUNAN
+                                </button>
+                                <button
+                                    onClick={() => setTrendView('monthly')}
+                                    className={`px-5 py-2 text-[11px] font-bold rounded-xl transition-all duration-300 ${trendView === 'monthly' ? 'bg-white text-slate-900 shadow-md transform scale-105' : 'text-slate-500 hover:text-slate-800'}`}
+                                >
+                                    BULANAN
+                                </button>
                             </div>
+                            <div className="h-8 w-px bg-slate-200 hidden md:block opacity-50"></div>
+                            <div className="flex flex-col">
+                                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Tempoh Analisis</span>
+                                <div className="flex items-center space-x-2">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                                    <span className="text-sm font-bold text-slate-700">
+                                        {trendView === 'yearly' ? `${yearFrom} — ${yearTo}` : `${monthFrom} — ${monthTo}`}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2 p-1.5 bg-slate-100/50 rounded-2xl border border-slate-200/30">
+                            {trendView === 'yearly' ? (
+                                <>
+                                    <div className="flex items-center space-x-2 px-4 py-2 hover:bg-white hover:shadow-sm rounded-xl transition-all group/select">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase group-hover/select:text-emerald-500 transition-colors">Dari</span>
+                                        <select
+                                            value={yearFrom}
+                                            onChange={(e) => setYearFrom(parseInt(e.target.value))}
+                                            className="bg-transparent text-sm font-bold text-slate-800 focus:outline-none cursor-pointer"
+                                        >
+                                            {(stats?.mualaf?.availableYears || []).map(y => (
+                                                <option key={y} value={y}>{y}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="w-px h-5 bg-slate-200 opacity-50"></div>
+                                    <div className="flex items-center space-x-2 px-4 py-2 hover:bg-white hover:shadow-sm rounded-xl transition-all group/select">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase group-hover/select:text-emerald-500 transition-colors">Hingga</span>
+                                        <select
+                                            value={yearTo}
+                                            onChange={(e) => setYearTo(parseInt(e.target.value))}
+                                            className="bg-transparent text-sm font-bold text-slate-800 focus:outline-none cursor-pointer"
+                                        >
+                                            {(stats?.mualaf?.availableYears || []).map(y => (
+                                                <option key={y} value={y}>{y}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="flex items-center space-x-2 px-4 py-2 hover:bg-white hover:shadow-sm rounded-xl transition-all group/select">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase group-hover/select:text-emerald-500 transition-colors">Dari</span>
+                                        <input
+                                            type="month"
+                                            value={monthFrom}
+                                            onChange={(e) => setMonthFrom(e.target.value)}
+                                            className="bg-transparent text-sm font-bold text-slate-800 focus:outline-none cursor-pointer outline-none"
+                                        />
+                                    </div>
+                                    <div className="w-px h-5 bg-slate-200 opacity-50"></div>
+                                    <div className="flex items-center space-x-2 px-4 py-2 hover:bg-white hover:shadow-sm rounded-xl transition-all group/select">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase group-hover/select:text-emerald-500 transition-colors">Hingga</span>
+                                        <input
+                                            type="month"
+                                            value={monthTo}
+                                            onChange={(e) => setMonthTo(e.target.value)}
+                                            className="bg-transparent text-sm font-bold text-slate-800 focus:outline-none cursor-pointer outline-none"
+                                        />
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -225,7 +418,7 @@ export default function DashboardPage() {
                                 <p className="text-slate-500 font-medium text-sm">Jumlah Mualaf</p>
                                 <div className="flex items-baseline space-x-2">
                                     <h3 className="text-4xl font-bold text-slate-900 mt-1">
-                                        {stats?.mualaf.total.toLocaleString()}
+                                        {filteredStats?.total?.toLocaleString() || '0'}
                                     </h3>
                                     <span className="text-xs text-slate-400 font-medium">Orang</span>
                                 </div>
@@ -322,26 +515,23 @@ export default function DashboardPage() {
 
                     {/* Chart Row 1: Registration Trend (Full Width) */}
                     <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200/60 p-8 min-w-0 mb-8 transition-all duration-500 hover:shadow-[0_20px_50px_rgb(0,0,0,0.06)]">
-                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
+                        <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
                             <div>
                                 <h3 className="text-xl font-bold text-slate-900 tracking-tight">Prestasi Pertumbuhan Mualaf</h3>
                                 <p className="text-sm text-slate-500 font-medium">
-                                    Analisis {trendView === 'yearly' ? 'tahunan sepanjang 10 tahun' : 'bulanan sepanjang setahun'}
+                                    Dinamik pendaftaran dan pengislaman mengikut {trendView === 'yearly' ? 'tahun' : 'bulan'} yang dipilih.
                                 </p>
                             </div>
-                            <div className="flex bg-slate-100/80 p-1.5 rounded-2xl backdrop-blur-md">
-                                <button
-                                    onClick={() => setTrendView('yearly')}
-                                    className={`px-5 py-2 text-xs font-bold rounded-xl transition-all duration-300 ${trendView === 'yearly' ? 'bg-white text-slate-900 shadow-sm scale-100' : 'text-slate-500 hover:text-slate-700 scale-95'}`}
-                                >
-                                    TAHUNAN
-                                </button>
-                                <button
-                                    onClick={() => setTrendView('monthly')}
-                                    className={`px-5 py-2 text-xs font-bold rounded-xl transition-all duration-300 ${trendView === 'monthly' ? 'bg-white text-slate-900 shadow-sm scale-100' : 'text-slate-500 hover:text-slate-700 scale-95'}`}
-                                >
-                                    BULANAN
-                                </button>
+                            <div className="flex items-center space-x-4 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-100 shadow-sm">
+                                <div className="flex items-center space-x-2">
+                                    <div className="w-3 h-3 bg-emerald-500 rounded-full border-2 border-white shadow-sm"></div>
+                                    <span className="text-[11px] font-bold text-slate-600 uppercase tracking-tight">Pendaftaran</span>
+                                </div>
+                                <div className="w-px h-3 bg-slate-200"></div>
+                                <div className="flex items-center space-x-2">
+                                    <div className="w-3 h-3 bg-indigo-500 rounded-full border-2 border-white shadow-sm"></div>
+                                    <span className="text-[11px] font-bold text-slate-600 uppercase tracking-tight">Pengislaman</span>
+                                </div>
                             </div>
                         </div>
                         <div className="h-[400px] w-full">
@@ -369,13 +559,6 @@ export default function DashboardPage() {
                                             padding: '1rem'
                                         }}
                                         itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                                    />
-                                    <Legend
-                                        verticalAlign="top"
-                                        align="right"
-                                        height={50}
-                                        iconType="circle"
-                                        formatter={(value) => <span className="text-xs font-bold text-slate-600 uppercase tracking-widest ml-1">{value}</span>}
                                     />
                                     <Bar
                                         dataKey="registrations"
@@ -671,7 +854,7 @@ export default function DashboardPage() {
                         <div className="flex items-center justify-between mb-8 cursor-default">
                             <div>
                                 <h3 className="text-xl font-bold text-slate-900 tracking-tight">Kemandirian Komuniti</h3>
-                                <p className="text-sm text-slate-500 font-medium">Trend kehadiran unik (Mualaf & Petugas)</p>
+                                <p className="text-sm text-slate-500 font-medium">Trend kehadiran unik {trendView === 'yearly' ? 'tahunan' : 'bulanan'} (Mualaf & Petugas)</p>
                             </div>
                             <div className="flex items-center space-x-4">
                                 <div className="flex items-center space-x-2">
@@ -713,17 +896,17 @@ export default function DashboardPage() {
                                         dataKey="mualafCount"
                                         name="Mualaf"
                                         fill="#10B981"
-                                        barSize={20}
-                                        radius={[4, 4, 0, 0]}
-                                        animationDuration={1500}
+                                        radius={[4, 4, 4, 4]}
+                                        barSize={trendView === 'yearly' ? 40 : 20}
+                                        label={{ position: 'top', fill: '#10B981', fontSize: 10, fontWeight: 'bold', offset: 8 }}
                                     />
                                     <Bar
                                         dataKey="workerCount"
                                         name="Petugas"
                                         fill="#6366F1"
-                                        barSize={20}
-                                        radius={[4, 4, 0, 0]}
-                                        animationDuration={1500}
+                                        radius={[4, 4, 4, 4]}
+                                        barSize={trendView === 'yearly' ? 40 : 20}
+                                        label={{ position: 'top', fill: '#6366F1', fontSize: 10, fontWeight: 'bold', offset: 8 }}
                                     />
                                     {avgMualafAttend > 0 && (
                                         <ReferenceLine y={avgMualafAttend} label={{ position: 'right', value: `Avg Mualaf: ${avgMualafAttend}`, fill: '#10B981', fontSize: 10, fontWeight: 'bold' }} stroke="#10B981" strokeDasharray="3 3" />

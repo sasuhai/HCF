@@ -208,14 +208,23 @@ export default function WorkersPage() {
             return Object.entries(columnFilters).every(([key, value]) => {
                 if (key === field) return true;
                 if (!value) return true;
+                if (value === '(Kosong)') {
+                    return !sub[key] || sub[key] === '';
+                }
                 return sub[key]?.toString().toLowerCase().includes(value.toLowerCase());
             });
         });
 
+        const hasBlanks = relevantSubmissions.some(sub => !sub[field] || sub[field] === '');
         const values = relevantSubmissions
             .map(sub => sub[field])
             .filter(val => val && val !== '' && val !== null && val !== undefined);
-        return [...new Set(values)].sort();
+
+        const uniqueValues = [...new Set(values)].sort();
+        if (hasBlanks) {
+            return ['(Kosong)', ...uniqueValues];
+        }
+        return uniqueValues;
     };
 
     const handleFilterChange = (field, value) => {
@@ -248,6 +257,9 @@ export default function WorkersPage() {
     const filteredWorkers = workers.filter(worker => {
         return Object.entries(columnFilters).every(([field, value]) => {
             if (!value) return true;
+            if (value === '(Kosong)') {
+                return !worker[field] || worker[field] === '';
+            }
             return worker[field]?.toString().toLowerCase().includes(value.toLowerCase());
         });
     }).sort((a, b) => {
