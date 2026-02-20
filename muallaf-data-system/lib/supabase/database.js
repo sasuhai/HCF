@@ -55,7 +55,7 @@ export const createSubmission = async (data, userId) => {
         };
 
         const { data: newRecord, error } = await supabase
-            .from('submissions')
+            .from('mualaf')
             .insert(submissionData)
             .select()
             .single();
@@ -71,7 +71,7 @@ export const createSubmission = async (data, userId) => {
 export const updateSubmission = async (id, data, userId) => {
     try {
         const { error } = await supabase
-            .from('submissions')
+            .from('mualaf')
             .update({
                 ...data,
                 updatedAt: new Date().toISOString(),
@@ -90,7 +90,7 @@ export const updateSubmission = async (id, data, userId) => {
 export const deleteSubmission = async (id) => {
     try {
         const { error } = await supabase
-            .from('submissions')
+            .from('mualaf')
             .update({
                 status: 'deleted',
                 deletedAt: new Date().toISOString()
@@ -108,7 +108,7 @@ export const deleteSubmission = async (id) => {
 export const getSubmission = async (id) => {
     try {
         const { data, error } = await supabase
-            .from('submissions')
+            .from('mualaf')
             .select('*')
             .eq('id', id)
             .single();
@@ -125,7 +125,7 @@ export const getSubmission = async (id) => {
 export const getSubmissions = async (filters = {}) => {
     try {
         let query = supabase
-            .from('submissions')
+            .from('mualaf')
             .select('*', { count: 'exact' })
             .eq('status', 'active');
 
@@ -177,9 +177,9 @@ export const getStatistics = async () => {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
         // Separate queries for counts
-        const totalPromise = supabase.from('submissions').select('id', { count: 'exact', head: true }).eq('status', 'active');
-        const todayPromise = supabase.from('submissions').select('id', { count: 'exact', head: true }).eq('status', 'active').gte('createdAt', todayStart);
-        const monthPromise = supabase.from('submissions').select('id', { count: 'exact', head: true }).eq('status', 'active').gte('createdAt', monthStart);
+        const totalPromise = supabase.from('mualaf').select('id', { count: 'exact', head: true }).eq('status', 'active');
+        const todayPromise = supabase.from('mualaf').select('id', { count: 'exact', head: true }).eq('status', 'active').gte('createdAt', todayStart);
+        const monthPromise = supabase.from('mualaf').select('id', { count: 'exact', head: true }).eq('status', 'active').gte('createdAt', monthStart);
 
         const [totalRes, todayRes, monthRes] = await Promise.all([totalPromise, todayPromise, monthPromise]);
 
@@ -214,7 +214,7 @@ export const getOverallDashboardStats = async (role = 'admin', profile = {}) => 
         // Fetching all data to client for stats is bad practice in SQL, but good for migration parity.
         // I will attempt to fetch needed fields only.
 
-        let mualafQuery = supabase.from('submissions').select('id, negeriCawangan, createdAt, lokasi, namaPenuh, namaAsal, status, bangsa, tarikhPengislaman').eq('status', 'active').order('createdAt', { ascending: false });
+        let mualafQuery = supabase.from('mualaf').select('id, negeriCawangan, createdAt, lokasi, namaPenuh, namaAsal, status, bangsa, tarikhPengislaman, kategori').eq('status', 'active').order('createdAt', { ascending: false });
 
         if (isRestricted && allowedLocations.length > 0) {
             mualafQuery = mualafQuery.in('lokasi', allowedLocations);
@@ -242,11 +242,13 @@ export const getOverallDashboardStats = async (role = 'admin', profile = {}) => 
         const minYear = absMinYear;
         const currentYear = now.getFullYear();
         stats.mualaf.availableYears = Array.from({ length: currentYear - minYear + 1 }, (_, i) => minYear + i);
+
         stats.mualaf.rawData = mualafData; // Pass raw data for client-side aggregation
         const yearlyTrendMap = {};
         for (let y = minYear; y <= currentYear; y++) {
             yearlyTrendMap[y] = { registrations: 0, conversions: 0 };
         }
+
 
         // Prepare Monthly Trend Map (All months from 2012)
         const monthlyTrendMap = {};
@@ -290,23 +292,26 @@ export const getOverallDashboardStats = async (role = 'admin', profile = {}) => 
                 }
             }
 
-            if (item.tarikhPengislaman) {
-                const date = new Date(item.tarikhPengislaman);
-                const year = date.getFullYear();
-                const monKey = getMonthKey(date);
+            if (item.kategori === 'Pengislaman') {
+                const convDateStr = item.tarikhPengislaman || item.createdAt;
+                if (convDateStr) {
+                    const date = new Date(convDateStr);
+                    const year = date.getFullYear();
+                    const monKey = getMonthKey(date);
 
-                if (yearlyTrendMap[year]) yearlyTrendMap[year].conversions++;
-                if (monthlyTrendMap[monKey]) monthlyTrendMap[monKey].conversions++;
+                    if (yearlyTrendMap[year]) yearlyTrendMap[year].conversions++;
+                    if (monthlyTrendMap[monKey]) monthlyTrendMap[monKey].conversions++;
 
-                // Per location/state trend
-                if (monthlyTrendMap[monKey]) {
-                    if (!locationTrendMap[loc]) locationTrendMap[loc] = {};
-                    if (!locationTrendMap[loc][monKey]) locationTrendMap[loc][monKey] = { registrations: 0, conversions: 0 };
-                    locationTrendMap[loc][monKey].conversions++;
+                    // Per location/state trend
+                    if (monthlyTrendMap[monKey]) {
+                        if (!locationTrendMap[loc]) locationTrendMap[loc] = {};
+                        if (!locationTrendMap[loc][monKey]) locationTrendMap[loc][monKey] = { registrations: 0, conversions: 0 };
+                        locationTrendMap[loc][monKey].conversions++;
 
-                    if (!stateTrendMap[state]) stateTrendMap[state] = {};
-                    if (!stateTrendMap[state][monKey]) stateTrendMap[state][monKey] = { registrations: 0, conversions: 0 };
-                    stateTrendMap[state][monKey].conversions++;
+                        if (!stateTrendMap[state]) stateTrendMap[state] = {};
+                        if (!stateTrendMap[state][monKey]) stateTrendMap[state][monKey] = { registrations: 0, conversions: 0 };
+                        stateTrendMap[state][monKey].conversions++;
+                    }
                 }
             }
         });
@@ -671,12 +676,15 @@ export const getStates = async () => {
 };
 
 // Generic Lookup Management
-export const getLookupData = async (table) => {
+export const getLookupData = async (table, orderFields = ['name']) => {
     try {
-        const { data, error } = await supabase
-            .from(table)
-            .select('*')
-            .order('name');
+        let query = supabase.from(table).select('*');
+        if (orderFields && orderFields.length > 0) {
+            orderFields.forEach(field => {
+                query = query.order(field);
+            });
+        }
+        const { data, error } = await query;
         if (error) throw error;
         return { data, error: null };
     } catch (error) {

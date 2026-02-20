@@ -14,7 +14,7 @@ function ExcelTaskPaneContent() {
     const [status, setStatus] = useState({ type: '', message: '' });
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [selectedTable, setSelectedTable] = useState('submissions');
+    const [selectedTable, setSelectedTable] = useState('mualaf');
 
     useEffect(() => {
         let mounted = true;
@@ -58,7 +58,7 @@ function ExcelTaskPaneContent() {
 
         try {
             let data = [];
-            if (selectedTable === 'submissions') {
+            if (selectedTable === 'mualaf') {
                 const res = await getSubmissions({ pageSize: 1500 });
                 data = res.data;
             } else if (selectedTable === 'attendance_records') {
@@ -279,7 +279,7 @@ function ExcelTaskPaneContent() {
                             value={selectedTable}
                             onChange={(e) => setSelectedTable(e.target.value)}
                         >
-                            <option value="submissions">Submissions (Kemasukan Mualaf)</option>
+                            <option value="mualaf">Mualaf (Kemasukan Mualaf)</option>
                             <option value="attendance_records">Attendance (Kehadiran Kelas)</option>
                         </select>
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
@@ -310,10 +310,10 @@ function ExcelTaskPaneContent() {
 
                 {status.message && (
                     <div className={`p-4 rounded-xl border flex gap-3 animate-in fade-in slide-in-from-top-2 ${status.type === 'error'
-                            ? 'bg-red-50 border-red-100 text-red-700'
-                            : status.type === 'info'
-                                ? 'bg-blue-50 border-blue-100 text-blue-700'
-                                : 'bg-green-50 border-green-100 text-green-700'
+                        ? 'bg-red-50 border-red-100 text-red-700'
+                        : status.type === 'info'
+                            ? 'bg-blue-50 border-blue-100 text-blue-700'
+                            : 'bg-green-50 border-green-100 text-green-700'
                         }`}>
                         {status.type === 'success' ? <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" /> : <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />}
                         <p className="text-sm font-medium leading-tight">{status.message}</p>

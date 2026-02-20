@@ -14,18 +14,18 @@ const verify = async () => {
 
     // Check count
     const { count, error: countError } = await supabase
-        .from('submissions')
+        .from('mualaf')
         .select('*', { count: 'exact', head: true });
 
     if (countError) {
         console.error('❌ Error getting count:', countError.message);
     } else {
-        console.log(`✅ Total records in submissions: ${count}`);
+        console.log(`✅ Total records in mualaf: ${count}`);
     }
 
     // Check sample records for updatedAt
     const { data, error } = await supabase
-        .from('submissions')
+        .from('mualaf')
         .select('id, namaAsal, updatedAt, createdAt')
         .order('createdAt', { ascending: false })
         .limit(5);

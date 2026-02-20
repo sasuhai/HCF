@@ -127,17 +127,17 @@ export default function DashboardPage() {
 
         const getMonthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
-        // 1. Filter Mualaf Data
+        // 1. Filter Mualaf Data (All categories, based on Registration/createdAt)
         const filteredRaw = (stats.mualaf.rawData || []).filter(item => {
+            const regDateStr = item.createdAt;
+            if (!regDateStr) return false;
+            const regDate = new Date(regDateStr);
+
             if (trendView === 'yearly') {
-                const yearReg = item.createdAt ? new Date(item.createdAt).getFullYear() : null;
-                const yearConv = item.tarikhPengislaman ? new Date(item.tarikhPengislaman).getFullYear() : null;
-                const year = yearReg || yearConv;
+                const year = regDate.getFullYear();
                 return year && year >= yearFrom && year <= yearTo;
             } else {
-                const monReg = item.createdAt ? getMonthKey(new Date(item.createdAt)) : null;
-                const monConv = item.tarikhPengislaman ? getMonthKey(new Date(item.tarikhPengislaman)) : null;
-                const mon = monReg || monConv;
+                const mon = getMonthKey(regDate);
                 return mon && mon >= monthFrom && mon <= monthTo;
             }
         });

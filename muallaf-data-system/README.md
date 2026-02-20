@@ -178,7 +178,7 @@ Lihat fail `MIGRATION.md` untuk panduan lengkap.
 
 ## 📊 Struktur Database
 
-### Collection: `submissions`
+### Collection: `mualaf`
 
 ```javascript
 {

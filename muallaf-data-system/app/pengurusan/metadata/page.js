@@ -30,17 +30,22 @@ import {
     Heart,
     Landmark,
     Users,
-    Search
+    Search,
+    Activity
 } from 'lucide-react';
 
 const TABS = [
     { id: 'states', name: 'Negeri', icon: Globe, table: 'states' },
-    { id: 'locations', name: 'Lokasi', icon: MapPin, table: 'locations' },
+    { id: 'locations', name: 'Sub Lokasi', icon: MapPin, table: 'locations' },
     { id: 'class_levels', name: 'Tahap Kelas', icon: Layers, table: 'class_levels' },
     { id: 'class_types', name: 'Jenis Kelas', icon: Tag, table: 'class_types' },
     { id: 'races', name: 'Bangsa', icon: Users, table: 'races' },
     { id: 'religions', name: 'Agama Asal', icon: Heart, table: 'religions' },
     { id: 'banks', name: 'Bank', icon: Landmark, table: 'banks' },
+    { id: 'program_status', name: 'Status Program', icon: Activity, table: 'program_status' },
+    { id: 'program_categories', name: 'Kategori Program', icon: Layers, table: 'program_categories' },
+    { id: 'program_organizers', name: 'Anjuran', icon: Users, table: 'program_organizers' },
+    { id: 'program_types', name: 'Jenis Program (Sub)', icon: Layers, table: 'program_types' },
 ];
 
 export default function MetadataManagementPage() {
@@ -56,7 +61,8 @@ export default function MetadataManagementPage() {
     // Modal/Edit state
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
-    const [formData, setFormData] = useState({ name: '', state_name: '' });
+    const [formData, setFormData] = useState({ name: '', state_name: '', cawangan: [], groups: '' });
+    const [newCawanganValue, setNewCawanganValue] = useState('');
 
     // Fetch data when tab changes
     useEffect(() => {
@@ -74,7 +80,8 @@ export default function MetadataManagementPage() {
 
     const fetchData = async () => {
         setLoading(true);
-        const { data, error } = await getLookupData(activeTab.table);
+        const orderFields = activeTab.id === 'program_types' ? ['groups', 'name'] : ['name'];
+        const { data, error } = await getLookupData(activeTab.table, orderFields);
         if (!error) {
             setItems(data);
         }
@@ -84,10 +91,15 @@ export default function MetadataManagementPage() {
     const handleOpenModal = (item = null) => {
         if (item) {
             setEditingItem(item);
-            setFormData({ name: item.name, state_name: item.state_name || '' });
+            setFormData({
+                name: item.name,
+                state_name: item.state_name || '',
+                cawangan: item.cawangan || [],
+                groups: item.groups || ''
+            });
         } else {
             setEditingItem(null);
-            setFormData({ name: '', state_name: '' });
+            setFormData({ name: '', state_name: '', cawangan: [], groups: '' });
         }
         setIsModalOpen(true);
         setMessage({ type: '', text: '' });
@@ -100,10 +112,15 @@ export default function MetadataManagementPage() {
         setActionLoading(true);
         let result;
 
+        let extraData = {};
+        if (activeTab.id === 'states') extraData = { cawangan: formData.cawangan };
+        if (activeTab.id === 'locations') extraData = { state_name: formData.state_name };
+        if (activeTab.id === 'program_types') extraData = { groups: formData.groups };
+
         if (editingItem) {
-            result = await updateLookupItem(activeTab.table, editingItem.id, formData.name, activeTab.id === 'locations' ? { state_name: formData.state_name } : {});
+            result = await updateLookupItem(activeTab.table, editingItem.id, formData.name, extraData);
         } else {
-            result = await createLookupItem(activeTab.table, formData.name, activeTab.id === 'locations' ? { state_name: formData.state_name } : {});
+            result = await createLookupItem(activeTab.table, formData.name, extraData);
         }
 
         if (!result.error) {
@@ -236,43 +253,102 @@ export default function MetadataManagementPage() {
                                             <p className="max-w-xs">Tiada rekod {activeTab.name} disimpan lagi. Gunakan butang di atas untuk menambah.</p>
                                         </div>
                                     ) : (
-                                        <div className="divide-y divide-gray-100">
-                                            {items.filter(item =>
+                                        (() => {
+                                            const filteredItems = items.filter(item =>
                                                 item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                                (item.state_name && item.state_name.toLowerCase().includes(searchTerm.toLowerCase()))
-                                            ).map((item) => (
-                                                <div key={item.id} className="p-4 py-2 hover:bg-emerald-50/50 transition-all flex items-center justify-between group">
-                                                    <div className="flex items-center space-x-4 min-w-0">
-                                                        <div className="flex-shrink-0 w-8 h-8 bg-gray-50 rounded-md flex items-center justify-center text-gray-400 group-hover:bg-emerald-100 group-hover:text-emerald-600 transition-colors">
-                                                            <activeTab.icon className="w-4 h-4" />
-                                                        </div>
-                                                        <div className="min-w-0">
-                                                            <p className="font-medium text-gray-900 text-sm break-words">{item.name}</p>
-                                                            {item.state_name && (
-                                                                <p className="text-[10px] text-gray-500">{item.state_name}</p>
-                                                            )}
-                                                        </div>
-                                                    </div>
+                                                (item.state_name && item.state_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                                                (item.groups && item.groups.toLowerCase().includes(searchTerm.toLowerCase()))
+                                            );
 
-                                                    <div className="flex items-center space-x-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity ml-4 flex-shrink-0">
-                                                        <button
-                                                            onClick={() => handleOpenModal(item)}
-                                                            className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-all"
-                                                            title="Edit"
-                                                        >
-                                                            <Edit2 className="w-3.5 h-3.5" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDelete(item.id)}
-                                                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
-                                                            title="Padam"
-                                                        >
-                                                            <Trash2 className="w-3.5 h-3.5" />
-                                                        </button>
+                                            if (activeTab.id === 'program_types') {
+                                                const groupNames = [...new Set(filteredItems.map(i => i.groups || 'Tanpa Kumpulan'))].sort((a, b) => {
+                                                    if (a === 'Tanpa Kumpulan') return 1;
+                                                    if (b === 'Tanpa Kumpulan') return -1;
+                                                    return a.localeCompare(b);
+                                                });
+                                                return groupNames.map(group => (
+                                                    <div key={group}>
+                                                        <div className="bg-gray-50/50 px-4 py-1.5 border-y border-gray-100 flex items-center justify-between">
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{group}</span>
+                                                            <span className="text-[10px] font-medium text-slate-400">{filteredItems.filter(i => (i.groups || 'Tanpa Kumpulan') === group).length} Items</span>
+                                                        </div>
+                                                        <div className="divide-y divide-gray-100">
+                                                            {filteredItems
+                                                                .filter(i => (i.groups || 'Tanpa Kumpulan') === group)
+                                                                .sort((a, b) => a.name.localeCompare(b.name))
+                                                                .map(item => (
+                                                                    <div key={item.id} className="p-4 py-2 hover:bg-emerald-50/50 transition-all flex items-center justify-between group">
+                                                                        <div className="flex items-center space-x-4 min-w-0">
+                                                                            <div className="flex-shrink-0 w-8 h-8 bg-gray-50 rounded-md flex items-center justify-center text-gray-400 group-hover:bg-emerald-100 group-hover:text-emerald-600 transition-colors">
+                                                                                <activeTab.icon className="w-4 h-4" />
+                                                                            </div>
+                                                                            <div className="min-w-0">
+                                                                                <p className="font-medium text-gray-900 text-sm break-words">{item.name}</p>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div className="flex items-center space-x-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity ml-4 flex-shrink-0">
+                                                                            <button
+                                                                                onClick={() => handleOpenModal(item)}
+                                                                                className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-all"
+                                                                                title="Edit"
+                                                                            >
+                                                                                <Edit2 className="w-3.5 h-3.5" />
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => handleDelete(item.id)}
+                                                                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
+                                                                                title="Padam"
+                                                                            >
+                                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                        </div>
                                                     </div>
+                                                ));
+                                            }
+
+                                            return (
+                                                <div className="divide-y divide-gray-100">
+                                                    {filteredItems
+                                                        .sort((a, b) => a.name.localeCompare(b.name))
+                                                        .map((item) => (
+                                                            <div key={item.id} className="p-4 py-2 hover:bg-emerald-50/50 transition-all flex items-center justify-between group">
+                                                                <div className="flex items-center space-x-4 min-w-0">
+                                                                    <div className="flex-shrink-0 w-8 h-8 bg-gray-50 rounded-md flex items-center justify-center text-gray-400 group-hover:bg-emerald-100 group-hover:text-emerald-600 transition-colors">
+                                                                        <activeTab.icon className="w-4 h-4" />
+                                                                    </div>
+                                                                    <div className="min-w-0">
+                                                                        <p className="font-medium text-gray-900 text-sm break-words">{item.name}</p>
+                                                                        {(item.state_name || item.groups) && (
+                                                                            <p className="text-[10px] text-gray-500">{item.state_name || item.groups}</p>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="flex items-center space-x-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity ml-4 flex-shrink-0">
+                                                                    <button
+                                                                        onClick={() => handleOpenModal(item)}
+                                                                        className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-all"
+                                                                        title="Edit"
+                                                                    >
+                                                                        <Edit2 className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleDelete(item.id)}
+                                                                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
+                                                                        title="Padam"
+                                                                    >
+                                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
                                                 </div>
-                                            ))}
-                                        </div>
+                                            );
+                                        })()
                                     )}
                                 </div>
                             </div>
@@ -317,6 +393,81 @@ export default function MetadataManagementPage() {
                                             className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
                                         />
                                     </div>
+
+                                    {activeTab.id === 'states' && (
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                Cawangan (Lokasi)
+                                            </label>
+                                            <div className="flex space-x-2 mb-2">
+                                                <input
+                                                    type="text"
+                                                    value={newCawanganValue}
+                                                    onChange={(e) => setNewCawanganValue(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            if (newCawanganValue.trim()) {
+                                                                setFormData({ ...formData, cawangan: [...formData.cawangan, newCawanganValue.trim()] });
+                                                                setNewCawanganValue('');
+                                                            }
+                                                        }
+                                                    }}
+                                                    placeholder="Tambah cawangan baru..."
+                                                    className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (newCawanganValue.trim()) {
+                                                            setFormData({ ...formData, cawangan: [...formData.cawangan, newCawanganValue.trim()] });
+                                                            setNewCawanganValue('');
+                                                        }
+                                                    }}
+                                                    className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-xl border border-emerald-200 hover:bg-emerald-200 transition-colors font-bold"
+                                                >
+                                                    Tambah
+                                                </button>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2 mt-3">
+                                                {formData.cawangan.length === 0 && <span className="text-sm text-gray-400">Tiada cawangan lagi</span>}
+                                                {formData.cawangan.map((cw, i) => (
+                                                    <div key={i} className="flex items-center space-x-1 bg-gray-100 text-gray-700 font-medium px-3 py-1.5 rounded-lg border border-gray-200">
+                                                        <span>{cw}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setFormData({ ...formData, cawangan: formData.cawangan.filter((_, idx) => idx !== i) })}
+                                                            className="text-gray-400 hover:text-red-500 p-0.5 rounded-md"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {activeTab.id === 'program_types' && (
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                Kumpulan (Group)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                required
+                                                list="group-options"
+                                                value={formData.groups}
+                                                onChange={(e) => setFormData({ ...formData, groups: e.target.value })}
+                                                placeholder="Contoh: Outreach, Latihan Daie..."
+                                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                                            />
+                                            <datalist id="group-options">
+                                                {['Outreach', 'Pembangunan Mualaf', 'Latihan Daie', 'Sukarelawan', 'Program Kesedaran', 'UMUM'].map(g => (
+                                                    <option key={g} value={g} />
+                                                ))}
+                                            </datalist>
+                                        </div>
+                                    )}
 
                                     {activeTab.id === 'locations' && (
                                         <div>

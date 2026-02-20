@@ -29,7 +29,7 @@ const updateMissingLokasi = async () => {
     let allSubmissions = [];
     let page = 0;
     while (true) {
-        const { data } = await supabase.from('submissions').select('id, noKP, lokasi').filter('lokasi', 'is', null).range(page * 1000, (page + 1) * 1000 - 1);
+        const { data } = await supabase.from('mualaf').select('id, noKP, lokasi').filter('lokasi', 'is', null).range(page * 1000, (page + 1) * 1000 - 1);
         if (!data || data.length === 0) break;
         allSubmissions = allSubmissions.concat(data);
         page++;
@@ -51,7 +51,7 @@ const updateMissingLokasi = async () => {
         await Promise.all(batch.map(async (record) => {
             const kp = record.noKP.trim().toUpperCase();
             const targetLoc = locationMap.get(kp);
-            const { error } = await supabase.from('submissions').update({ lokasi: targetLoc }).eq('id', record.id);
+            const { error } = await supabase.from('mualaf').update({ lokasi: targetLoc }).eq('id', record.id);
             if (!error) {
                 updateCount++;
                 if (updateCount % 100 === 0) console.log(`✅ Updated ${updateCount}/${tasks.length}...`);

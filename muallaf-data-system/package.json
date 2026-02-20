@@ -9,6 +9,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@fullcalendar/core": "^6.1.20",
+    "@fullcalendar/daygrid": "^6.1.20",
+    "@fullcalendar/interaction": "^6.1.20",
+    "@fullcalendar/multimonth": "^6.1.20",
+    "@fullcalendar/react": "^6.1.20",
+    "@fullcalendar/timegrid": "^6.1.20",
     "@supabase/supabase-js": "^2.95.3",
     "date-fns": "^4.1.0",
     "dotenv": "^17.3.1",
@@ -21,6 +27,7 @@
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.2",
     "react-leaflet": "^5.0.0",
+    "react-select": "^5.10.2",
     "recharts": "^3.7.0"
   },
   "devDependencies": {

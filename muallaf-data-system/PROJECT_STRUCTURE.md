@@ -177,7 +177,7 @@ muallaf-data-system/
 
 ## 🗂️ Database Structure
 
-### Collection: `submissions`
+### Collection: `mualaf`
 ```javascript
 {
   // Pegawai Info

@@ -135,7 +135,7 @@ export default function BorangPage() {
             }
 
             // Mark as dirty so list page knows to show refresh button
-            markAsDirty('submissions');
+            markAsDirty('mualaf');
 
             setSuccess(true);
             setUploadProgress(100);

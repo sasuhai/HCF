@@ -33,8 +33,8 @@ function GoogleSheetsContent() {
     const [status, setStatus] = useState({ type: '', message: '' });
 
     const [selectedTable, setSelectedTable] = useState(() => {
-        if (typeof window !== 'undefined') return localStorage.getItem('gs_table') || 'submissions';
-        return 'submissions';
+        if (typeof window !== 'undefined') return localStorage.getItem('gs_table') || 'mualaf';
+        return 'mualaf';
     });
 
     const [selectedState, setSelectedState] = useState(() => {
@@ -87,7 +87,7 @@ function GoogleSheetsContent() {
             let page = 0, size = 1000, hasMore = true;
             while (hasMore) {
                 let q = supabase.from(selectedTable).select('*', { count: 'exact' });
-                if (selectedTable === 'submissions') {
+                if (selectedTable === 'mualaf') {
                     q = q.eq('status', 'active');
                     if (selectedState !== 'SEMUA') q = q.ilike('negeriCawangan', selectedState);
                 }
@@ -204,7 +204,7 @@ function GoogleSheetsContent() {
                 <div>
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Jadual</label>
                     <select className="w-full p-4 border-2 border-gray-100 rounded-2xl font-bold bg-gray-50 text-sm" value={selectedTable} onChange={e => setSelectedTable(e.target.value)}>
-                        <option value="submissions">Submissions</option>
+                        <option value="mualaf">Mualaf</option>
                         <option value="attendance_records">Attendance</option>
                     </select>
                 </div>

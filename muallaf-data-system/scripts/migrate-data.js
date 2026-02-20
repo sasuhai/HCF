@@ -93,7 +93,7 @@ async function migrateData() {
             const batchSize = 500; // Firestore limit
 
             for (let i = 0; i < results.length; i++) {
-                const docRef = db.collection('submissions').doc();
+                const docRef = db.collection('mualaf').doc();
                 batch.set(docRef, results[i]);
 
                 // Commit batch every 500 documents

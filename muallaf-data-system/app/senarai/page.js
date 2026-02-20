@@ -29,7 +29,7 @@ const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
 );
 
 export default function SenaraiPage() {
-    const { submissions, setSubmissions, needsRefresh, markAsClean, markAsDirty } = useData();
+    const { mualaf: submissions, setMualaf: setSubmissions, needsRefresh, markAsClean, markAsDirty } = useData();
     const [loading, setLoading] = useState(false);
     const [columnFilters, setColumnFilters] = useState({});
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -58,7 +58,7 @@ export default function SenaraiPage() {
             } else {
                 setSubmissions(data);
             }
-            markAsClean('submissions');
+            markAsClean('mualaf');
         }
         setLoading(false);
     };
@@ -70,7 +70,7 @@ export default function SenaraiPage() {
                 // Instead of loadSubmissions(), just mark as dirty and let user refresh
                 // OR we can update local state to keep it snappy
                 setSubmissions(prev => prev.filter(s => s.id !== id));
-                markAsDirty('submissions');
+                markAsDirty('mualaf');
             } else {
                 alert('Ralat memadam rekod: ' + error);
             }
@@ -384,7 +384,7 @@ export default function SenaraiPage() {
                                     </button>
                                 )}
 
-                                {needsRefresh.submissions && submissions.length > 0 && (
+                                {needsRefresh.mualaf && submissions.length > 0 && (
                                     <button
                                         onClick={loadSubmissions}
                                         disabled={loading}

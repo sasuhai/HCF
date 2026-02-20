@@ -137,7 +137,7 @@ function AttendanceDashboardContent() {
                 // Fetch Students Details (Active) (Once)
                 if (Object.keys(studentDetails).length === 0) {
                     const { data: studentsData, error: studentsError } = await supabase
-                        .from('submissions')
+                        .from('mualaf')
                         .select('*')
                         .eq('status', 'active');
                     if (studentsError) throw studentsError;

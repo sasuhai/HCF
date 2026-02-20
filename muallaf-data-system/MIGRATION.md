@@ -156,7 +156,7 @@ Jika berjaya, anda akan lihat:
 ### Verify dalam Firestore
 
 1. Firebase Console → Firestore Database
-2. Collection `submissions`
+2. Collection `mualaf`
 3. Check beberapa documents untuk pastikan data betul
 
 ### Delete Test Data
@@ -168,7 +168,7 @@ Jika test data perlu dibuang:
 npm install -g firestore-clear
 
 # Clear collection
-firestore-clear --project your-project-id submissions
+firestore-clear --project your-project-id mualaf
 ```
 
 atau delete manually dalam Firebase Console.
@@ -218,7 +218,7 @@ Progress akan ditunjukkan:
 ### Check Firestore Console
 
 1. Firebase Console → Firestore Database
-2. Collection `submissions` sepatutnya ada semua records
+2. Collection `mualaf` sepatutnya ada semua records
 3. Spot check beberapa records untuk accuracy
 
 ### Check dalam Aplikasi
@@ -234,10 +234,10 @@ Dalam Firebase Console → Firestore → Query:
 
 ```javascript
 // Count total records
-submissions where status == 'active'
+mualaf where status == 'active'
 
 // Check specific data
-submissions where kategori == 'Non-Muslim' limit 10
+mualaf where kategori == 'Non-Muslim' limit 10
 ```
 
 ---
@@ -356,7 +356,7 @@ admin.initializeApp({
 });
 
 async function validateData() {
-  const snapshot = await admin.firestore().collection('submissions').get();
+  const snapshot = await admin.firestore().collection('mualaf').get();
   
   let errors = [];
   

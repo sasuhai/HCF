@@ -215,7 +215,7 @@ function AttendancePageContent() {
             (record.students || []).map(async (student) => {
                 if (!student.kategoriElaun || !student.icNo || !student.stafId) {
                     const { data } = await supabase
-                        .from('submissions')
+                        .from('mualaf')
                         .select('kategoriElaun, noKP, noStaf')
                         .eq('id', student.id)
                         .single();
@@ -506,7 +506,7 @@ function AttendancePageContent() {
         if (allStudents.length === 0) {
             try {
                 const { data } = await supabase
-                    .from('submissions')
+                    .from('mualaf')
                     .select('*')
                     .eq('status', 'active')
                     .order('namaIslam');

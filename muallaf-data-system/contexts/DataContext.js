@@ -5,11 +5,11 @@ import { createContext, useContext, useState, useCallback } from 'react';
 const DataContext = createContext();
 
 export function DataProvider({ children }) {
-    const [submissions, setSubmissions] = useState([]);
+    const [mualaf, setMualaf] = useState([]);
     const [workers, setWorkers] = useState([]);
     const [classes, setClasses] = useState([]);
     const [needsRefresh, setNeedsRefresh] = useState({
-        submissions: true, // Initial fetch needed
+        mualaf: true, // Initial fetch needed
         workers: true,
         classes: true
     });
@@ -29,8 +29,8 @@ export function DataProvider({ children }) {
     }, []);
 
     const value = {
-        submissions,
-        setSubmissions,
+        mualaf,
+        setMualaf,
         workers,
         setWorkers,
         classes,

@@ -34,9 +34,9 @@ async function run() {
     const uniqueStates = Object.keys(stateCounts).filter(s => stateCounts[s] === 1);
     console.log("Unique State Mapping:", uniqueStates.map(s => `${s} -> ${stateToLocation[s]}`));
 
-    // 3. Find submissions with blank lokasi
+    // 3. Find mualaf with blank lokasi
     const { data: submissions, error: subError } = await supabase
-        .from('submissions')
+        .from('mualaf')
         .select('id, namaAsal, negeriCawangan, lokasi')
         .or('lokasi.is.null,lokasi.eq.""');
 
@@ -60,7 +60,7 @@ async function run() {
     for (const item of updates) {
         const newLokasi = stateToLocation[item.negeriCawangan];
         const { error: updateError } = await supabase
-            .from('submissions')
+            .from('mualaf')
             .update({
                 lokasi: newLokasi,
                 updatedAt: new Date().toISOString()

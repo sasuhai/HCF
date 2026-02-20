@@ -116,7 +116,7 @@ const importData = async () => {
                     const batch = mappedRecords.slice(i, i + BATCH_SIZE);
 
                     const { error } = await supabase
-                        .from('submissions')
+                        .from('mualaf')
                         .insert(batch);
 
                     if (error) {
