@@ -373,6 +373,15 @@ export default function MetadataManagementPage() {
                                                                         {(item.state_name || item.groups) && (
                                                                             <p className="text-[10px] text-gray-500">{item.state_name || item.groups}</p>
                                                                         )}
+                                                                        {activeTab.id === 'states' && item.cawangan && item.cawangan.length > 0 && (
+                                                                            <div className="flex flex-wrap gap-1 mt-1 max-w-md">
+                                                                                {item.cawangan.map((cw, i) => (
+                                                                                    <span key={i} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-[9px] font-medium rounded border border-gray-200 uppercase tracking-tighter">
+                                                                                        {cw}
+                                                                                    </span>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 </div>
 

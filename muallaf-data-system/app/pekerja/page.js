@@ -57,7 +57,17 @@ export default function WorkersPage() {
         peranan: 'Sukarelawan',
         lokasi: '',
         negeri: '',
-        kategoriElaun: ''
+        kategoriElaun: '',
+        staff_id: '',
+        jantina: '',
+        tarikh_daftar: '',
+        daerah_kediaman: '',
+        negeri_kediaman: '',
+        tel_bimbit: '',
+        email: '',
+        pekerjaan: '',
+        kepakaran: '',
+        tarikh_lahir: ''
     });
 
     // Fetch Reference Data
@@ -178,7 +188,17 @@ export default function WorkersPage() {
                 peranan: worker.peranan || 'Sukarelawan',
                 lokasi: worker.lokasi || '',
                 negeri: worker.negeri || '',
-                kategoriElaun: worker.kategoriElaun || ''
+                kategoriElaun: worker.kategoriElaun || '',
+                staff_id: worker.staff_id || '',
+                jantina: worker.jantina || '',
+                tarikh_daftar: worker.tarikh_daftar || '',
+                daerah_kediaman: worker.daerah_kediaman || '',
+                negeri_kediaman: worker.negeri_kediaman || '',
+                tel_bimbit: worker.tel_bimbit || '',
+                email: worker.email || '',
+                pekerjaan: worker.pekerjaan || '',
+                kepakaran: worker.kepakaran || '',
+                tarikh_lahir: worker.tarikh_lahir || ''
             });
         } else {
             setCurrentWorker(null);
@@ -196,7 +216,17 @@ export default function WorkersPage() {
             peranan: 'Sukarelawan',
             lokasi: '',
             negeri: '',
-            kategoriElaun: ''
+            kategoriElaun: '',
+            staff_id: '',
+            jantina: '',
+            tarikh_daftar: '',
+            daerah_kediaman: '',
+            negeri_kediaman: '',
+            tel_bimbit: '',
+            email: '',
+            pekerjaan: '',
+            kepakaran: '',
+            tarikh_lahir: ''
         });
     };
 
@@ -274,11 +304,30 @@ export default function WorkersPage() {
     });
 
     const exportToCSV = () => {
-        const headers = ['Nama', 'Peranan', 'No KP', 'Lokasi', 'Negeri', 'Kategori Elaun', 'Bank', 'No Akaun'];
+        const headers = [
+            'Nama', 'Peranan', 'No KP', 'Lokasi Bertugas', 'Negeri Bertugas', 'Kategori Elaun', 'Bank', 'No Akaun',
+            'S-ID (Staf/Sukarelawan)', 'Jantina', 'Tarikh Daftar', 'Daerah/Bandar Tempat Tinggal', 'Negeri Tempat Tinggal',
+            'Tel Bimbit', 'Email', 'Pekerjaan', 'Kepakaran/Pengalaman', 'Tarikh Lahir'
+        ];
+
+        // Helper to escape commas in values
+        const escapeCSV = (str) => {
+            if (str === null || str === undefined) return '';
+            const s = String(str);
+            if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+                return `"${s.replace(/"/g, '""')}"`;
+            }
+            return s;
+        };
+
         const csvContent = [
             headers.join(','),
             ...filteredWorkers.map(w => [
-                w.nama, w.peranan, w.noKP, w.lokasi, w.negeri, w.kategoriElaun, w.bank, w.noAkaun
+                escapeCSV(w.nama), w.peranan || '', escapeCSV(w.noKP), escapeCSV(w.lokasi), escapeCSV(w.negeri),
+                escapeCSV(w.kategoriElaun), escapeCSV(w.bank), escapeCSV(w.noAkaun),
+                escapeCSV(w.staff_id), escapeCSV(w.jantina), escapeCSV(w.tarikh_daftar), escapeCSV(w.daerah_kediaman),
+                escapeCSV(w.negeri_kediaman), escapeCSV(w.tel_bimbit), escapeCSV(w.email), escapeCSV(w.pekerjaan),
+                escapeCSV(w.kepakaran), escapeCSV(w.tarikh_lahir)
             ].join(','))
         ].join('\n');
 
@@ -398,113 +447,131 @@ export default function WorkersPage() {
                             <p className="text-gray-500 text-lg">Tiada rekod dijumpai</p>
                         </div>
                     ) : (
-                        <div className="card overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-xs border-collapse">
-                                    <thead>
-                                        <tr className="border-b-2 border-emerald-500 bg-emerald-100">
-                                            {/* Frozen: Nama */}
-                                            <th className="sticky left-0 z-20 bg-emerald-200 text-left py-1 px-2 font-semibold text-gray-700 shadow-[1px_0_0_0_#10b981] min-w-[200px] align-top">
+                        <div className="border rounded-lg shadow-sm bg-white overflow-auto max-h-[calc(100vh-180px)]">
+                            <table className="w-full text-xs sticky-table">
+                                <thead>
+                                    <tr className="bg-emerald-100">
+                                        {/* Frozen: Nama */}
+                                        <th className="sticky left-0 top-0 z-50 bg-emerald-200 text-left py-1 px-2 font-semibold text-gray-700 border-b-2 border-emerald-500 shadow-[1px_0_0_0_#10b981] min-w-[200px] align-top">
+                                            <div
+                                                className="flex items-center cursor-pointer mb-1 group"
+                                                onClick={() => handleSort('nama')}
+                                            >
+                                                <span>Nama</span>
+                                                {sortConfig.key === 'nama' ? (
+                                                    sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 text-emerald-600" /> : <ArrowDown className="h-3 w-3 ml-1 text-emerald-600" />
+                                                ) : (
+                                                    <ArrowUpDown className="h-3 w-3 ml-1 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                )}
+                                            </div>
+                                            <FilterInput
+                                                value={columnFilters['nama']}
+                                                onChange={(val) => handleFilterChange('nama', val)}
+                                                options={getUniqueValues('nama')}
+                                                listId="list-nama"
+                                                placeholder="Cari Nama"
+                                            />
+                                        </th>
+                                        {/* Frozen: Tindakan */}
+                                        <th className="sticky left-[200px] top-0 z-40 bg-emerald-200 text-left py-1 px-2 font-semibold text-gray-700 border-b-2 border-emerald-500 shadow-[1px_0_0_0_#10b981] min-w-[100px] align-top">
+                                            <div className="mb-1">Tindakan</div>
+                                        </th>
+
+                                        {/* Scrollable Columns */}
+                                        {[
+                                            { id: 'peranan', label: 'Peranan', width: 'min-w-[120px]' },
+                                            { id: 'noKP', label: 'No KP', width: 'min-w-[150px]' },
+                                            { id: 'lokasi', label: 'Lokasi', width: 'min-w-[140px]' },
+                                            { id: 'negeri', label: 'Negeri', width: 'min-w-[140px]' },
+                                            { id: 'kategoriElaun', label: 'Kat. Elaun', width: 'min-w-[140px]' },
+                                            { id: 'bank', label: 'Bank', width: 'min-w-[140px]' },
+                                            { id: 'noAkaun', label: 'No Akaun', width: 'min-w-[160px]' },
+                                            { id: 'staff_id', label: 'S-ID', width: 'min-w-[120px]' },
+                                            { id: 'jantina', label: 'Jantina', width: 'min-w-[100px]' },
+                                            { id: 'tarikh_daftar', label: 'Tarikh Daftar', width: 'min-w-[120px]' },
+                                            { id: 'tarikh_lahir', label: 'Tarikh Lahir', width: 'min-w-[120px]' },
+                                            { id: 'tel_bimbit', label: 'No. Tel Bimbit', width: 'min-w-[120px]' },
+                                            { id: 'email', label: 'Emel', width: 'min-w-[150px]' },
+                                            { id: 'daerah_kediaman', label: 'Daerah Tinggal', width: 'min-w-[150px]' },
+                                            { id: 'negeri_kediaman', label: 'Negeri Tinggal', width: 'min-w-[140px]' },
+                                            { id: 'pekerjaan', label: 'Pekerjaan', width: 'min-w-[150px]' },
+                                            { id: 'kepakaran', label: 'Kepakaran/Pengalaman', width: 'min-w-[600px]' }
+                                        ].map(col => (
+                                            <th key={col.id} className={`sticky top-0 z-30 text-left py-1 px-2 font-semibold text-gray-700 bg-emerald-100 border-r border-gray-200 border-b-2 border-emerald-500 ${col.width} align-top`}>
                                                 <div
                                                     className="flex items-center cursor-pointer mb-1 group"
-                                                    onClick={() => handleSort('nama')}
+                                                    onClick={() => handleSort(col.id)}
                                                 >
-                                                    <span>Nama</span>
-                                                    {sortConfig.key === 'nama' ? (
+                                                    <span>{col.label}</span>
+                                                    {sortConfig.key === col.id ? (
                                                         sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 text-emerald-600" /> : <ArrowDown className="h-3 w-3 ml-1 text-emerald-600" />
                                                     ) : (
                                                         <ArrowUpDown className="h-3 w-3 ml-1 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                                                     )}
                                                 </div>
                                                 <FilterInput
-                                                    value={columnFilters['nama']}
-                                                    onChange={(val) => handleFilterChange('nama', val)}
-                                                    options={getUniqueValues('nama')}
-                                                    listId="list-nama"
-                                                    placeholder="Cari Nama"
+                                                    value={columnFilters[col.id]}
+                                                    onChange={(val) => handleFilterChange(col.id, val)}
+                                                    options={getUniqueValues(col.id)}
+                                                    listId={`list-${col.id}`}
+                                                    placeholder="Cari..."
                                                 />
                                             </th>
-                                            {/* Frozen: Tindakan */}
-                                            <th className="sticky left-[200px] z-20 bg-emerald-200 text-left py-1 px-2 font-semibold text-gray-700 shadow-[1px_0_0_0_#10b981] min-w-[100px] align-top">
-                                                <div className="mb-1">Tindakan</div>
-                                            </th>
-
-                                            {/* Scrollable Columns */}
-                                            {[
-                                                { id: 'peranan', label: 'Peranan', width: 'min-w-[120px]' },
-                                                { id: 'noKP', label: 'No KP', width: 'min-w-[150px]' },
-                                                { id: 'lokasi', label: 'Lokasi', width: 'min-w-[140px]' },
-                                                { id: 'negeri', label: 'Negeri', width: 'min-w-[140px]' },
-                                                { id: 'kategoriElaun', label: 'Kat. Elaun', width: 'min-w-[140px]' },
-                                                { id: 'bank', label: 'Bank', width: 'min-w-[140px]' },
-                                                { id: 'noAkaun', label: 'No Akaun', width: 'min-w-[160px]' }
-                                            ].map(col => (
-                                                <th key={col.id} className={`text-left py-1 px-2 font-semibold text-gray-700 bg-emerald-100 border-r border-gray-200 ${col.width} align-top`}>
-                                                    <div
-                                                        className="flex items-center cursor-pointer mb-1 group"
-                                                        onClick={() => handleSort(col.id)}
-                                                    >
-                                                        <span>{col.label}</span>
-                                                        {sortConfig.key === col.id ? (
-                                                            sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 text-emerald-600" /> : <ArrowDown className="h-3 w-3 ml-1 text-emerald-600" />
-                                                        ) : (
-                                                            <ArrowUpDown className="h-3 w-3 ml-1 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                        )}
-                                                    </div>
-                                                    <FilterInput
-                                                        value={columnFilters[col.id]}
-                                                        onChange={(val) => handleFilterChange(col.id, val)}
-                                                        options={getUniqueValues(col.id)}
-                                                        listId={`list-${col.id}`}
-                                                        placeholder="Cari..."
-                                                    />
-                                                </th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {paginatedWorkers.map((worker) => (
-                                            <tr key={worker.id} className="border-b border-gray-200 hover:bg-emerald-50 transition-colors">
-                                                <td className="sticky left-0 z-10 bg-emerald-50 py-1 px-2 shadow-[1px_0_0_0_#10b981] min-w-[200px] font-medium text-gray-900">
-                                                    {worker.nama}
-                                                </td>
-                                                <td className="sticky left-[200px] z-10 bg-emerald-50 py-1 px-2 shadow-[1px_0_0_0_#10b981] min-w-[100px]">
-                                                    <div className="flex items-center space-x-2">
-                                                        <button onClick={() => openModal(worker)} className="text-gray-400 hover:text-emerald-600 transition-colors p-1" title="Edit">
-                                                            <Edit2 className="h-4 w-4" />
-                                                        </button>
-                                                        <button onClick={() => handleDelete(worker.id)} className="text-gray-400 hover:text-red-600 transition-colors p-1" title="Padam">
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </button>
-                                                    </div>
-                                                </td>
-
-                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">
-                                                    <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${worker.peranan === 'Guru' ? 'bg-indigo-100 text-indigo-700' :
-                                                        worker.peranan === 'Petugas' ? 'bg-blue-100 text-blue-700' :
-                                                            worker.peranan === 'Koordinator' ? 'bg-purple-100 text-purple-700' :
-                                                                'bg-emerald-100 text-emerald-700'
-                                                        }`}>
-                                                        {worker.peranan}
-                                                    </span>
-                                                </td>
-                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[150px]">{worker.noKP || '-'}</td>
-                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">{worker.lokasi || '-'}</td>
-                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">{worker.negeri || '-'}</td>
-                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">
-                                                    {worker.kategoriElaun ? (
-                                                        <span className="inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap bg-yellow-100 text-yellow-800">
-                                                            {worker.kategoriElaun}
-                                                        </span>
-                                                    ) : '-'}
-                                                </td>
-                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">{worker.bank || '-'}</td>
-                                                <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[160px]">{worker.noAkaun || '-'}</td>
-                                            </tr>
                                         ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {paginatedWorkers.map((worker) => (
+                                        <tr key={worker.id} className="border-b border-gray-200 hover:bg-emerald-50 transition-colors">
+                                            <td className="sticky left-0 z-10 bg-emerald-50 py-1 px-2 shadow-[1px_0_0_0_#10b981] min-w-[200px] font-medium text-gray-900">
+                                                {worker.nama}
+                                            </td>
+                                            <td className="sticky left-[200px] z-10 bg-emerald-50 py-1 px-2 shadow-[1px_0_0_0_#10b981] min-w-[100px]">
+                                                <div className="flex items-center space-x-2">
+                                                    <button onClick={() => openModal(worker)} className="text-gray-400 hover:text-emerald-600 transition-colors p-1" title="Edit">
+                                                        <Edit2 className="h-4 w-4" />
+                                                    </button>
+                                                    <button onClick={() => handleDelete(worker.id)} className="text-gray-400 hover:text-red-600 transition-colors p-1" title="Padam">
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">
+                                                <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${worker.peranan === 'Guru' ? 'bg-indigo-100 text-indigo-700' :
+                                                    worker.peranan === 'Petugas' ? 'bg-blue-100 text-blue-700' :
+                                                        worker.peranan === 'Koordinator' ? 'bg-purple-100 text-purple-700' :
+                                                            'bg-emerald-100 text-emerald-700'
+                                                    }`}>
+                                                    {worker.peranan}
+                                                </span>
+                                            </td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[150px]">{worker.noKP || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">{worker.lokasi || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">{worker.negeri || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">
+                                                {worker.kategoriElaun ? (
+                                                    <span className="inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap bg-yellow-100 text-yellow-800">
+                                                        {worker.kategoriElaun}
+                                                    </span>
+                                                ) : '-'}
+                                            </td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">{worker.bank || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[160px]">{worker.noAkaun || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">{worker.staff_id || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[100px]">{worker.jantina || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">{worker.tarikh_daftar || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">{worker.tarikh_lahir || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">{worker.tel_bimbit || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[150px]">{worker.email || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[150px]">{worker.daerah_kediaman || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">{worker.negeri_kediaman || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[150px]">{worker.pekerjaan || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[600px]">{worker.kepakaran || '-'}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
 
                             {/* Pagination */}
                             {totalPages > 1 && (
@@ -540,7 +607,7 @@ export default function WorkersPage() {
                 {/* Modal (kept largely same style but ensured it works with new structure/imports) */}
                 {isModalOpen && (
                     <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-lg max-w-lg w-full p-6">
+                        <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-lg font-bold text-gray-900">
                                     {currentWorker ? 'Kemaskini Pekerja' : 'Tambah Pekerja Baru'}
@@ -657,6 +724,123 @@ export default function WorkersPage() {
                                             value={formData.noAkaun}
                                             onChange={(e) => setFormData({ ...formData, noAkaun: e.target.value })}
                                         />
+                                    </div>
+                                </div>
+
+                                {/* Sukarelawan / Additional Details Section */}
+                                <div className="pt-4 mt-6 border-t border-gray-200">
+                                    <h4 className="text-md font-semibold text-gray-800 mb-4">Maklumat Tambahan</h4>
+
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">ID Staf / Sukarelawan</label>
+                                            <input
+                                                type="text"
+                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                value={formData.staff_id}
+                                                onChange={(e) => setFormData({ ...formData, staff_id: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Tarikh Daftar</label>
+                                            <input
+                                                type="date"
+                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                value={formData.tarikh_daftar || ''}
+                                                onChange={(e) => setFormData({ ...formData, tarikh_daftar: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Jantina</label>
+                                            <select
+                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                value={formData.jantina}
+                                                onChange={(e) => setFormData({ ...formData, jantina: e.target.value })}
+                                            >
+                                                <option value="">-- Pilih Jantina --</option>
+                                                <option value="Lelaki">Lelaki</option>
+                                                <option value="Perempuan">Perempuan</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Tarikh Lahir</label>
+                                            <input
+                                                type="date"
+                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                value={formData.tarikh_lahir || ''}
+                                                onChange={(e) => setFormData({ ...formData, tarikh_lahir: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">No. Tel Bimbit</label>
+                                            <input
+                                                type="text"
+                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                value={formData.tel_bimbit}
+                                                onChange={(e) => setFormData({ ...formData, tel_bimbit: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Emel</label>
+                                            <input
+                                                type="email"
+                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                value={formData.email}
+                                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Daerah/Bandar Tempat Tinggal</label>
+                                            <input
+                                                type="text"
+                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                value={formData.daerah_kediaman}
+                                                onChange={(e) => setFormData({ ...formData, daerah_kediaman: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Negeri Tempat Tinggal</label>
+                                            <select
+                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                value={formData.negeri_kediaman}
+                                                onChange={(e) => setFormData({ ...formData, negeri_kediaman: e.target.value })}
+                                            >
+                                                <option value="">-- Pilih Negeri --</option>
+                                                {(states.length > 0 ? states : NEGERI_CAWANGAN_OPTIONS).map(negeri => (
+                                                    <option key={negeri} value={negeri}>{negeri}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Pekerjaan</label>
+                                            <input
+                                                type="text"
+                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                value={formData.pekerjaan}
+                                                onChange={(e) => setFormData({ ...formData, pekerjaan: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Kepakaran / Pengalaman</label>
+                                            <input
+                                                type="text"
+                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                value={formData.kepakaran}
+                                                onChange={(e) => setFormData({ ...formData, kepakaran: e.target.value })}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 

@@ -1,0 +1,11 @@
+-- Add new columns to 'workers' table for Sukarelawan data
+ALTER TABLE workers ADD COLUMN IF NOT EXISTS staff_id text;
+ALTER TABLE workers ADD COLUMN IF NOT EXISTS jantina text;
+ALTER TABLE workers ADD COLUMN IF NOT EXISTS tarikh_daftar date;
+ALTER TABLE workers ADD COLUMN IF NOT EXISTS daerah_kediaman text;
+ALTER TABLE workers ADD COLUMN IF NOT EXISTS negeri_kediaman text;
+ALTER TABLE workers ADD COLUMN IF NOT EXISTS tel_bimbit text;
+ALTER TABLE workers ADD COLUMN IF NOT EXISTS email text;
+ALTER TABLE workers ADD COLUMN IF NOT EXISTS pekerjaan text;
+ALTER TABLE workers ADD COLUMN IF NOT EXISTS kepakaran text;
+ALTER TABLE workers ADD COLUMN IF NOT EXISTS tarikh_lahir date;

@@ -5,78 +5,72 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
-import { Plus, Search, Filter, Activity, FileText, ArrowUp, ArrowDown, ArrowUpDown, Trash2, Loader2, RefreshCw, Download, Save, LayoutGrid } from 'lucide-react';
+import { Plus, Search, Filter, Activity, FileText, ArrowUp, ArrowDown, ArrowUpDown, Trash2, Loader2, RefreshCw, Download, Save, LayoutGrid, Check, X, Copy } from 'lucide-react';
 import Select from 'react-select';
 
+// Configuration for each Tab
 const TABS = [
     { id: 'kpi_utama', label: 'KPI Utama' },
-    { id: 'crs', label: 'CRS' },
-    { id: 'ikon_mualaf', label: 'Ikon Mualaf' },
-    { id: 'bantuan_perniagaan', label: 'Bantuan Perniagaan' },
-    { id: 'organisasi_nm', label: 'Organisasi NM' },
-    { id: 'madu_3', label: "Mad'u 3*" }
+    { id: 'pasukan_rh', label: 'Pasukan RH' },
+    { id: 'rh_aktif', label: 'RH Aktif' },
+    { id: 'ikram', label: 'IKRAM' },
+    { id: 'peserta_latihan', label: 'Peserta Latihan' }
 ];
 
+// Column Definitions for each Category
 const COLUMNS_MAP = {
     'kpi_utama': [
-        { id: 'jenis', label: 'Jenis', type: 'select-jenis', width: 'min-w-[150px]' },
-        { id: 'kpi', label: 'KPI', type: 'text', width: 'min-w-[250px]' },
-        { id: 'definisi', label: 'Definisi KPI', type: 'textarea', width: 'min-w-[300px]' },
+        { id: 'jenis', label: 'Jenis', type: 'select-jenis-rh', width: 'min-w-[150px]' },
+        { id: 'kpi', label: 'KPI', type: 'text', width: 'min-w-[200px]' },
+        { id: 'definisi', label: 'Definisi KPI', type: 'textarea', width: 'min-w-[400px]' },
         { id: 'sasaran', label: 'Sasaran 2026', type: 'number', width: 'min-w-[120px]' },
         { id: 'pencapaian', label: 'Pencapaian 2026', type: 'number', width: 'min-w-[120px]' }
     ],
-    'crs': [
-        { id: 'nama_organisasi', label: 'Nama Organisasi/Masjid/Surau', type: 'text', width: 'min-w-[200px]' },
-        { id: 'sokongan_mualaf', label: 'Sokongan Mualaf', type: 'checkbox', width: 'min-w-[120px]' },
-        { id: 'dakwah', label: 'Dakwah', type: 'checkbox', width: 'min-w-[120px]' },
+    'pasukan_rh': [
         { id: 'kawasan', label: 'Kawasan', type: 'select', width: 'min-w-[150px]' },
-        { id: 'kriteria_masjid', label: 'Kriteria Masjid/Surau', type: 'checkbox', width: 'min-w-[120px]' },
-        { id: 'kriteria_pertemuan', label: 'Pertemuan & Sesi Pengenalan', type: 'checkbox', width: 'min-w-[120px]' },
-        { id: 'kriteria_menyantuni', label: 'Sudah menyantuni mualaf', type: 'checkbox', width: 'min-w-[120px]' },
-        { id: 'kriteria_program', label: 'Sudah mengadakan program', type: 'checkbox', width: 'min-w-[120px]' },
-        { id: 'skor', label: 'Skor', type: 'number', width: 'min-w-[80px]' },
-        { id: 'contact_person', label: 'Contact Person', type: 'text', width: 'min-w-[150px]' },
-        { id: 'no_tel', label: 'No. Tel', type: 'text', width: 'min-w-[120px]' },
-        { id: 'catatan', label: 'Catatan', type: 'text', width: 'min-w-[200px]' }
+        { id: 'ajk_ketua', label: 'Struktur: Ketua', type: 'checkbox', width: 'min-w-[120px]' },
+        { id: 'ajk_su', label: 'Struktur: SU', type: 'checkbox', width: 'min-w-[120px]' },
+        { id: 'ajk_bendahari', label: 'Struktur: Bendahari', type: 'checkbox', width: 'min-w-[120px]' },
+        { id: 'ajk_lain', label: 'Struktur: AJK Lain', type: 'checkbox', width: 'min-w-[120px]' },
+        { id: 'prog_outreach', label: 'Prog: Outreach', type: 'number', width: 'min-w-[120px]' },
+        { id: 'prog_mualaf', label: 'Prog: Mualaf', type: 'number', width: 'min-w-[120px]' },
+        { id: 'prog_kebersamaan', label: 'Prog: Kebersamaan', type: 'number', width: 'min-w-[120px]' },
+        { id: 'skor', label: 'Skor (%)', type: 'text', width: 'min-w-[100px]' },
+        { id: 'status_aktif', label: 'Status Aktif', type: 'checkbox', width: 'min-w-[120px]' }
     ],
-    'ikon_mualaf': [
-        { id: 'id_mualaf', label: 'ID Mualaf', type: 'mualaf-search', width: 'min-w-[200px]' },
-        { id: 'nama_mualaf', label: 'Nama Mualaf', type: 'text', width: 'min-w-[200px]' },
-        { id: 'kriteria_tamat_asas', label: 'Tamat Tahap Asas', type: 'checkbox', width: 'min-w-[120px]' },
-        { id: 'kriteria_rh_aktif', label: 'RH Aktif', type: 'checkbox', width: 'min-w-[120px]' },
-        { id: 'kriteria_latihan_wajib', label: 'Ikuti Latihan Wajib', type: 'checkbox', width: 'min-w-[120px]' },
-        { id: 'kriteria_latihan_elektif', label: 'Ikuti Latihan Elektif', type: 'checkbox', width: 'min-w-[120px]' },
-        { id: 'skor', label: 'Skor', type: 'number', width: 'min-w-[80px]' },
-        { id: 'latihan_wajib_diikuti', label: 'Latihan Wajib Diikuti', type: 'text', width: 'min-w-[200px]' },
-        { id: 'catatan', label: 'Catatan', type: 'text', width: 'min-w-[200px]' }
-    ],
-    'bantuan_perniagaan': [
-        { id: 'id_mualaf', label: 'ID Mualaf', type: 'mualaf-search', width: 'min-w-[200px]' },
-        { id: 'nama_mualaf', label: 'Nama Mualaf', type: 'text', width: 'min-w-[200px]' },
+    'rh_aktif': [
+        { id: 'no_ahli', label: 'No. Ahli / S-ID', type: 'sukarelawan-search', width: 'min-w-[200px]' },
+        { id: 'nama', label: 'Nama', type: 'text', width: 'min-w-[200px]' },
+        { id: 'no_tel', label: 'No. Telefon', type: 'text', width: 'min-w-[120px]' },
         { id: 'kawasan', label: 'Kawasan', type: 'select', width: 'min-w-[150px]' },
-        { id: 'tarikh_bantuan', label: 'Tarikh Bantuan', type: 'date', width: 'min-w-[120px]' },
-        { id: 'bantuan_kewangan_spp', label: 'Kewangan (SPP)', type: 'checkbox', width: 'min-w-[120px]' },
-        { id: 'bantuan_tajaan', label: 'Dapatkan tajaan', type: 'checkbox', width: 'min-w-[120px]' },
-        { id: 'bantuan_kursus', label: 'Kursus', type: 'checkbox', width: 'min-w-[120px]' },
-        { id: 'bantuan_networking', label: 'Pemudahcara/Networking', type: 'checkbox', width: 'min-w-[120px]' },
-        { id: 'bantuan_coaching', label: 'Coaching', type: 'checkbox', width: 'min-w-[120px]' },
-        { id: 'jumlah_kewangan_hcf', label: 'Jumlah (HCF)', type: 'number', width: 'min-w-[120px]' },
-        { id: 'catatan', label: 'Catatan', type: 'text', width: 'min-w-[200px]' }
+        { id: 'jawatan', label: 'Jawatan', type: 'text', width: 'min-w-[150px]' },
+        { id: 'bil_outreach', label: 'Bil Prog Outreach', type: 'number', width: 'min-w-[120px]' },
+        { id: 'bil_hcf_lain', label: 'Bil Prog HCF Lain', type: 'number', width: 'min-w-[120px]' },
+        { id: 'mualaf', label: 'Mualaf', type: 'checkbox', width: 'min-w-[100px]' },
+        { id: 'catatan_1', label: 'Catatan (Nama Prog)', type: 'text', width: 'min-w-[200px]' },
+        { id: 'catatan_lain', label: 'Catatan (Lain-lain)', type: 'text', width: 'min-w-[200px]' }
     ],
-    'organisasi_nm': [
-        { id: 'nama_organisasi', label: 'Nama Organisasi', type: 'text', width: 'min-w-[200px]' },
-        { id: 'contact_person', label: 'Contact Person', type: 'text', width: 'min-w-[150px]' },
-        { id: 'no_tel', label: 'No. Tel', type: 'text', width: 'min-w-[120px]' },
-        { id: 'catatan', label: 'Catatan', type: 'text', width: 'min-w-[200px]' }
+    'ikram': [
+        { id: 'kawasan_ikram', label: 'Kawasan IKRAM', type: 'select', width: 'min-w-[150px]' },
+        { id: 'kriteria_jkd', label: 'Kriteria JKD', type: 'checkbox', width: 'min-w-[120px]' },
+        { id: 'kriteria_program', label: 'Program', type: 'checkbox', width: 'min-w-[120px]' },
+        { id: 'kriteria_dana_staf', label: 'Dana (Taja Staf)', type: 'checkbox', width: 'min-w-[120px]' },
+        { id: 'kriteria_dana_tahunan', label: 'Dana (Tahunan/Bulanan)', type: 'checkbox', width: 'min-w-[120px]' },
+        { id: 'kriteria_fasiliti', label: 'Fasiliti Tanpa Sewa', type: 'checkbox', width: 'min-w-[120px]' },
+        { id: 'skor', label: 'Skor (%)', type: 'text', width: 'min-w-[100px]' }
     ],
-    'madu_3': [
-        { id: 'id_mualaf', label: 'ID Mualaf', type: 'mualaf-search', width: 'min-w-[200px]' },
-        { id: 'nama_mualaf', label: 'Nama Mualaf', type: 'text', width: 'min-w-[200px]' },
-        { id: 'agama', label: 'Agama', type: 'select-agama', width: 'min-w-[150px]' },
-        { id: 'bangsa', label: 'Bangsa', type: 'select-bangsa', width: 'min-w-[150px]' },
-        { id: 'no_tel_madu', label: 'No Tel Mad\'u', type: 'text', width: 'min-w-[120px]' },
-        { id: 'nama_daie', label: 'Nama Daie', type: 'text', width: 'min-w-[200px]' },
-        { id: 'no_tel_daie', label: 'No Tel Daie', type: 'text', width: 'min-w-[120px]' },
+    'peserta_latihan': [
+        { id: 'nama_program', label: 'Nama Program', type: 'text', width: 'min-w-[200px]' },
+        { id: 'tarikh', label: 'Tarikh', type: 'date', width: 'min-w-[120px]' },
+        { id: 'tempat', label: 'Tempat', type: 'text', width: 'min-w-[200px]' },
+        { id: 'kawasan_anjuran', label: 'Kawasan/Cawangan', type: 'select', width: 'min-w-[150px]' },
+        { id: 'jenis_program', label: 'Jenis Program', type: 'text', width: 'min-w-[150px]' },
+        { id: 'kategori_utama', label: 'Kategori Utama', type: 'text', width: 'min-w-[150px]' },
+        { id: 'kategori_sub', label: 'Kategori Sub', type: 'text', width: 'min-w-[150px]' },
+        { id: 'anjuran', label: 'Anjuran', type: 'text', width: 'min-w-[150px]' },
+        { id: 'nama_peserta', label: 'Nama Peserta', type: 'text', width: 'min-w-[200px]' },
+        { id: 'no_ic', label: 'No IC', type: 'text', width: 'min-w-[150px]' },
+        { id: 'no_tel', label: 'No Tel', type: 'text', width: 'min-w-[120px]' },
         { id: 'catatan', label: 'Catatan', type: 'text', width: 'min-w-[200px]' }
     ]
 };
@@ -101,7 +95,7 @@ const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
     </div>
 );
 
-export default function OtherKPIPage() {
+export default function RakanHidayahKPIPage() {
     const { role } = useAuth();
     const [activeTab, setActiveTab] = useState(TABS[0].id);
     const [kpiData, setKpiData] = useState([]);
@@ -120,12 +114,16 @@ export default function OtherKPIPage() {
     // Mualaf lookup data
     const [mualafList, setMualafList] = useState([]);
 
+    // Sukarelawan lookup data
+    const [sukarelawanList, setSukarelawanList] = useState([]);
+
     // Background lookup data
     const [religions, setReligions] = useState([]);
     const [races, setRaces] = useState([]);
     const [isSpreadsheetMode, setIsSpreadsheetMode] = useState(false);
     const [pendingChanges, setPendingChanges] = useState({});
     const [saving, setSaving] = useState(false);
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
     const observerTarget = useRef(null);
     const INCREMENT = 50;
 
@@ -140,23 +138,10 @@ export default function OtherKPIPage() {
                 if (statesRes) setStates(statesRes);
             }
 
-            // Load mualaf and lookup data for dropdown if needed
-            if (activeTab === 'ikon_mualaf' || activeTab === 'bantuan_perniagaan' || activeTab === 'madu_3') {
-                if (mualafList.length === 0) {
-                    const { data: mdata } = await supabase.from('mualaf').select('noStaf, namaIslam, namaAsal');
-                    if (mdata) setMualafList(mdata);
-                }
-            }
-
-            if (activeTab === 'madu_3') {
-                if (religions.length === 0) {
-                    const { data: rdata } = await supabase.from('religions').select('name').order('name');
-                    if (rdata) setReligions(rdata.map(r => r.name));
-                }
-                if (races.length === 0) {
-                    const { data: radata } = await supabase.from('races').select('name').order('name');
-                    if (radata) setRaces(radata.map(r => r.name));
-                }
+            // Load Sukarelawan data once
+            if (sukarelawanList.length === 0) {
+                const { data: volRes } = await supabase.from('workers').select('staff_id, nama').eq('peranan', 'Sukarelawan').order('nama');
+                if (volRes) setSukarelawanList(volRes.map(v => ({ noStaf: v.staff_id, nama: v.nama })));
             }
 
             let query = supabase.from('other_kpis').select('*').eq('category', activeTab);
@@ -202,14 +187,15 @@ export default function OtherKPIPage() {
         setIsSpreadsheetMode(false);
     };
 
-    const handleDelete = async (id) => {
-        if (confirm('Adakah anda pasti ingin memadam rekod ini?')) {
-            const { error } = await supabase.from('other_kpis').delete().eq('id', id);
-            if (!error) {
-                setKpiData(prev => prev.filter(p => p.id !== id));
-            } else {
-                alert('Ralat memadam rekod: ' + error.message);
-            }
+    const executeDelete = async (id) => {
+        setDeleteConfirmId(null);
+        const { data, error } = await supabase.from('other_kpis').delete().eq('id', id).select();
+        if (error) {
+            alert('Ralat memadam rekod: ' + error.message);
+        } else if (!data || data.length === 0) {
+            alert('Ralat: Tiada kebenaran untuk memadam rekod ini (RLS policy block) atau rekod gagal dijumpai.');
+        } else {
+            setKpiData(prev => prev.filter(p => p.id !== id));
         }
     };
 
@@ -238,6 +224,59 @@ export default function OtherKPIPage() {
             }
         } catch (error) {
             alert('Ralat menambah rekod: ' + error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDuplicateRow = async (row) => {
+        setLoading(true);
+        try {
+            const baseData = { ...row };
+            delete baseData.id;
+            delete baseData.year;
+            delete baseData.state;
+            delete baseData.createdAt;
+
+            // Optional: For 'peserta_latihan', clear out the participant specific info so it's ready for a new person
+            if (activeTab === 'peserta_latihan') {
+                baseData.nama_peserta = '';
+                baseData.no_ic = '';
+                baseData.no_tel = '';
+            }
+
+            const newRecord = {
+                category: activeTab,
+                year: row.year || selectedYear || new Date().getFullYear(),
+                state: row.state || selectedState || 'Semua',
+                data: baseData
+            };
+
+            const { data, error } = await supabase.from('other_kpis').insert([newRecord]).select();
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                const inserted = data[0];
+                setKpiData(prev => [{
+                    id: inserted.id,
+                    year: inserted.year,
+                    state: inserted.state,
+                    createdAt: inserted.createdAt,
+                    ...inserted.data
+                }, ...prev]);
+                setIsSpreadsheetMode(true); // Automatically enter edit mode
+
+                // If we are already in edit mode, initialize the pending changes for this new row
+                // so the user sees the cleared fields immediately (since they might have had unsaved state)
+                if (isSpreadsheetMode) {
+                    setPendingChanges(prevChanges => ({
+                        ...prevChanges,
+                        [inserted.id]: { ...baseData }
+                    }));
+                }
+            }
+        } catch (error) {
+            alert('Ralat menyalin rekod: ' + error.message);
         } finally {
             setLoading(false);
         }
@@ -447,7 +486,7 @@ export default function OtherKPIPage() {
                 <div className="w-full mx-auto px-2 sm:px-4 py-2">
                     <div className="mb-2">
                         <div className="flex justify-between items-center mb-4">
-                            <h1 className="text-2xl font-bold text-gray-900">KPI Mualaf & Outreach</h1>
+                            <h1 className="text-2xl font-bold text-gray-900">KPI Rakan Hidayah & Latihan Daie</h1>
                         </div>
 
                         {/* TABS */}
@@ -662,10 +701,29 @@ export default function OtherKPIPage() {
                                         <tr key={row.id} className="border-b border-gray-200 hover:bg-emerald-50 transition-colors">
                                             <td className="sticky left-0 z-10 bg-emerald-50 py-1 px-2 shadow-[1px_0_0_0_#10b981] min-w-[60px]">
                                                 <div className="flex items-center justify-start gap-1">
-                                                    {(role === 'admin' || role === 'editor') && (
-                                                        <button onClick={() => handleDelete(row.id)} className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors" title="Padam">
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </button>
+                                                    {deleteConfirmId === row.id ? (
+                                                        <div className="flex flex-col gap-1 items-start">
+                                                            <span className="text-[9px] font-bold text-red-600 leading-tight">Padam?</span>
+                                                            <div className="flex gap-1">
+                                                                <button onClick={() => executeDelete(row.id)} className="bg-red-600 text-white p-1 rounded shadow-sm hover:bg-red-700" title="Ya">
+                                                                    <Check className="h-3 w-3" />
+                                                                </button>
+                                                                <button onClick={() => setDeleteConfirmId(null)} className="bg-slate-200 text-slate-700 p-1 rounded shadow-sm hover:bg-slate-300" title="Batal">
+                                                                    <X className="h-3 w-3" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        (role === 'admin' || role === 'editor') && (
+                                                            <>
+                                                                <button onClick={() => handleDuplicateRow(row)} className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors" title="Salin (Duplicate) Rekod">
+                                                                    <Copy className="h-4 w-4" />
+                                                                </button>
+                                                                <button onClick={() => setDeleteConfirmId(row.id)} className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors" title="Padam">
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </button>
+                                                            </>
+                                                        )
                                                     )}
                                                 </div>
                                             </td>
@@ -721,7 +779,7 @@ export default function OtherKPIPage() {
                                                         );
                                                     }
 
-                                                    if (col.type === 'select' && col.id === 'kawasan') {
+                                                    if (col.type === 'select' && (col.id === 'kawasan' || col.id === 'kawasan_ikram' || col.id === 'kawasan_anjuran')) {
                                                         // Look up the state of the current row based on row.state
                                                         const rowStateName = pendingChanges[row.id]?.['state'] !== undefined ? pendingChanges[row.id].state : (row.state || '');
                                                         const stateObj = states.find(s => s.name === rowStateName);
@@ -749,7 +807,7 @@ export default function OtherKPIPage() {
                                                         );
                                                     }
 
-                                                    if (col.type === 'select-agama' || col.type === 'select-bangsa' || col.type === 'select-jenis') {
+                                                    if (col.type === 'select-agama' || col.type === 'select-bangsa' || col.type === 'select-jenis-rh') {
                                                         let dropdownOptions = [];
                                                         let placeholder = '';
 
@@ -759,8 +817,8 @@ export default function OtherKPIPage() {
                                                         } else if (col.type === 'select-bangsa') {
                                                             dropdownOptions = races;
                                                             placeholder = 'Pilih Bangsa';
-                                                        } else if (col.type === 'select-jenis') {
-                                                            dropdownOptions = ['Mualaf', 'Outreach'];
+                                                        } else if (col.type === 'select-jenis-rh') {
+                                                            dropdownOptions = ["DU'AT", "Sukarelawan"];
                                                             placeholder = 'Pilih Jenis';
                                                         }
 
@@ -852,6 +910,72 @@ export default function OtherKPIPage() {
                                                         );
                                                     }
 
+                                                    if (col.type === 'sukarelawan-search') {
+                                                        const sukaOptions = sukarelawanList.map(s => ({
+                                                            value: s.noStaf || s.nama, // Fallback to name if ID is missing
+                                                            label: s.noStaf ? `${s.noStaf} - ${s.nama}` : s.nama,
+                                                            nama: s.nama
+                                                        }));
+
+                                                        const selectedOption = sukaOptions.find(opt => opt.value === rawValue) || null;
+
+                                                        return (
+                                                            <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'} align-top`}>
+                                                                {isSpreadsheetMode ? (
+                                                                    <div className="min-w-[180px]">
+                                                                        <Select
+                                                                            options={sukaOptions}
+                                                                            value={selectedOption}
+                                                                            onChange={(selected) => {
+                                                                                handleCellChange(row.id, col.id, selected ? selected.value : '');
+                                                                                if (selected) {
+                                                                                    // Auto-fill nama
+                                                                                    handleCellChange(row.id, 'nama', selected.nama);
+                                                                                }
+                                                                            }}
+                                                                            placeholder="Cari ID / Nama..."
+                                                                            isClearable
+                                                                            formatOptionLabel={(option, { context }) => (
+                                                                                <div className={context === 'menu' ? 'text-[9px]' : 'text-[10px]'}>
+                                                                                    {context === 'menu' ? option.label : option.value}
+                                                                                </div>
+                                                                            )}
+                                                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                                                            menuPosition="fixed"
+                                                                            className="text-[10px]"
+                                                                            styles={{
+                                                                                menuPortal: base => ({ ...base, zIndex: 9999 }),
+                                                                                control: (base) => ({
+                                                                                    ...base,
+                                                                                    minHeight: '26px',
+                                                                                    height: '26px',
+                                                                                    fontSize: '10px'
+                                                                                }),
+                                                                                valueContainer: (base) => ({
+                                                                                    ...base,
+                                                                                    padding: '0 4px',
+                                                                                }),
+                                                                                input: (base) => ({
+                                                                                    ...base,
+                                                                                    margin: 0,
+                                                                                    padding: 0
+                                                                                }),
+                                                                                indicatorsContainer: (base) => ({
+                                                                                    ...base,
+                                                                                    height: '26px'
+                                                                                })
+                                                                            }}
+                                                                        />
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="truncate max-w-[200px]" title={rawValue}>
+                                                                        {rawValue || '-'}
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                        );
+                                                    }
+
                                                     if (col.type === 'number') {
                                                         return (
                                                             <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'}`}>
@@ -877,15 +1001,27 @@ export default function OtherKPIPage() {
                                                         );
                                                     }
 
-                                                    if (col.id === 'nama_mualaf') {
+                                                    if (col.id === 'nama_mualaf' || (col.id === 'nama' && activeTab === 'rh_aktif')) {
                                                         return (
                                                             <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-slate-50'}`}>
                                                                 <input
                                                                     type="text"
                                                                     value={rawValue || ''}
                                                                     readOnly
-                                                                    className="w-full bg-slate-100 border border-slate-200 rounded px-1 py-0.5 text-[10px] text-slate-500 cursor-not-allowed cursor-not-allowed"
+                                                                    className="w-full bg-slate-100 border border-slate-200 rounded px-1 py-0.5 text-[10px] text-slate-500 cursor-not-allowed"
                                                                     title="Diisi secara automatik"
+                                                                />
+                                                            </td>
+                                                        );
+                                                    }
+
+                                                    if (col.type === 'textarea') {
+                                                        return (
+                                                            <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'}`}>
+                                                                <textarea
+                                                                    value={rawValue || ''}
+                                                                    onChange={(e) => handleCellChange(row.id, col.id, e.target.value)}
+                                                                    className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px] min-h-[60px]"
                                                                 />
                                                             </td>
                                                         );
@@ -908,9 +1044,16 @@ export default function OtherKPIPage() {
                                                 if (col.type === 'checkbox') {
                                                     return (
                                                         <td key={col.id} className="py-1 px-2 border-r border-gray-200 text-center">
-                                                            {rawValue ? 'Ya' : '-'}
+                                                            {rawValue ? <Check className="h-4 w-4 text-emerald-600 mx-auto" /> : '-'}
                                                         </td>
                                                     )
+                                                }
+                                                if (col.type === 'textarea') {
+                                                    return (
+                                                        <td key={col.id} className="py-1 px-2 border-r border-gray-200 whitespace-pre-wrap">
+                                                            {rawValue}
+                                                        </td>
+                                                    );
                                                 }
                                                 return (
                                                     <td key={col.id} className="py-1 px-2 border-r border-gray-200">
