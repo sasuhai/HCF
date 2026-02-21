@@ -737,3 +737,42 @@ export const deleteLookupItem = async (table, id) => {
 export const getClassLevels = () => getLookupData('class_levels');
 export const getClassTypes = () => getLookupData('class_types');
 export const getLocationsTable = () => getLookupData('locations');
+
+// SCOREBOARD KPI FETCHERS
+export const getScoreboardStats = async (year, month = null) => {
+    try {
+        // 1. Fetch KPI Targets & Achievements from other_kpis
+        let kpiQuery = supabase.from('other_kpis').select('*').eq('year', year);
+        if (month) {
+            kpiQuery = kpiQuery.eq('month', month);
+        }
+        const { data: kpiRawData, error: kpiError } = await kpiQuery;
+        if (kpiError) throw kpiError;
+
+        // Flatten the data for the frontend
+        const kpiData = kpiRawData.map(item => ({
+            id: item.id,
+            jenis: item.category, // Mapping 'category' to 'jenis'
+            kpi_name: item.data?.kpi || item.data?.nama_kpi || 'Unknown Metric',
+            sasaran: item.data?.sasaran || 0,
+            pencapaian: item.data?.pencapaian || 0,
+            month: item.month,
+            year: item.year
+        }));
+
+        // 2. Fetch Mualaf (Live Data) for live metrics if needed
+        // For now, we'll return the flattened kpiData
+        const stats = {
+            mualaf: kpiData.filter(d => d.jenis === 'MUALAF'),
+            outreach: kpiData.filter(d => d.jenis === 'OUTREACH'),
+            duat: kpiData.filter(d => d.jenis === 'DU\'AT'),
+            sukarelawan: kpiData.filter(d => d.jenis === 'Sukarelawan'),
+            rawKpi: kpiData
+        };
+
+        return { data: stats, error: null };
+    } catch (error) {
+        console.error("Error fetching scoreboard stats:", error);
+        return { data: null, error: error.message };
+    }
+};

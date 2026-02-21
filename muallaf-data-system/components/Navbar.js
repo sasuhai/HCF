@@ -111,6 +111,9 @@ export default function Navbar() {
                                         <Link href="/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
                                             <BarChart2 className="w-4 h-4 mr-2 text-indigo-500" /> Dashboard Utama
                                         </Link>
+                                        <Link href="/dashboard/scoreboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                                            <Activity className="w-4 h-4 mr-2 text-emerald-500" /> Scoreboard KPI
+                                        </Link>
                                         <Link href="/map-intelligence" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
                                             <MapPin className="w-4 h-4 mr-2 text-rose-500" /> Peta Taburan
                                         </Link>
@@ -192,6 +195,7 @@ export default function Navbar() {
 
                         <div className="pl-3 pr-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-2">Analisis & Tetapan</div>
                         <Link href="/dashboard" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Dashboard Utama</Link>
+                        <Link href="/dashboard/scoreboard" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Scoreboard KPI</Link>
                         <Link href="/map-intelligence" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Peta Taburan</Link>
                         <Link href="/mualaf/dashboard" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Analisis & Laporan</Link>
 
