@@ -22,6 +22,7 @@ import {
 } from '@/lib/constants';
 import { Save, RotateCcw, CheckCircle, AlertCircle, Zap, Upload } from 'lucide-react';
 import { processSubmissionFiles } from '@/lib/supabase/storage';
+import { calculateKPI } from '@/lib/utils/kpi';
 
 export default function BorangPage() {
     const { markAsDirty } = useData();
@@ -107,6 +108,11 @@ export default function BorangPage() {
                 ...data,
                 ...processedFiles  // Add Base64 file data directly to document
             };
+
+            // Calculate KPI metrics
+            if (submissionData.pengislamanKPI) {
+                submissionData.pengislamanKPI = calculateKPI(submissionData, submissionData.pengislamanKPI);
+            }
 
             // Sanitize numeric fields - Convert empty strings to null or number
             const numericFields = ['umur', 'pendapatanBulanan', 'tanggungan'];
@@ -786,6 +792,53 @@ export default function BorangPage() {
                             </div>
                         </div>
 
+                        {/* Section: Maklumat Susulan & KPI */}
+                        <div className="border-b pb-6">
+                            <h2 className="text-xl font-semibold text-gray-900 mb-4">Maklumat Susulan & KPI</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-emerald-50/30 p-4 rounded-xl border border-emerald-100/50">
+                                <div className="md:col-span-2">
+                                    <label className="form-label">Kawasan (AX)</label>
+                                    <input
+                                        type="text"
+                                        {...register('pengislamanKPI.kawasan')}
+                                        className="form-input"
+                                        placeholder="Zon / Kawasan"
+                                    />
+                                </div>
+
+                                <div className="md:col-span-2 space-y-3">
+                                    <label className="form-label mb-2">Senarai Semak Follow-up</label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
+                                        <KPICheckbox label="Hubungi dlm tempoh 48 jam (BA)" name="pengislamanKPI.hubungi48j" register={register} />
+                                        <KPICheckbox label="Daftar dlm tempoh 2 minggu (BB)" name="pengislamanKPI.daftar2m" register={register} />
+                                        <KPICheckbox label="Atur kelas dlm 1 bulan (BC)" name="pengislamanKPI.kelas1b" register={register} />
+                                        <KPICheckbox label="Masuk Group WhatsApp (BD)" name="pengislamanKPI.whatsappGroup" register={register} />
+                                        <KPICheckbox label="Ziarah dlm 3 bulan (BE)" name="pengislamanKPI.ziarah3b" register={register} />
+                                        <KPICheckbox label="Hubung RH/CRS dlm 1 bulan (BF)" name="pengislamanKPI.hubungRH1b" register={register} />
+                                    </div>
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="form-label">Usaha dakwah oleh Duat Aktif (BH)</label>
+                                    <textarea
+                                        {...register('pengislamanKPI.usahaDakwah')}
+                                        className="form-input"
+                                        rows="2"
+                                        placeholder="Sebutkan usaha dakwah yang telah dilakukan"
+                                    ></textarea>
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="form-label">Catatan KPI (BI)</label>
+                                    <textarea
+                                        {...register('pengislamanKPI.catatanKPI')}
+                                        className="form-input"
+                                        rows="2"
+                                    ></textarea>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Section 6: Lampiran & Gambar */}
                         <div className="border-b pb-6">
                             <h2 className="text-xl font-semibold text-gray-900 mb-4">Lampiran & Gambar</h2>
@@ -886,5 +939,20 @@ export default function BorangPage() {
                 </div>
             </div>
         </ProtectedRoute>
+    );
+}
+
+function KPICheckbox({ label, name, register }) {
+    return (
+        <label className="flex items-center space-x-3 cursor-pointer group">
+            <input
+                type="checkbox"
+                {...register(name)}
+                className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 transition-colors"
+            />
+            <span className="text-xs text-gray-700 group-hover:text-emerald-700 transition-colors uppercase font-medium">
+                {label}
+            </span>
+        </label>
     );
 }

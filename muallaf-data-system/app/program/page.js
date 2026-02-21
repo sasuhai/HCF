@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase/client';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import Link from 'next/link';
-import { Plus, Search, Filter, Activity, FileText, ArrowUp, ArrowDown, ArrowUpDown, Eye, Edit, Trash2, Loader2, RefreshCw, Download, Check, Square, Save, X, LayoutGrid } from 'lucide-react';
+import { Plus, Search, Filter, Activity, FileText, ArrowUp, ArrowDown, ArrowUpDown, Eye, Edit, Trash2, Loader2, RefreshCw, Download, Check, Square, Save, X, LayoutGrid, ExternalLink } from 'lucide-react';
 import Select from 'react-select';
 
 const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
@@ -820,6 +820,19 @@ export default function ProgramPage() {
                                                                 );
                                                             }) : '-'}
                                                         </div>
+                                                    );
+                                                } else if (typeof displayValue === 'string' && (displayValue.startsWith('http') || displayValue.startsWith('www.'))) {
+                                                    const url = displayValue.startsWith('www.') ? `https://${displayValue}` : displayValue;
+                                                    displayValue = (
+                                                        <a
+                                                            href={url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-emerald-600 hover:text-emerald-700 hover:underline flex items-center"
+                                                        >
+                                                            <ExternalLink className="w-3 h-3 mr-1" />
+                                                            <span className="truncate max-w-[150px]">{displayValue}</span>
+                                                        </a>
                                                     );
                                                 }
 

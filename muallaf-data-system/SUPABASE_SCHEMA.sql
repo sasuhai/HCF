@@ -79,6 +79,7 @@ create table "submissions" (
   "status" text default 'active',
   "catatan" text,
   "catatanAudit" text,
+  "pengislamanKPI" jsonb default '{}'::jsonb,
   "createdAt" timestamptz default now(),
   "createdBy" uuid, -- references auth.users(id)
   "updatedAt" timestamptz default now(),

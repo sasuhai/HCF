@@ -56,6 +56,12 @@ export default function Navbar() {
                                         <Link href="/borang" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
                                             <FileText className="w-4 h-4 mr-2" /> Borang Baru
                                         </Link>
+                                        <Link href="/pengislaman-kpi" className="block px-4 py-2 text-sm text-emerald-600 hover:bg-emerald-50 flex items-center border-t border-gray-50">
+                                            <Activity className="w-4 h-4 mr-2" /> KPI Pengislaman
+                                        </Link>
+                                        <Link href="/otherKPI" className="block px-4 py-2 text-sm text-emerald-600 hover:bg-emerald-50 flex items-center border-t border-gray-50">
+                                            <Activity className="w-4 h-4 mr-2" /> KPI Tambahan
+                                        </Link>
                                     </div>
                                 </div>
                             </div>
@@ -179,6 +185,8 @@ export default function Navbar() {
                         <div className="pl-3 pr-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Data Mualaf</div>
                         <Link href="/senarai" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Senarai Rekod</Link>
                         <Link href="/borang" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Borang Baru</Link>
+                        <Link href="/pengislaman-kpi" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>KPI Pengislaman</Link>
+                        <Link href="/otherKPI" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>KPI Tambahan</Link>
 
                         <div className="pl-3 pr-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">KBM</div>
                         <Link href="/kehadiran" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Rekod Kehadiran</Link>

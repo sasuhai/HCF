@@ -7,7 +7,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSubmission, deleteSubmission } from '@/lib/supabase/database';
-import { ArrowLeft, Edit, Trash2, User, Calendar, MapPin, Phone, Mail, Briefcase } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, User, Calendar, MapPin, Phone, Mail, Briefcase, Activity, CheckCircle, XCircle } from 'lucide-react';
 
 function RekodDetailContent() {
     const searchParams = useSearchParams();
@@ -81,9 +81,9 @@ function RekodDetailContent() {
                     <div className="max-w-4xl mx-auto px-4 py-8">
                         <div className="card text-center py-12">
                             <p className="text-gray-500 text-lg">Rekod tidak dijumpai</p>
-                            <Link href="/senarai" className="btn-primary inline-block mt-4">
-                                Kembali ke Senarai
-                            </Link>
+                            <button onClick={() => router.back()} className="btn-primary inline-block mt-4">
+                                Kembali
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -99,10 +99,13 @@ function RekodDetailContent() {
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                     {/* Header with Actions */}
                     <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <Link href="/senarai" className="flex items-center text-emerald-600 hover:text-emerald-700">
+                        <button
+                            onClick={() => router.back()}
+                            className="flex items-center text-emerald-600 hover:text-emerald-700 font-semibold"
+                        >
                             <ArrowLeft className="h-5 w-5 mr-2" />
                             <span>Kembali</span>
-                        </Link>
+                        </button>
 
                         <div className="flex items-center space-x-3">
                             <button
@@ -237,6 +240,70 @@ function RekodDetailContent() {
                                                 <DetailItem label="No KP Saksi 2" value={submission.noKPSaksi2 || '-'} />
                                                 <DetailItem label="No Tel Saksi 2" value={submission.noTelSaksi2 || '-'} />
                                             </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Section: Maklumat Susulan & KPI */}
+                        {submission.pengislamanKPI && (
+                            <div className="mb-10 group">
+                                <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center border-l-4 border-emerald-600 pl-3">
+                                    <Activity className="h-5 w-5 mr-2 text-emerald-600" />
+                                    Maklumat Susulan & KPI
+                                </h2>
+                                <div className="space-y-6">
+                                    {/* Metrics Summary Card */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                                        <KPIMetricCard
+                                            label="Skor KPI"
+                                            value={`${submission.pengislamanKPI?.metrics?.followUpScore?.toFixed(0) || 0}%`}
+                                            subValue="Keseluruhan"
+                                            color="emerald"
+                                        />
+                                        <KPIMetricCard
+                                            label="Status"
+                                            value={submission.pengislamanKPI?.metrics?.overallStatus || 'Belum Disusuli'}
+                                            subValue="Follow-up"
+                                            color={submission.pengislamanKPI?.metrics?.followUpScore === 100 ? 'emerald' : 'amber'}
+                                        />
+                                        <KPIMetricCard
+                                            label="Key-in 7 Hari"
+                                            value={submission.pengislamanKPI?.metrics?.isKeyInOnTime ? 'PATUH' : 'LEWAT'}
+                                            subValue={`${submission.pengislamanKPI?.metrics?.daysTakenToKeyIn || 0} Hari Diambil`}
+                                            color={submission.pengislamanKPI?.metrics?.isKeyInOnTime ? 'emerald' : 'red'}
+                                        />
+                                        <KPIMetricCard
+                                            label="Kawasan"
+                                            value={submission.pengislamanKPI?.kawasan || '-'}
+                                            subValue="Zon Cakupan"
+                                            color="blue"
+                                        />
+                                    </div>
+
+                                    {/* Follow-up Details */}
+                                    <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+                                        <h3 className="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wider">Senarai Semak Follow-up</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+                                            <KPICheckItem label="Hubungi dlm tempoh 48 jam" checked={submission.pengislamanKPI?.hubungi48j} />
+                                            <KPICheckItem label="Daftar Pengislaman dlm tempoh 2 minggu" checked={submission.pengislamanKPI?.daftar2m} />
+                                            <KPICheckItem label="Usaha aturkan kelas dalam tempoh 1 bulan" checked={submission.pengislamanKPI?.kelas1b} />
+                                            <KPICheckItem label="Mualaf dimasukkan ke group whatsapp" checked={submission.pengislamanKPI?.whatsappGroup} />
+                                            <KPICheckItem label="Ziarah dalam tempoh 3 bulan" checked={submission.pengislamanKPI?.ziarah3b} />
+                                            <KPICheckItem label="Dihubungkan dgn RH/CRS dlm tempoh 1 bulan" checked={submission.pengislamanKPI?.hubungRH1b} />
+                                        </div>
+                                    </div>
+
+                                    {/* Additional info */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+                                            <h3 className="text-sm font-bold text-gray-800 mb-2 uppercase tracking-wider">Usaha Dakwah Duat</h3>
+                                            <p className="text-gray-700 text-sm whitespace-pre-wrap">{submission.pengislamanKPI?.usahaDakwah || 'Tiada maklumat.'}</p>
+                                        </div>
+                                        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+                                            <h3 className="text-sm font-bold text-gray-800 mb-2 uppercase tracking-wider">Catatan KPI</h3>
+                                            <p className="text-gray-700 text-sm whitespace-pre-wrap">{submission.pengislamanKPI?.catatanKPI || 'Tiada catatan.'}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -429,5 +496,48 @@ export default function RekodDetailPage() {
         <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center pt-16">Loading...</div>}>
             <RekodDetailContent />
         </Suspense>
+    );
+}
+
+function KPIMetricCard({ label, value, subValue, color }) {
+    const colorClasses = {
+        emerald: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+        amber: 'bg-amber-50 text-amber-700 border-amber-100',
+        red: 'bg-red-50 text-red-700 border-red-100',
+        blue: 'bg-blue-50 text-blue-700 border-blue-100'
+    };
+
+    const valueColors = {
+        emerald: 'text-emerald-700',
+        amber: 'text-amber-700',
+        red: 'text-red-700',
+        blue: 'text-blue-700'
+    };
+
+    return (
+        <div className={`p-4 rounded-xl border ${colorClasses[color]} shadow-sm`}>
+            <p className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-1">{label}</p>
+            <p className={`text-xl font-black ${valueColors[color]}`}>{value}</p>
+            <p className="text-[10px] font-medium opacity-60 mt-1">{subValue}</p>
+        </div>
+    );
+}
+
+function KPICheckItem({ label, checked }) {
+    return (
+        <div className="flex items-center justify-between py-1 px-2 border-b border-gray-50 last:border-0 hover:bg-gray-50 rounded transition-colors">
+            <span className="text-xs text-gray-700">{label}</span>
+            {checked ? (
+                <div className="flex items-center text-emerald-600">
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    <span className="text-[10px] font-bold">YES</span>
+                </div>
+            ) : (
+                <div className="flex items-center text-gray-400">
+                    <XCircle className="h-4 w-4 mr-1" />
+                    <span className="text-[10px] font-bold uppercase">NO / NA</span>
+                </div>
+            )}
+        </div>
     );
 }

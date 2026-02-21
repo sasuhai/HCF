@@ -31,7 +31,8 @@ import {
     Landmark,
     Users,
     Search,
-    Activity
+    Activity,
+    ChevronDown
 } from 'lucide-react';
 
 const TABS = [
@@ -45,7 +46,7 @@ const TABS = [
     { id: 'program_status', name: 'Status Program', icon: Activity, table: 'program_status' },
     { id: 'program_categories', name: 'Kategori Program', icon: Layers, table: 'program_categories' },
     { id: 'program_organizers', name: 'Anjuran', icon: Users, table: 'program_organizers' },
-    { id: 'program_types', name: 'Jenis Program (Sub)', icon: Layers, table: 'program_types' },
+    { id: 'program_types', name: 'Jenis Program', icon: Layers, table: 'program_types' },
 ];
 
 export default function MetadataManagementPage() {
@@ -57,6 +58,7 @@ export default function MetadataManagementPage() {
     const [actionLoading, setActionLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
     const [searchTerm, setSearchTerm] = useState('');
+    const [isProgramsOpen, setIsProgramsOpen] = useState(true);
 
     // Modal/Edit state
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -189,13 +191,17 @@ export default function MetadataManagementPage() {
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                         {/* Sidebar Navigation */}
                         <div className="lg:col-span-1 space-y-2">
-                            {TABS.map((tab) => {
+                            {TABS.filter(t => !['program_status', 'program_categories', 'program_organizers', 'program_types'].includes(t.id)).map((tab) => {
                                 const Icon = tab.icon;
                                 const isActive = activeTab.id === tab.id;
                                 return (
                                     <button
                                         key={tab.id}
-                                        onClick={() => setActiveTab(tab)}
+                                        onClick={() => {
+                                            setActiveTab(tab);
+                                            // Optional: close programs when switching to other tabs?
+                                            // No, keep it open if user wants.
+                                        }}
                                         className={`w-full flex items-center justify-between p-4 rounded-xl transition-all ${isActive
                                             ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200'
                                             : 'bg-white text-gray-600 hover:bg-emerald-50 hover:text-emerald-600 border border-gray-100'
@@ -209,6 +215,48 @@ export default function MetadataManagementPage() {
                                     </button>
                                 );
                             })}
+
+                            <div className="pt-4 pb-2">
+                                <div className="h-px bg-gray-200 w-full mb-4"></div>
+                                <button
+                                    onClick={() => setIsProgramsOpen(!isProgramsOpen)}
+                                    className={`w-full flex items-center justify-between p-4 rounded-xl transition-all ${['program_status', 'program_categories', 'program_organizers', 'program_types'].includes(activeTab.id)
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        : 'bg-white text-gray-600 hover:bg-emerald-50 hover:text-emerald-600 border-gray-100'
+                                        } border`}
+                                >
+                                    <div className="flex items-center space-x-3">
+                                        <Activity className="w-5 h-5" />
+                                        <span className="font-bold">Programs</span>
+                                    </div>
+                                    {isProgramsOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                                </button>
+
+                                {isProgramsOpen && (
+                                    <div className="ml-4 pl-4 border-l-2 border-emerald-100 space-y-1 mt-2">
+                                        {TABS.filter(t => ['program_status', 'program_categories', 'program_organizers', 'program_types'].includes(t.id)).map((tab) => {
+                                            const Icon = tab.icon;
+                                            const isActive = activeTab.id === tab.id;
+                                            return (
+                                                <button
+                                                    key={tab.id}
+                                                    onClick={() => setActiveTab(tab)}
+                                                    className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${isActive
+                                                        ? 'bg-emerald-600 text-white shadow-md'
+                                                        : 'bg-white text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center space-x-3">
+                                                        <Icon className="w-4 h-4" />
+                                                        <span className="text-sm font-medium">{tab.name}</span>
+                                                    </div>
+                                                    <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isActive ? 'rotate-90' : ''}`} />
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Content Area */}
