@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase/client';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import Link from 'next/link';
-import { Plus, Search, Filter, Activity, FileText, ArrowUp, ArrowDown, ArrowUpDown, Eye, Edit, Trash2, Loader2, RefreshCw, Download, Check, Square, Save, X, LayoutGrid, ExternalLink } from 'lucide-react';
+import { Plus, Search, Filter, Activity, FileText, ArrowUp, ArrowDown, ArrowUpDown, Eye, Edit, Trash2, Loader2, RefreshCw, Download, Check, Square, Save, X, LayoutGrid, Calendar, ExternalLink } from 'lucide-react';
 import Select from 'react-select';
 
 const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
@@ -441,6 +441,13 @@ export default function ProgramPage() {
                                     <Download className="h-4 w-4" />
                                     <span>Export CSV</span>
                                 </button>
+                                <Link
+                                    href={`/program/kalendar${(selectedYear || selectedMonth) ? `?date=${selectedYear || new Date().getFullYear()}-${String(selectedMonth || 1).padStart(2, '0')}-01` : ''}${selectedState ? ((selectedYear || selectedMonth) ? '&' : '?') + `state=${selectedState}` : ''}`}
+                                    className="flex items-center justify-center space-x-1 whitespace-nowrap bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 px-3 py-1 rounded text-xs font-bold shadow-sm transition-colors"
+                                >
+                                    <Calendar className="h-4 w-4" />
+                                    <span>Paparan Kalendar</span>
+                                </Link>
                                 {(role === 'admin' || role === 'editor') && (
                                     <button
                                         onClick={() => {

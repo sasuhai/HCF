@@ -83,6 +83,10 @@ export default function KalendarProgram() {
             if (dateParam) {
                 setInitialDateStr(dateParam);
             }
+            const stateParam = params.get('state');
+            if (stateParam) {
+                setSelectedStates([{ value: stateParam, label: stateParam }]);
+            }
             setIsReady(true);
         }
     }, []);

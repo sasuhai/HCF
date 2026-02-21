@@ -752,11 +752,11 @@ export const getScoreboardStats = async (year, month = null) => {
         // Flatten the data for the frontend
         const kpiData = kpiRawData.map(item => ({
             id: item.id,
-            jenis: item.category, // Mapping 'category' to 'jenis'
+            jenis: item.data?.jenis ? item.data.jenis.toUpperCase() : (item.category ? item.category.toUpperCase() : 'UNKNOWN'),
             kpi_name: item.data?.kpi || item.data?.nama_kpi || 'Unknown Metric',
-            sasaran: item.data?.sasaran || 0,
-            pencapaian: item.data?.pencapaian || 0,
-            month: item.month,
+            sasaran: Number(item.data?.sasaran) || 0,
+            pencapaian: Number(item.data?.pencapaian) || 0,
+            month: item.month || null,
             year: item.year
         }));
 

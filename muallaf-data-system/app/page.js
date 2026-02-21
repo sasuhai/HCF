@@ -18,7 +18,13 @@ import {
   DollarSign,
   ChevronRight,
   Menu,
-  X
+  X,
+  List,
+  Calendar,
+  Activity,
+  BarChart2,
+  Settings,
+  User
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -55,76 +61,118 @@ export default function LandingPage() {
   // Grouped Menu Items matching Navbar sequence
   const menuGroups = [
     {
-      title: "Data Mualaf",
-      description: "Pengurusan pangkalan data dan pendaftaran.",
+      title: "Pengurusan Mualaf",
+      description: "Pendaftaran, pangkalan data, dan pengurusan kelas.",
       items: [
         {
-          title: "Senarai Rekod",
-          description: "Cari dan urus pangkalan data mualaf.",
-          icon: <Database className="w-5 h-5" />,
-          color: "bg-blue-500",
-          href: "/senarai",
-          img: "https://placehold.co/600x400/3b82f6/ffffff?text=Data+Mualaf"
+          title: "Pendaftaran Mualaf",
+          description: "Borang pendaftaran mualaf baru.",
+          icon: <FileText className="w-6 h-6" />,
+          color: "text-blue-500",
+          href: "/borang"
         },
         {
-          title: "Pendaftaran Baru",
-          description: "Borang pendaftaran mualaf baru.",
-          icon: <FileText className="w-5 h-5" />,
-          color: "bg-cyan-500",
-          href: "/borang",
-          img: "https://placehold.co/600x400/06b6d4/ffffff?text=Borang+Baru"
-        }
-      ]
-    },
-    {
-      title: "Kelas Bimbingan Mualaf (KBM)",
-      description: "Pengurusan kelas, kehadiran, dan tenaga pengajar.",
-      items: [
+          title: "Data Mualaf",
+          description: "Cari dan urus pangkalan data mualaf.",
+          icon: <List className="w-6 h-6" />,
+          color: "text-amber-500",
+          href: "/senarai"
+        },
         {
           title: "Rekod Kehadiran",
           description: "Kemaskini kehadiran kelas mingguan.",
-          icon: <CalendarCheck className="w-5 h-5" />,
-          color: "bg-purple-500",
-          href: "/kehadiran",
-          img: "https://placehold.co/600x400/a855f7/ffffff?text=Rekod+Kehadiran"
+          icon: <Calendar className="w-6 h-6" />,
+          color: "text-emerald-500",
+          href: "/kehadiran"
         },
         {
           title: "Kelas & Lokasi",
           description: "Senarai lokasi fizikal dan online.",
-          icon: <MapPin className="w-5 h-5" />,
-          color: "bg-orange-500",
-          href: "/kelas",
-          img: "https://placehold.co/600x400/f97316/ffffff?text=Kelas+dan+Lokasi"
+          icon: <MapPin className="w-6 h-6" />,
+          color: "text-rose-500",
+          href: "/kelas"
         },
         {
           title: "Petugas & Guru",
           description: "Direktori tenaga pengajar.",
-          icon: <Users className="w-5 h-5" />,
-          color: "bg-pink-500",
-          href: "/pekerja",
-          img: "https://placehold.co/600x400/ec4899/ffffff?text=Petugas+dan+Guru"
+          icon: <Users className="w-6 h-6" />,
+          color: "text-purple-500",
+          href: "/pekerja"
         }
       ]
     },
     {
-      title: "Pengurusan & Laporan",
-      description: "Analisis data dan papan pemuka utama.",
+      title: "KPI & Program",
+      description: "Pengurusan program, takwim, dan sasaran KPI.",
       items: [
         {
-          title: "Analisis & Laporan",
-          description: "Statistik prestasi dan kewangan.",
-          icon: <BarChart3 className="w-5 h-5" />,
-          color: "bg-indigo-500",
-          href: "/mualaf/dashboard",
-          img: "https://placehold.co/600x400/6366f1/ffffff?text=Analisis+Laporan"
+          title: "Senarai Program",
+          description: "Pengurusan kertas kerja dan laporan program.",
+          icon: <List className="w-6 h-6" />,
+          color: "text-blue-400",
+          href: "/program"
         },
         {
+          title: "Kalendar Aktiviti",
+          description: "Takwim tahunan dan perancangan aktiviti.",
+          icon: <Calendar className="w-6 h-6" />,
+          color: "text-amber-400",
+          href: "/program/kalendar"
+        },
+        {
+          title: "Mualaf & Outreach",
+          description: "Sasaran KPI Mualaf & Outreach.",
+          icon: <Activity className="w-6 h-6" />,
+          color: "text-emerald-500",
+          href: "/otherKPI"
+        },
+        {
+          title: "Du'at & Sukarelawan",
+          description: "Sasaran KPI Du'at & Rakan Hidayah.",
+          icon: <Activity className="w-6 h-6" />,
+          color: "text-emerald-500",
+          href: "/kpi-rh"
+        },
+        {
+          title: "KPI Pengislaman",
+          description: "Pemantauan statistik pengislaman bulanan.",
+          icon: <Activity className="w-6 h-6" />,
+          color: "text-slate-400",
+          href: "/pengislaman-kpi"
+        }
+      ]
+    },
+    {
+      title: "Analisis & Tetapan",
+      description: "Paparan visual dan laporan prestasi keseluruhan.",
+      items: [
+        {
           title: "Dashboard Utama",
-          description: "Ringkasan eksekutif data.",
-          icon: <LayoutDashboard className="w-5 h-5" />,
-          color: "bg-slate-600",
-          href: "/dashboard",
-          img: "https://placehold.co/600x400/475569/ffffff?text=Dashboard+Utama"
+          description: "Ringkasan eksekutif data pergerakan.",
+          icon: <BarChart2 className="w-6 h-6" />,
+          color: "text-indigo-500",
+          href: "/dashboard"
+        },
+        {
+          title: "Scoreboard KPI",
+          description: "Metrik pemantauan prestasi KPI semasa.",
+          icon: <Activity className="w-6 h-6" />,
+          color: "text-emerald-500",
+          href: "/dashboard/scoreboard"
+        },
+        {
+          title: "Peta Taburan",
+          description: "Pemetaan demografi melalui peta geografi.",
+          icon: <MapPin className="w-6 h-6" />,
+          color: "text-rose-500",
+          href: "/map-intelligence"
+        },
+        {
+          title: "Analisis & Laporan",
+          description: "Penjanaan laporan dan statistik bulanan.",
+          icon: <FileText className="w-6 h-6" />,
+          color: "text-emerald-500",
+          href: "/mualaf/dashboard"
         }
       ]
     }
@@ -133,24 +181,29 @@ export default function LandingPage() {
   // Admin Extras
   if (role === 'admin') {
     const adminGroup = {
-      title: "Pentadbiran Sistem",
-      description: "Tetapan khas untuk pentadbir.",
+      title: "Pentadbir",
+      description: "Tetapan konfigurasi sistem keseluruhan.",
       items: [
         {
-          title: "Kadar Elaun",
-          description: "Tetapan kadar elaun.",
-          icon: <DollarSign className="w-5 h-5" />,
-          color: "bg-yellow-500",
-          href: "/kadar-elaun",
-          img: "https://placehold.co/600x400/eab308/ffffff?text=Kadar+Elaun"
+          title: "Pengguna Sistem",
+          description: "Pengurusan akaun dan peranan pengguna.",
+          icon: <User className="w-6 h-6" />,
+          color: "text-slate-400",
+          href: "/pengguna"
         },
         {
-          title: "Pengguna Sistem",
-          description: "Akses dan peranan pengguna.",
-          icon: <ShieldCheck className="w-5 h-5" />,
-          color: "bg-red-600",
-          href: "/pengguna",
-          img: "https://placehold.co/600x400/dc2626/ffffff?text=Pengguna+Sistem"
+          title: "Tetapan Metadata",
+          description: "Konfigurasi tetapan asas, negeri dan cawangan.",
+          icon: <Settings className="w-6 h-6" />,
+          color: "text-slate-400",
+          href: "/pengurusan/metadata"
+        },
+        {
+          title: "Kadar Elaun",
+          description: "Penetapan pembayaran elaun mengikut kelas.",
+          icon: <DollarSign className="w-6 h-6" />,
+          color: "text-slate-400",
+          href: "/kadar-elaun"
         }
       ]
     };
@@ -328,47 +381,56 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Main Menu Grid */}
-      <section id="menu-section" className="py-24 bg-gray-50 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Main Menu Grid with Dark Premium Gold Aesthetic */}
+      <section id="menu-section" className="py-24 bg-zinc-950 relative">
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.02]"></div>
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-yellow-500/20 to-transparent"></div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-16 max-w-3xl mx-auto">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Akses Modul Sistem</h2>
-            <p className="text-gray-600 text-lg">Pilih modul di bawah untuk memulakan urusan. Akses bergantung kepada peranan akaun anda.</p>
+            <h2 className="text-3xl font-bold text-white mb-4">Akses Modul Sistem</h2>
+            <p className="text-gray-400 text-lg">Pilih modul di bawah untuk memulakan urusan. Navigasi pantas direka khas untuk produktiviti.</p>
           </div>
 
           <div className="space-y-16">
             {menuGroups.map((group, gIdx) => (
               <div key={gIdx} className="relative">
                 <div className="flex items-center mb-8">
-                  <div className="h-8 w-1 bg-yellow-500 rounded-full mr-4"></div>
+                  <div className="h-8 w-1.5 bg-gradient-to-b from-yellow-400 to-yellow-600 rounded-full mr-4 shadow-[0_0_15px_rgba(250,204,21,0.5)]"></div>
                   <div>
-                    <h3 className="text-2xl font-bold text-gray-900">{group.title}</h3>
-                    <p className="text-gray-500">{group.description}</p>
+                    <h3 className="text-2xl font-bold text-white tracking-wide">{group.title}</h3>
+                    <p className="text-gray-400 text-sm mt-1">{group.description}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {group.items.map((item, idx) => (
-                    <Link href={user ? item.href : '/login'} key={idx} className="group h-full">
-                      <div className="relative h-full bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex flex-col">
-                        {/* Card Image Header */}
-                        <div className="h-32 w-full overflow-hidden relative">
-                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors z-10"></div>
-                          <img src={item.img} alt={item.title} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700" />
-                          <div className="absolute top-4 left-4 z-20">
-                            <div className={`p-2 rounded-lg ${item.color} text-white shadow-lg`}>
-                              {item.icon}
-                            </div>
+                    <Link href={user ? item.href : '/login'} key={idx} className="group outline-none">
+                      <div className="relative h-full bg-zinc-900 border border-white/5 rounded-2xl overflow-hidden hover:border-yellow-500/30 transition-all duration-500 flex flex-col hover:-translate-y-1 hover:shadow-2xl hover:shadow-yellow-500/10">
+                        {/* Animated gradient border top */}
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-yellow-500/0 to-transparent group-hover:via-yellow-400/80 transition-all duration-700 opacity-0 group-hover:opacity-100"></div>
+
+                        {/* Glowing Background Glow Effect */}
+                        <div className="absolute -inset-2 bg-gradient-to-br from-yellow-500/5 to-transparent blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
+
+                        <div className="p-6 flex-1 flex flex-col relative z-10 space-y-4">
+                          {/* Icon Container */}
+                          <div className={`w-14 h-14 rounded-xl flex items-center justify-center bg-zinc-800 border border-white/10 ${item.color} group-hover:bg-yellow-500/10 group-hover:text-yellow-400 group-hover:border-yellow-500/30 transition-colors duration-500 shadow-inner`}>
+                            {item.icon}
                           </div>
-                        </div>
 
-                        <div className="p-6 flex-1 flex flex-col">
-                          <h4 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-yellow-600 transition-colors">{item.title}</h4>
-                          <p className="text-gray-500 text-sm mb-6 flex-1">{item.description}</p>
+                          <div className="flex-1">
+                            <h4 className="text-lg font-bold text-gray-100 mb-2 group-hover:text-yellow-400 transition-colors duration-300">
+                              {item.title}
+                            </h4>
+                            <p className="text-gray-400 text-sm leading-relaxed group-hover:text-gray-300 transition-colors duration-300">
+                              {item.description}
+                            </p>
+                          </div>
 
-                          <div className="flex items-center text-yellow-600 font-semibold text-sm">
-                            <span>Akses</span>
-                            <ChevronRight className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" />
+                          <div className="pt-4 flex items-center text-sm font-semibold text-zinc-500 group-hover:text-yellow-500 transition-colors duration-300 mt-auto">
+                            <span>Akses Modul</span>
+                            <ArrowRight className="w-4 h-4 ml-1.5 transform group-hover:translate-x-2 transition-transform duration-300" />
                           </div>
                         </div>
                       </div>

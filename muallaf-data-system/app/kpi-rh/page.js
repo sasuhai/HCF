@@ -159,13 +159,18 @@ export default function RakanHidayahKPIPage() {
             if (error) throw error;
 
             // Flatten JSON for easier rendering
-            const flattenedData = data.map(item => ({
+            let flattenedData = data.map(item => ({
                 id: item.id,
                 year: item.year,
                 state: item.state,
                 createdAt: item.createdAt,
                 ...item.data
             }));
+
+            if (activeTab === 'kpi_utama') {
+                const allowedJenis = ["DU'AT", "Sukarelawan"];
+                flattenedData = flattenedData.filter(item => !item.jenis || allowedJenis.includes(item.jenis));
+            }
 
             setKpiData(flattenedData || []);
         } catch (err) {
@@ -333,6 +338,19 @@ export default function RakanHidayahKPIPage() {
     const saveAllChanges = async () => {
         const ids = Object.keys(pendingChanges);
         if (ids.length === 0) return;
+
+        if (activeTab === 'kpi_utama') {
+            for (const id of ids) {
+                const originalRow = kpiData.find(item => item.id === id);
+                const isJenisEdited = pendingChanges[id]?.jenis !== undefined;
+                const currentJenis = isJenisEdited ? pendingChanges[id].jenis : originalRow?.jenis;
+
+                if (!currentJenis) {
+                    alert("Sila pilih Jenis (DU'AT / Sukarelawan) untuk semua rekod yang disunting sebelum menyimpan.");
+                    return;
+                }
+            }
+        }
 
         setSaving(true);
         try {

@@ -82,7 +82,10 @@ export default function ScoreboardPage() {
         if (!stats) return CATEGORIES.map(cat => ({ ...cat, target: 0, actual: 0, percent: 0, data: [] }));
 
         return CATEGORIES.map(cat => {
-            const catData = stats.rawKpi.filter(d => d.jenis === cat.id && d.month === selectedMonth);
+            const catData = stats.rawKpi.filter(d =>
+                (d.jenis === cat.id || d.jenis === cat.id.toUpperCase()) &&
+                (!d.month || d.month === selectedMonth)
+            );
 
             // Sum targets and actuals for this category in the selected month
             let totalTarget = 0;
@@ -270,7 +273,7 @@ export default function ScoreboardPage() {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-50">
-                                            {stats?.rawKpi.filter(d => d.month === selectedMonth).map((kpi, idx) => {
+                                            {stats?.rawKpi.filter(d => (!d.month || d.month === selectedMonth)).map((kpi, idx) => {
                                                 const percent = kpi.sasaran > 0 ? Math.round((kpi.pencapaian / kpi.sasaran) * 100) : 0;
                                                 const getStatusColor = (p) => {
                                                     if (p >= 100) return 'bg-emerald-500 text-white';
@@ -311,7 +314,7 @@ export default function ScoreboardPage() {
                                                     </tr>
                                                 );
                                             })}
-                                            {(!stats || stats.rawKpi.filter(d => d.month === selectedMonth).length === 0) && (
+                                            {(!stats || stats.rawKpi.filter(d => (!d.month || d.month === selectedMonth)).length === 0) && (
                                                 <tr>
                                                     <td colSpan="5" className="px-8 py-20 text-center text-slate-400 font-medium italic">
                                                         Tiada data KPI dijumpai bagi bulan yang dipilih.
