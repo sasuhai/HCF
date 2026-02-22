@@ -1,47 +1,41 @@
 const { createClient } = require('@supabase/supabase-js');
-const dotenv = require('dotenv');
 const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
 
-dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+async function verify() {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-const verify = async () => {
-    console.log('🔍 Verifying imported data...');
-
-    // Check count
-    const { count, error: countError } = await supabase
-        .from('mualaf')
-        .select('*', { count: 'exact', head: true });
-
-    if (countError) {
-        console.error('❌ Error getting count:', countError.message);
-    } else {
-        console.log(`✅ Total records in mualaf: ${count}`);
-    }
-
-    // Check sample records for updatedAt
-    const { data, error } = await supabase
-        .from('mualaf')
-        .select('id, namaAsal, updatedAt, createdAt')
-        .order('createdAt', { ascending: false })
-        .limit(5);
+    const { count, error } = await supabase
+        .from('programs')
+        .select('*', { count: 'exact', head: true })
+        .eq('tahun', 2026)
+        .gte('createdAt', tenMinutesAgo);
 
     if (error) {
-        console.error('❌ Error getting samples:', error.message);
+        console.error("Error counting records:", error);
     } else {
-        console.log('✅ Sample records (newest first):');
-        data.forEach(r => {
-            console.log(`- ID: ${r.id}`);
-            console.log(`  Name: ${r.namaAsal}`);
-            console.log(`  Updated At (from CSV): ${r.updatedAt}`);
-            console.log(`  Created At: ${r.createdAt}`);
-            console.log('---');
-        });
+        console.log(`Recently inserted records for 2026: ${count}`);
     }
-};
+
+    const { data: states, error: stateError } = await supabase
+        .from('programs')
+        .select('negeri')
+        .eq('tahun', 2026)
+        .gte('createdAt', tenMinutesAgo);
+
+    if (stateError) {
+        console.error("Error fetching states:", stateError);
+    } else {
+        const uniqueStates = [...new Set(states.map(s => s.negeri))];
+        console.log("States included:", uniqueStates.join(', '));
+        if (uniqueStates.includes('Selangor')) {
+            console.error("ERROR: Selangor data found!");
+        } else {
+            console.log("SUCCESS: No Selangor data found.");
+        }
+    }
+}
 
 verify();

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -133,6 +133,59 @@ export default function KalendarProgram() {
 
         return true;
     });
+
+    const facets = useMemo(() => {
+        const getCounts = (filterType) => {
+            const othersFiltered = programs.filter(p => {
+                const s = stateFilters;
+                const k = kategoriFilters;
+                const a = anjuranFilters;
+                const st = statusFilters;
+
+                if (filterType !== 'negeri' && s.length > 0 && !s.includes(p.negeri)) return false;
+                if (filterType !== 'kategori' && k.length > 0 && !k.includes(p.kategori_utama)) return false;
+                if (filterType !== 'status' && st.length > 0 && !st.includes(p.status_program)) return false;
+                if (filterType !== 'anjuran' && a.length > 0) {
+                    const pA = Array.isArray(p.anjuran) ? p.anjuran : (p.anjuran ? [p.anjuran] : []);
+                    if (!a.some(val => pA.includes(val))) return false;
+                }
+                return true;
+            });
+
+            const cnts = {};
+            othersFiltered.forEach(p => {
+                if (filterType === 'negeri' && p.negeri) cnts[p.negeri] = (cnts[p.negeri] || 0) + 1;
+                else if (filterType === 'kategori' && p.kategori_utama) cnts[p.kategori_utama] = (cnts[p.kategori_utama] || 0) + 1;
+                else if (filterType === 'status' && p.status_program) cnts[p.status_program] = (cnts[p.status_program] || 0) + 1;
+                else if (filterType === 'anjuran') {
+                    const pA = Array.isArray(p.anjuran) ? p.anjuran : (p.anjuran ? [p.anjuran] : []);
+                    pA.forEach(val => cnts[val] = (cnts[val] || 0) + 1);
+                }
+            });
+            return cnts;
+        };
+
+        return {
+            negeri: getCounts('negeri'),
+            kategori: getCounts('kategori'),
+            anjuran: getCounts('anjuran'),
+            status: getCounts('status')
+        };
+    }, [programs, stateFilters, kategoriFilters, anjuranFilters, statusFilters]);
+
+    const formatOptionLabel = (filterType) => ({ label, value }, { context }) => {
+        const count = facets[filterType][label] || 0;
+        return (
+            <div className="flex justify-between items-center w-full min-w-0">
+                <span className="truncate mr-2">{label}</span>
+                {count > 0 && (
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${context === 'value' ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-700'}`}>
+                        {count}
+                    </span>
+                )}
+            </div>
+        );
+    };
 
     const customSelectStyles = {
         control: (base, state) => ({ ...base, minHeight: '34px', borderRadius: '0.5rem', borderColor: state.isFocused ? '#10b981' : 'white', boxShadow: state.isFocused ? '0 0 0 1px rgba(16, 185, 129, 0.2)' : 'none', '&:hover': { borderColor: '#10b981' }, backgroundColor: 'white', fontSize: '12px' }),
@@ -267,6 +320,7 @@ export default function KalendarProgram() {
             <div className="min-h-screen bg-gray-50/50 pt-16">
                 <Navbar />
 
+
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                     <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-[2rem] p-6 sm:p-8 mb-8 border border-emerald-100/50 shadow-sm relative overflow-hidden">
                         {/* Decorative background shape */}
@@ -312,6 +366,7 @@ export default function KalendarProgram() {
                                         className="text-xs shadow-sm rounded-lg border-0"
                                         styles={customSelectStyles}
                                         menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                        formatOptionLabel={formatOptionLabel('negeri')}
                                     />
                                 </div>
                                 <div className="w-full">
@@ -327,6 +382,7 @@ export default function KalendarProgram() {
                                         className="text-xs shadow-sm rounded-lg border-0"
                                         styles={customSelectStyles}
                                         menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                        formatOptionLabel={formatOptionLabel('kategori')}
                                     />
                                 </div>
                                 <div className="w-full">
@@ -342,6 +398,7 @@ export default function KalendarProgram() {
                                         className="text-xs shadow-sm rounded-lg border-0"
                                         styles={customSelectStyles}
                                         menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                        formatOptionLabel={formatOptionLabel('anjuran')}
                                     />
                                 </div>
                                 <div className="w-full">
@@ -357,6 +414,7 @@ export default function KalendarProgram() {
                                         className="text-xs shadow-sm rounded-lg border-0"
                                         styles={customSelectStyles}
                                         menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                        formatOptionLabel={formatOptionLabel('status')}
                                     />
                                 </div>
                             </div>
@@ -390,6 +448,20 @@ export default function KalendarProgram() {
                         ) : (
                             <div className="kalendar-container" style={{ minHeight: '600px' }}>
                                 <style jsx global>{`
+                                    .custom-scrollbar::-webkit-scrollbar {
+                                        width: 4px;
+                                    }
+                                    .custom-scrollbar::-webkit-scrollbar-track {
+                                        background: transparent;
+                                    }
+                                    .custom-scrollbar::-webkit-scrollbar-thumb {
+                                        background: #d1fae5;
+                                        border-radius: 10px;
+                                    }
+                                    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                                        background: #a7f3d0;
+                                    }
+
                                     .fc {
                                         font-family: inherit;
                                         --fc-border-color: #f1f5f9; /* slate-100 */
@@ -665,6 +737,6 @@ export default function KalendarProgram() {
                 )}
 
             </div>
-        </ProtectedRoute>
+        </ProtectedRoute >
     );
 }
