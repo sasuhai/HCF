@@ -29,6 +29,8 @@ import {
 import Select from 'react-select';
 
 const KPI_COLUMNS = [
+    { id: 'negeriCawangan', label: 'Negeri', width: 'min-w-[120px]', type: 'top-readonly' },
+    { id: 'lokasi', label: 'Lokasi', width: 'min-w-[150px]', type: 'top-readonly' },
     { id: 'createdAt', label: 'Daftar SPO', width: 'min-w-[110px]', type: 'date-readonly' },
     { id: 'keyInDelay', label: 'Key-in Delay', width: 'min-w-[100px]', type: 'metric-readonly' },
     { id: 'kawasan', label: 'Kawasan', width: 'min-w-[150px]', type: 'select' },
@@ -52,6 +54,27 @@ const MONTH_OPTIONS = [
     { value: 11, label: 'November' }, { value: 12, label: 'Disember' }
 ];
 
+const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
+    <div className="relative mt-1">
+        <input
+            type="text"
+            list={listId}
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value)}
+            className="block w-full bg-white text-[10px] border border-gray-300 rounded shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-0.5 px-1 pr-4 font-medium"
+            placeholder={placeholder || "Cari..."}
+        />
+        <datalist id={listId}>
+            {options && options.map((opt, idx) => (
+                <option key={`${opt.value}-${idx}`} value={opt.label} />
+            ))}
+        </datalist>
+        <div className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none">
+            <ChevronDown className="h-2.5 w-2.5 text-gray-400" />
+        </div>
+    </div>
+);
+
 export default function PengislamanKPIPage() {
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -63,11 +86,14 @@ export default function PengislamanKPIPage() {
     const [columnFilters, setColumnFilters] = useState({});
 
     // Top Filters
-    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+    const [selectedYear, setSelectedYear] = useState(0); // Default to Semua
+    const [selectedMonth, setSelectedMonth] = useState(0); // Default to Semua
     const [selectedState, setSelectedState] = useState('');
     const [states, setStates] = useState([]);
     const [locations, setLocations] = useState([]);
+    const [availableYears, setAvailableYears] = useState([]);
+    const [availableMonths, setAvailableMonths] = useState([]);
+    const [availableStates, setAvailableStates] = useState([]);
 
     // Load State from Session
     useEffect(() => {
@@ -98,6 +124,64 @@ export default function PengislamanKPIPage() {
         fetchLookups();
     }, []);
 
+    // Generate available filter options based on all records in this category
+    useEffect(() => {
+        const yCounts = {};
+        const mCounts = {};
+        const sCounts = {};
+        let blankCount = 0;
+
+        records.forEach(item => {
+            const date = item.tarikhPengislaman ? new Date(item.tarikhPengislaman) : null;
+            const isInvalid = !date || isNaN(date.getTime());
+            const y = isInvalid ? 0 : date.getFullYear();
+            const m = isInvalid ? 0 : date.getMonth() + 1;
+            const s = item.negeriCawangan || 'Semua';
+
+            // 1. Year counts (affected by State)
+            if (!selectedState || s === selectedState) {
+                if (y) {
+                    yCounts[y] = (yCounts[y] || 0) + 1;
+                } else {
+                    blankCount++;
+                }
+            }
+
+            // 2. Month counts (affected by Year and State)
+            if ((selectedYear === 0 || y === selectedYear) && (!selectedState || s === selectedState) && m) {
+                mCounts[m] = (mCounts[m] || 0) + 1;
+            }
+
+            // 3. State counts (affected by Year)
+            if (selectedYear === 0 || y === selectedYear || (selectedYear === -1 && y === 0)) {
+                sCounts[s] = (sCounts[s] || 0) + 1;
+            }
+        });
+
+        const ySorted = Object.entries(yCounts)
+            .map(([year, count]) => ({ value: Number(year), label: `${year} (${count})` }))
+            .sort((a, b) => b.value - a.value);
+
+        const mSorted = Object.entries(mCounts)
+            .map(([month, count]) => ({
+                value: Number(month),
+                label: `${MONTH_OPTIONS.find(mo => mo.value === Number(month))?.label} (${count})`
+            }))
+            .sort((a, b) => a.value - b.value);
+
+        const sSorted = Object.entries(sCounts)
+            .map(([state, count]) => ({ value: state, label: `${state} (${count})` }))
+            .sort((a, b) => a.value.localeCompare(b.value));
+
+        if (blankCount > 0) {
+            ySorted.push({ value: -1, label: `Tiada Tarikh (${blankCount})` });
+        }
+
+        setAvailableYears(ySorted);
+        setAvailableMonths(mSorted);
+        setAvailableStates(sSorted);
+    }, [records, selectedYear, selectedState]);
+
     // Save State to Session
     useEffect(() => {
         const stateToSave = {
@@ -114,32 +198,16 @@ export default function PengislamanKPIPage() {
 
     useEffect(() => {
         loadRecords();
-    }, [selectedYear, selectedMonth, selectedState]);
+    }, []);
 
     const loadRecords = async () => {
         setLoading(true);
         try {
             const filters = {
-                category: 'Pengislaman',
-                state: selectedState || undefined
+                category: 'Pengislaman'
+                // We fetch all for this category and filter client-side for top filters
+                // to allow complex combinations and 'Tiada Tarikh' accurately.
             };
-
-            // Calculate date range for Supabase
-            if (selectedYear) {
-                if (selectedMonth > 0) {
-                    // Specific Month
-                    const startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
-                    // End date: last day of month
-                    const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
-                    const endDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-                    filters.startDate = startDate;
-                    filters.endDate = endDate;
-                } else {
-                    // All Months in Year
-                    filters.startDate = `${selectedYear}-01-01`;
-                    filters.endDate = `${selectedYear}-12-31`;
-                }
-            }
 
             const { data, error } = await getSubmissions(filters);
             if (error) throw error;
@@ -232,8 +300,87 @@ export default function PengislamanKPIPage() {
         setSortConfig({ key, direction });
     };
 
+    const handleFilterChange = (field, value) => {
+        setColumnFilters(prev => ({
+            ...prev,
+            [field]: value
+        }));
+    };
+
+    const getUniqueValues = (field) => {
+        const filteredByOthers = records.filter(record => {
+            return Object.entries(columnFilters).every(([key, value]) => {
+                if (key === field || !value) return true;
+                const cleanValue = value.replace(/\s\(\d+\)$/, '');
+                if (cleanValue === '(Kosong)') {
+                    if (['noStaf', 'namaIslam', 'noKP', 'negeriCawangan'].includes(key)) return !record[key];
+                    return !record.pengislamanKPI?.[key];
+                }
+                let val = '';
+                if (['noStaf', 'namaIslam', 'noKP', 'negeriCawangan'].includes(key)) {
+                    val = record[key];
+                } else {
+                    val = record.pengislamanKPI?.[key];
+                }
+                if (typeof val === 'boolean') val = val ? 'Ya' : 'Tidak';
+                return val?.toString().toLowerCase().includes(cleanValue.toLowerCase());
+            });
+        });
+
+        const counts = {};
+        let blankCount = 0;
+
+        filteredByOthers.forEach(record => {
+            let val = '';
+            if (['noStaf', 'namaIslam', 'noKP', 'negeriCawangan'].includes(field)) {
+                val = record[field];
+            } else {
+                val = record.pengislamanKPI?.[field];
+            }
+
+            if (val === null || val === undefined || val === '') {
+                blankCount++;
+            } else {
+                if (typeof val === 'boolean') val = val ? 'Ya' : 'Tidak';
+                counts[val] = (counts[val] || 0) + 1;
+            }
+        });
+
+        const options = Object.entries(counts).map(([val, count]) => ({
+            value: val,
+            label: `${val} (${count})`
+        })).sort((a, b) => a.value.localeCompare(b.value));
+
+        if (blankCount > 0) {
+            options.push({ value: '(Kosong)', label: `(Kosong) (${blankCount})` });
+        }
+
+        return options;
+    };
+
+    const columnTotals = useMemo(() => {
+        const totals = {};
+        KPI_COLUMNS.forEach(col => {
+            if (col.type === 'checkbox') {
+                totals[col.id] = records.filter(r => r.pengislamanKPI?.[col.id]).length;
+            }
+        });
+        return totals;
+    }, [records]);
+
     const filteredRecords = useMemo(() => {
         return records.filter(record => {
+            // Top Level Filters (Strictly based on tarikhPengislaman)
+            const date = record.tarikhPengislaman ? new Date(record.tarikhPengislaman) : null;
+            const isInvalidDate = !date || isNaN(date.getTime());
+            const recYear = isInvalidDate ? 0 : date.getFullYear();
+            const recMonth = isInvalidDate ? 0 : date.getMonth() + 1;
+
+            if (selectedYear > 0 && recYear !== selectedYear) return false;
+            if (selectedYear === -1 && recYear !== 0) return false; // Tiada Tarikh
+            if (selectedMonth > 0 && recMonth !== selectedMonth) return false;
+            if (selectedState && record.negeriCawangan !== selectedState) return false;
+
             // Search filter
             const searchStr = `${record.namaIslam} ${record.noKP} ${record.noStaf} ${record.negeriCawangan}`.toLowerCase();
             if (searchTerm && !searchStr.includes(searchTerm.toLowerCase())) return false;
@@ -241,6 +388,7 @@ export default function PengislamanKPIPage() {
             // Column filters
             for (const [key, value] of Object.entries(columnFilters)) {
                 if (!value) continue;
+                const cleanValue = value.replace(/\s\(\d+\)$/, '');
 
                 let recordValue = '';
                 if (key === 'noStaf' || key === 'namaIslam' || key === 'noKP' || key === 'negeriCawangan') {
@@ -249,9 +397,20 @@ export default function PengislamanKPIPage() {
                     recordValue = String(record.pengislamanKPI?.[key] || '');
                 }
 
-                if (!recordValue.toLowerCase().includes(value.toLowerCase())) return false;
-            }
+                if (cleanValue === '(Kosong)') {
+                    const isEmpty = !recordValue || recordValue === '' || recordValue === 'undefined' || recordValue === 'null';
+                    if (!isEmpty) return false;
+                    continue;
+                }
 
+                const displayVal = (key === 'noStaf' || key === 'namaIslam' || key === 'noKP' || key === 'negeriCawangan')
+                    ? recordValue
+                    : (typeof record.pengislamanKPI?.[key] === 'boolean'
+                        ? (record.pengislamanKPI[key] ? 'Ya' : 'Tidak')
+                        : recordValue);
+
+                if (!displayVal.toLowerCase().includes(cleanValue.toLowerCase())) return false;
+            }
             return true;
         }).sort((a, b) => {
             let valA, valB;
@@ -271,7 +430,7 @@ export default function PengislamanKPIPage() {
             if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
-    }, [records, searchTerm, columnFilters, sortConfig]);
+    }, [records, searchTerm, columnFilters, sortConfig, selectedYear, selectedMonth, selectedState]);
 
     return (
         <ProtectedRoute>
@@ -322,45 +481,44 @@ export default function PengislamanKPIPage() {
                     {/* Compact Filters Bar */}
                     <div className="bg-white p-2.5 px-4 rounded-xl border border-slate-200 shadow-sm mb-3">
                         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                            {/* Year Filter */}
                             <div className="flex items-center gap-2">
                                 <label className="text-[9px] font-bold text-slate-400 uppercase">Tahun</label>
                                 <select
                                     value={selectedYear}
                                     onChange={(e) => setSelectedYear(Number(e.target.value))}
-                                    className="bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs focus:ring-1 focus:ring-emerald-500 outline-none w-[70px]"
+                                    className="bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs focus:ring-1 focus:ring-emerald-500 outline-none w-[100px]"
                                 >
-                                    {[2023, 2024, 2025, 2026].map(y => (
-                                        <option key={y} value={y}>{y}</option>
+                                    <option value={0}>Semua Tahun</option>
+                                    {availableYears.map(y => (
+                                        <option key={y.value} value={y.value}>{y.label}</option>
                                     ))}
                                 </select>
                             </div>
 
-                            {/* Month Filter */}
                             <div className="flex items-center gap-2">
                                 <label className="text-[9px] font-bold text-slate-400 uppercase">Bulan</label>
                                 <select
                                     value={selectedMonth}
                                     onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                                    className="bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs focus:ring-1 focus:ring-emerald-500 outline-none w-[110px]"
+                                    className="bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs focus:ring-1 focus:ring-emerald-500 outline-none w-[130px]"
                                 >
-                                    {MONTH_OPTIONS.map(m => (
+                                    <option value={0}>Semua Bulan</option>
+                                    {availableMonths.map(m => (
                                         <option key={m.value} value={m.value}>{m.label}</option>
                                     ))}
                                 </select>
                             </div>
 
-                            {/* State Filter */}
                             <div className="flex items-center gap-2">
-                                <label className="text-[9px] font-bold text-slate-400 uppercase whitespace-nowrap">Negeri / Cawangan</label>
+                                <label className="text-[9px] font-bold text-slate-400 uppercase whitespace-nowrap">Negeri / Kawasan</label>
                                 <select
                                     value={selectedState}
                                     onChange={(e) => setSelectedState(e.target.value)}
-                                    className="bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs focus:ring-1 focus:ring-emerald-500 outline-none min-w-[130px]"
+                                    className="bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs focus:ring-1 focus:ring-emerald-500 outline-none min-w-[150px]"
                                 >
                                     <option value="">Semua Negeri</option>
-                                    {(states.length > 0 ? states.map(s => s.name) : ['Selangor', 'Kuala Lumpur', 'Johor', 'Negeri Sembilan', 'Melaka', 'Perak', 'Pahang', 'Terengganu', 'Kelantan', 'Pulau Pinang', 'Kedah', 'Perlis', 'Sabah', 'Sarawak']).map(s => (
-                                        <option key={s} value={s}>{s}</option>
+                                    {availableStates.map(s => (
+                                        <option key={s.value} value={s.value}>{s.label}</option>
                                     ))}
                                 </select>
                             </div>
@@ -379,8 +537,8 @@ export default function PengislamanKPIPage() {
 
                             <button
                                 onClick={() => {
-                                    setSelectedYear(new Date().getFullYear());
-                                    setSelectedMonth(new Date().getMonth() + 1);
+                                    setSelectedYear(0);
+                                    setSelectedMonth(0);
                                     setSelectedState('');
                                     setSearchTerm('');
                                     setPendingChanges({});
@@ -405,22 +563,40 @@ export default function PengislamanKPIPage() {
                                 <thead>
                                     <tr className="border-b border-slate-200">
                                         {/* Frozen Column 1: Mualaf ID */}
-                                        <th className="sticky top-0 left-0 z-40 bg-slate-100 p-1.5 text-left font-semibold text-slate-700 border-r border-slate-200 border-b-2 border-emerald-500 min-w-[70px]">
-                                            <div className="flex items-center cursor-pointer group" onClick={() => handleSort('noStaf')}>
+                                        <th className="sticky top-0 left-0 z-40 bg-slate-100 p-1.5 text-left font-semibold text-slate-700 border-r border-slate-200 border-b-2 border-emerald-500 min-w-[70px] align-top">
+                                            <div className="flex items-center cursor-pointer group mb-1" onClick={() => handleSort('noStaf')}>
                                                 ID {sortConfig.key === 'noStaf' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />) : <ArrowUpDown className="h-3 w-3 ml-1 opacity-0 group-hover:opacity-100" />}
                                             </div>
+                                            <FilterInput
+                                                value={columnFilters['noStaf']}
+                                                onChange={(val) => handleFilterChange('noStaf', val)}
+                                                options={getUniqueValues('noStaf')}
+                                                listId="list-noStaf"
+                                            />
                                         </th>
                                         {/* Frozen Column 2: Nama */}
-                                        <th className="sticky top-0 left-[70px] z-40 bg-slate-100 p-1.5 text-left font-semibold text-slate-700 border-r border-slate-200 border-b-2 border-emerald-500 min-w-[160px]">
-                                            <div className="flex items-center cursor-pointer group" onClick={() => handleSort('namaIslam')}>
+                                        <th className="sticky top-0 left-[70px] z-40 bg-slate-100 p-1.5 text-left font-semibold text-slate-700 border-r border-slate-200 border-b-2 border-emerald-500 min-w-[160px] align-top">
+                                            <div className="flex items-center cursor-pointer group mb-1" onClick={() => handleSort('namaIslam')}>
                                                 Nama Islam {sortConfig.key === 'namaIslam' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />) : <ArrowUpDown className="h-3 w-3 ml-1 opacity-0 group-hover:opacity-100" />}
                                             </div>
+                                            <FilterInput
+                                                value={columnFilters['namaIslam']}
+                                                onChange={(val) => handleFilterChange('namaIslam', val)}
+                                                options={getUniqueValues('namaIslam')}
+                                                listId="list-namaIslam"
+                                            />
                                         </th>
                                         {/* Frozen Column 3: Tarikh Pengislaman */}
-                                        <th className="sticky top-0 left-[230px] z-40 bg-slate-100 p-1.5 text-left font-semibold text-slate-700 border-r border-slate-200 border-b-2 border-emerald-500 min-w-[90px]">
-                                            <div className="flex items-center cursor-pointer group" onClick={() => handleSort('tarikhPengislaman')}>
+                                        <th className="sticky top-0 left-[230px] z-40 bg-slate-100 p-1.5 text-left font-semibold text-slate-700 border-r border-slate-200 border-b-2 border-emerald-500 min-w-[90px] align-top">
+                                            <div className="flex items-center cursor-pointer group mb-1" onClick={() => handleSort('tarikhPengislaman')}>
                                                 Tkh. Islam {sortConfig.key === 'tarikhPengislaman' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />) : <ArrowUpDown className="h-3 w-3 ml-1 opacity-0 group-hover:opacity-100" />}
                                             </div>
+                                            <FilterInput
+                                                value={columnFilters['tarikhPengislaman']}
+                                                onChange={(val) => handleFilterChange('tarikhPengislaman', val)}
+                                                options={getUniqueValues('tarikhPengislaman')}
+                                                listId="list-tarikhPengislaman"
+                                            />
                                         </th>
                                         {/* Frozen Column 4: Score / Status */}
                                         <th className="sticky top-0 left-[320px] z-40 bg-emerald-100 p-1.5 text-left font-semibold text-emerald-800 border-r border-emerald-200 border-b-2 border-emerald-500 min-w-[90px]">
@@ -436,10 +612,24 @@ export default function PengislamanKPIPage() {
 
                                         {/* Scrollable Column Headers */}
                                         {KPI_COLUMNS.map(col => (
-                                            <th key={col.id} className={`sticky top-0 z-30 p-1.5 text-left font-semibold text-slate-700 border-r border-slate-200 bg-slate-50 border-b-2 border-emerald-500 ${col.width}`}>
-                                                <div className="flex items-center cursor-pointer group" onClick={() => handleSort(col.id)}>
-                                                    {col.label} {sortConfig.key === col.id ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />) : <ArrowUpDown className="h-3 w-3 ml-1 opacity-0 group-hover:opacity-100" />}
+                                            <th key={col.id} className={`sticky top-0 z-30 p-1.5 text-left font-semibold text-slate-700 border-r border-slate-200 bg-slate-50 border-b-2 border-emerald-500 ${col.width} align-top`}>
+                                                <div className="flex items-center cursor-pointer group mb-1" onClick={() => handleSort(col.id)}>
+                                                    <div className="flex flex-col">
+                                                        <span>{col.label}</span>
+                                                        {col.type === 'checkbox' && (
+                                                            <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 mt-1 w-fit">
+                                                                {columnTotals[col.id]?.toLocaleString() || 0}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {sortConfig.key === col.id ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />) : <ArrowUpDown className="h-3 w-3 ml-1 opacity-0 group-hover:opacity-100" />}
                                                 </div>
+                                                <FilterInput
+                                                    value={columnFilters[col.id]}
+                                                    onChange={(val) => handleFilterChange(col.id, val)}
+                                                    options={getUniqueValues(col.id)}
+                                                    listId={`list-${col.id}`}
+                                                />
                                             </th>
                                         ))}
                                     </tr>
@@ -544,6 +734,17 @@ export default function PengislamanKPIPage() {
                                                                     </div>
                                                                     <div className="text-[8px] text-slate-400 font-medium">
                                                                         {onTime ? 'PATUH' : 'LEWAT'}
+                                                                    </div>
+                                                                </td>
+                                                            );
+                                                        }
+
+                                                        if (col.type === 'top-readonly') {
+                                                            const val = record[fieldKey];
+                                                            return (
+                                                                <td key={col.id} className="p-1 border-r border-slate-100 bg-slate-50 group-hover:bg-white transition-colors align-top">
+                                                                    <div className="text-[10px] font-medium text-slate-600 px-1 truncate" title={val}>
+                                                                        {val || '-'}
                                                                     </div>
                                                                 </td>
                                                             );

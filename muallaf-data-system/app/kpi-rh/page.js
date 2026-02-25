@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
-import { Plus, Search, Filter, Activity, FileText, ArrowUp, ArrowDown, ArrowUpDown, Trash2, Loader2, RefreshCw, Download, Save, LayoutGrid, Check, X, Copy } from 'lucide-react';
+import { Plus, Search, Filter, Activity, FileText, ArrowUp, ArrowDown, ArrowUpDown, Trash2, Loader2, RefreshCw, Download, Save, LayoutGrid, Check, X, Copy, ChevronDown } from 'lucide-react';
 import Select from 'react-select';
 
 // Configuration for each Tab
@@ -47,8 +47,11 @@ const COLUMNS_MAP = {
         { id: 'bil_outreach', label: 'Bil Prog Outreach', type: 'number', width: 'min-w-[120px]' },
         { id: 'bil_hcf_lain', label: 'Bil Prog HCF Lain', type: 'number', width: 'min-w-[120px]' },
         { id: 'mualaf', label: 'Mualaf', type: 'checkbox', width: 'min-w-[100px]' },
-        { id: 'catatan_1', label: 'Catatan (Nama Prog)', type: 'text', width: 'min-w-[200px]' },
-        { id: 'catatan_lain', label: 'Catatan (Lain-lain)', type: 'text', width: 'min-w-[200px]' }
+        { id: 'status_rh_aktif', label: 'RH Aktif', type: 'checkbox', width: 'min-w-[100px]' },
+        { id: 'status_duat_aktif', label: 'Duat Aktif', type: 'checkbox', width: 'min-w-[100px]' },
+        { id: 'status_duat_kualiti', label: 'Duat Kualiti', type: 'checkbox', width: 'min-w-[120px]' },
+        { id: 'catatan_1', label: 'Catatan 1', type: 'text', width: 'min-w-[200px]' },
+        { id: 'catatan_2', label: 'Catatan 2', type: 'text', width: 'min-w-[200px]' }
     ],
     'ikram': [
         { id: 'kawasan_ikram', label: 'Kawasan IKRAM', type: 'select', width: 'min-w-[150px]' },
@@ -76,22 +79,23 @@ const COLUMNS_MAP = {
 };
 
 const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
-    <div className="relative">
+    <div className="relative mt-1">
         <input
             type="text"
             list={listId}
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
-            className="block w-full bg-white text-[10px] border-gray-300 rounded-md shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-0.5 px-1 mt-1"
+            className="block w-full bg-white text-[10px] border border-gray-300 rounded shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-0.5 px-1 pr-4 font-medium"
             placeholder={placeholder || "Cari..."}
         />
-        {options && (
-            <datalist id={listId}>
-                {options.map(val => (
-                    <option key={val} value={val} />
-                ))}
-            </datalist>
-        )}
+        <datalist id={listId}>
+            {options && options.map((opt, idx) => (
+                <option key={`${opt.value}-${idx}`} value={opt.label} />
+            ))}
+        </datalist>
+        <div className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none">
+            <ChevronDown className="h-2.5 w-2.5 text-gray-400" />
+        </div>
     </div>
 );
 
@@ -106,6 +110,8 @@ export default function RakanHidayahKPIPage() {
 
     const [selectedState, setSelectedState] = useState('');
     const [states, setStates] = useState([]);
+    const [availableYears, setAvailableYears] = useState([]);
+    const [availableStates, setAvailableStates] = useState([]);
 
     const [columnFilters, setColumnFilters] = useState({});
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -181,6 +187,38 @@ export default function RakanHidayahKPIPage() {
     };
 
     useEffect(() => {
+        const fetchAvailableFilters = async () => {
+            const { data } = await supabase.from('other_kpis').select('year, state').eq('category', activeTab);
+            // Instead of custom fetchAll here, we can just fetch all for count since it's just 2 columns
+            // But let's use the helper if possible, or just calculate from kpiData if loadData fetches all.
+            // Actually, loadData filters by state/year, so we need a separate global fetch.
+
+            // Re-fetch all filter options for the CURRENT tab
+            const { data: allTabRecords } = await supabase.from('other_kpis').select('year, state').eq('category', activeTab);
+
+            if (allTabRecords) {
+                const yCounts = {};
+                const sCounts = {};
+                allTabRecords.forEach(item => {
+                    const y = item.year || 0;
+                    const s = item.state || 'Semua';
+                    if (y) yCounts[y] = (yCounts[y] || 0) + 1;
+                    sCounts[s] = (sCounts[s] || 0) + 1;
+                });
+
+                const ySorted = Object.entries(yCounts)
+                    .map(([year, count]) => ({ value: Number(year), label: `${year} (${count})` }))
+                    .sort((a, b) => b.value - a.value);
+
+                const sSorted = Object.entries(sCounts)
+                    .map(([state, count]) => ({ value: state, label: `${state} (${count})` }))
+                    .sort((a, b) => a.value.localeCompare(b.value));
+
+                setAvailableYears(ySorted);
+                setAvailableStates(sSorted);
+            }
+        };
+        fetchAvailableFilters();
         setColumnFilters({});
         setSortConfig({ key: null, direction: 'asc' });
         setPendingChanges({});
@@ -288,28 +326,40 @@ export default function RakanHidayahKPIPage() {
     };
 
     const getUniqueValues = (field) => {
-        const relevantData = kpiData.filter(prog => {
+        const filteredByOthers = kpiData.filter(prog => {
             return Object.entries(columnFilters).every(([key, value]) => {
-                if (key === field) return true;
-                if (!value) return true;
-                if (value === '(Kosong)') {
-                    return !prog[key] || prog[key] === '';
-                }
+                if (key === field || !value) return true;
+                const cleanValue = value.replace(/\s\(\d+\)$/, '');
+                if (cleanValue === '(Kosong)') return !prog[key] || prog[key] === '';
                 const progVal = typeof prog[key] === 'boolean' ? (prog[key] ? 'Ya' : 'Tidak') : prog[key];
-                return progVal?.toString().toLowerCase().includes(value.toLowerCase());
+                return progVal?.toString().toLowerCase().includes(cleanValue.toLowerCase());
             });
         });
 
-        const hasBlanks = relevantData.some(prog => prog[field] === undefined || prog[field] === null || prog[field] === '');
-        const values = relevantData
-            .map(prog => typeof prog[field] === 'boolean' ? (prog[field] ? 'Ya' : 'Tidak') : prog[field])
-            .filter(val => val !== '' && val !== null && val !== undefined);
+        const counts = {};
+        let blankCount = 0;
 
-        const uniqueValues = [...new Set(values)].sort();
-        if (hasBlanks) {
-            return ['(Kosong)', ...uniqueValues];
+        filteredByOthers.forEach(prog => {
+            let val = prog[field];
+            if (typeof val === 'boolean') val = val ? 'Ya' : 'Tidak';
+
+            if (val === undefined || val === null || val === '') {
+                blankCount++;
+            } else {
+                counts[val] = (counts[val] || 0) + 1;
+            }
+        });
+
+        const results = Object.entries(counts).map(([value, count]) => ({
+            value,
+            label: `${value} (${count})`
+        })).sort((a, b) => a.value.toString().localeCompare(b.value.toString()));
+
+        if (blankCount > 0) {
+            results.unshift({ value: '(Kosong)', label: `(Kosong) (${blankCount})` });
         }
-        return uniqueValues;
+
+        return results;
     };
 
     const handleFilterChange = (field, value) => {
@@ -423,11 +473,12 @@ export default function RakanHidayahKPIPage() {
     const filteredData = kpiData.filter(prog => {
         return Object.entries(columnFilters).every(([field, value]) => {
             if (!value) return true;
-            if (value === '(Kosong)') {
+            const cleanValue = value.replace(/\s\(\d+\)$/, '');
+            if (cleanValue === '(Kosong)') {
                 return prog[field] === undefined || prog[field] === null || prog[field] === '';
             }
             const progVal = typeof prog[field] === 'boolean' ? (prog[field] ? 'Ya' : 'Tidak') : prog[field];
-            return progVal?.toString().toLowerCase().includes(value.toLowerCase());
+            return progVal?.toString().toLowerCase().includes(cleanValue.toLowerCase());
         });
     }).sort((a, b) => {
         if (!sortConfig.key) return 0;
@@ -445,6 +496,18 @@ export default function RakanHidayahKPIPage() {
         if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
     });
+
+    const columnTotals = useMemo(() => {
+        const totals = {};
+        currentColumns.forEach(col => {
+            if (col.type === 'number') {
+                totals[col.id] = filteredData.reduce((sum, row) => sum + (Number(row[col.id]) || 0), 0);
+            } else if (col.type === 'checkbox') {
+                totals[col.id] = filteredData.filter(row => !!row[col.id]).length;
+            }
+        });
+        return totals;
+    }, [filteredData, currentColumns]);
 
     const exportToCSV = () => {
         const csvContent = [
@@ -525,7 +588,7 @@ export default function RakanHidayahKPIPage() {
 
                         {/* Filter Section */}
                         <div className="bg-white rounded-xl p-4 mt-3 mb-1 shadow-sm border border-slate-200 flex items-center justify-between">
-                            <div className="w-1/3 mr-4">
+                            <div className="w-1/4 mr-4">
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tahun</label>
                                 <select
                                     className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-medium"
@@ -533,11 +596,14 @@ export default function RakanHidayahKPIPage() {
                                     onChange={(e) => setSelectedYear(Number(e.target.value))}
                                 >
                                     <option value={0}>Semua Tahun</option>
-                                    {years.map(y => <option key={y} value={y}>{y}</option>)}
+                                    {availableYears.map(y => <option key={y.value} value={y.value}>{y.label}</option>)}
+                                    {!availableYears.some(y => y.value === selectedYear) && selectedYear !== 0 && (
+                                        <option value={selectedYear}>{selectedYear}</option>
+                                    )}
                                 </select>
                             </div>
 
-                            <div className="w-1/3">
+                            <div className="w-1/4 mr-4">
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Negeri / Kawasan</label>
                                 <select
                                     className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-medium"
@@ -545,7 +611,10 @@ export default function RakanHidayahKPIPage() {
                                     onChange={(e) => setSelectedState(e.target.value)}
                                 >
                                     <option value="">Semua Negeri</option>
-                                    {states.map((s, index) => <option key={s.id || index} value={s.name}>{s.name}</option>)}
+                                    {availableStates.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                    {!availableStates.some(s => s.value === selectedState) && selectedState !== '' && (
+                                        <option value={selectedState}>{selectedState}</option>
+                                    )}
                                 </select>
                             </div>
 
@@ -690,7 +759,14 @@ export default function RakanHidayahKPIPage() {
                                                     className="flex items-center cursor-pointer mb-1 group"
                                                     onClick={() => handleSort(col.id)}
                                                 >
-                                                    <span>{col.label}</span>
+                                                    <div className="flex flex-col">
+                                                        <span>{col.label}</span>
+                                                        {(col.type === 'number' || col.type === 'checkbox') && (
+                                                            <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 mt-1 w-fit">
+                                                                {columnTotals[col.id]?.toLocaleString() || 0}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     {sortConfig.key === col.id ? (
                                                         sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 text-emerald-600" /> : <ArrowDown className="h-3 w-3 ml-1 text-emerald-600" />
                                                     ) : (
@@ -700,7 +776,7 @@ export default function RakanHidayahKPIPage() {
                                                 <FilterInput
                                                     value={columnFilters[col.id]}
                                                     onChange={(val) => handleFilterChange(col.id, val)}
-                                                    options={col.type !== 'text' ? getUniqueValues(col.id) : null}
+                                                    options={getUniqueValues(col.id)}
                                                     listId={`list-${col.id}`}
                                                     placeholder="Cari..."
                                                 />
@@ -749,13 +825,16 @@ export default function RakanHidayahKPIPage() {
                                             {/* TAHUN COLUMN */}
                                             <td className={`py-1 px-2 border-r border-gray-200 ${pendingChanges[row.id]?.['year'] !== undefined ? 'bg-amber-50' : 'bg-white'}`}>
                                                 {isSpreadsheetMode ? (
-                                                    <select
-                                                        value={pendingChanges[row.id]?.['year'] !== undefined ? pendingChanges[row.id].year : (row.year || '')}
-                                                        onChange={(e) => handleCellChange(row.id, 'year', Number(e.target.value))}
-                                                        className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px]"
-                                                    >
-                                                        {years.map(y => <option key={y} value={y}>{y}</option>)}
-                                                    </select>
+                                                    <div className="relative">
+                                                        <select
+                                                            value={pendingChanges[row.id]?.['year'] !== undefined ? pendingChanges[row.id].year : (row.year || '')}
+                                                            onChange={(e) => handleCellChange(row.id, 'year', Number(e.target.value))}
+                                                            className="w-full bg-white border border-slate-200 rounded pl-1 pr-5 py-0.5 text-[10px] appearance-none"
+                                                        >
+                                                            {years.map(y => <option key={y} value={y}>{y}</option>)}
+                                                        </select>
+                                                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 pointer-events-none" />
+                                                    </div>
                                                 ) : (
                                                     <span>{row.year}</span>
                                                 )}
@@ -764,14 +843,17 @@ export default function RakanHidayahKPIPage() {
                                             {/* NEGERI COLUMN */}
                                             <td className={`py-1 px-2 border-r border-gray-200 ${pendingChanges[row.id]?.['state'] !== undefined ? 'bg-amber-50' : 'bg-white'}`}>
                                                 {isSpreadsheetMode ? (
-                                                    <select
-                                                        value={pendingChanges[row.id]?.['state'] !== undefined ? pendingChanges[row.id].state : (row.state || '')}
-                                                        onChange={(e) => handleCellChange(row.id, 'state', e.target.value)}
-                                                        className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px]"
-                                                    >
-                                                        <option value="">-- Pilih --</option>
-                                                        {states.map((s, index) => <option key={s.id || index} value={s.name}>{s.name}</option>)}
-                                                    </select>
+                                                    <div className="relative">
+                                                        <select
+                                                            value={pendingChanges[row.id]?.['state'] !== undefined ? pendingChanges[row.id].state : (row.state || '')}
+                                                            onChange={(e) => handleCellChange(row.id, 'state', e.target.value)}
+                                                            className="w-full bg-white border border-slate-200 rounded pl-1 pr-5 py-0.5 text-[10px] appearance-none truncate"
+                                                        >
+                                                            <option value="">-- Pilih --</option>
+                                                            {states.map((s, index) => <option key={s.id || index} value={s.name}>{s.name}</option>)}
+                                                        </select>
+                                                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 pointer-events-none" />
+                                                    </div>
                                                 ) : (
                                                     <span>{row.state}</span>
                                                 )}
@@ -798,24 +880,30 @@ export default function RakanHidayahKPIPage() {
                                                     }
 
                                                     if (col.type === 'select' && (col.id === 'kawasan' || col.id === 'kawasan_ikram' || col.id === 'kawasan_anjuran')) {
-                                                        // Look up the state of the current row based on row.state
                                                         const rowStateName = pendingChanges[row.id]?.['state'] !== undefined ? pendingChanges[row.id].state : (row.state || '');
                                                         const stateObj = states.find(s => s.name === rowStateName);
                                                         const dropdownOptions = stateObj?.cawangan || [];
+                                                        const datalistId = `list-${col.id}-${rowStateName.replace(/\s+/g, '-')}`;
 
                                                         return (
                                                             <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'} align-top`}>
                                                                 {isSpreadsheetMode ? (
-                                                                    <select
-                                                                        value={rawValue || ''}
-                                                                        onChange={(e) => handleCellChange(row.id, col.id, e.target.value)}
-                                                                        className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500 outline-none"
-                                                                    >
-                                                                        <option value="">Pilih Kawasan</option>
-                                                                        {dropdownOptions.length > 0 ? [...dropdownOptions].sort().map(loc => (
-                                                                            <option key={loc} value={loc}>{loc}</option>
-                                                                        )) : <option disabled>Tiada Pilihan</option>}
-                                                                    </select>
+                                                                    <div className="relative group">
+                                                                        <input
+                                                                            type="text"
+                                                                            list={datalistId}
+                                                                            value={rawValue || ''}
+                                                                            onChange={(e) => handleCellChange(row.id, col.id, e.target.value)}
+                                                                            placeholder="Pilih/Taip..."
+                                                                            className="w-full bg-white border border-slate-200 rounded pl-1 pr-5 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500 outline-none truncate"
+                                                                        />
+                                                                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
+                                                                        <datalist id={datalistId}>
+                                                                            {dropdownOptions.map(loc => (
+                                                                                <option key={loc} value={loc} />
+                                                                            ))}
+                                                                        </datalist>
+                                                                    </div>
                                                                 ) : (
                                                                     <div className="truncate max-w-[150px]" title={rawValue}>
                                                                         {rawValue || '-'}
@@ -843,16 +931,19 @@ export default function RakanHidayahKPIPage() {
                                                         return (
                                                             <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'} align-top`}>
                                                                 {isSpreadsheetMode ? (
-                                                                    <select
-                                                                        value={rawValue || ''}
-                                                                        onChange={(e) => handleCellChange(row.id, col.id, e.target.value)}
-                                                                        className="w-full bg-white border border-slate-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500 outline-none"
-                                                                    >
-                                                                        <option value="">{placeholder}</option>
-                                                                        {dropdownOptions.length > 0 ? [...dropdownOptions].sort().map(opt => (
-                                                                            <option key={opt} value={opt}>{opt}</option>
-                                                                        )) : <option disabled>Tiada Pilihan</option>}
-                                                                    </select>
+                                                                    <div className="relative">
+                                                                        <select
+                                                                            value={rawValue || ''}
+                                                                            onChange={(e) => handleCellChange(row.id, col.id, e.target.value)}
+                                                                            className="w-full bg-white border border-slate-200 rounded pl-1 pr-5 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500 outline-none appearance-none truncate"
+                                                                        >
+                                                                            <option value="">{placeholder}</option>
+                                                                            {dropdownOptions.length > 0 ? [...dropdownOptions].sort().map(opt => (
+                                                                                <option key={opt} value={opt}>{opt}</option>
+                                                                            )) : <option disabled>Tiada Pilihan</option>}
+                                                                        </select>
+                                                                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 pointer-events-none" />
+                                                                    </div>
                                                                 ) : (
                                                                     <div className="truncate max-w-[150px]" title={rawValue}>
                                                                         {rawValue || '-'}
@@ -929,64 +1020,36 @@ export default function RakanHidayahKPIPage() {
                                                     }
 
                                                     if (col.type === 'sukarelawan-search') {
-                                                        const sukaOptions = sukarelawanList.map(s => ({
-                                                            value: s.noStaf || s.nama, // Fallback to name if ID is missing
-                                                            label: s.noStaf ? `${s.noStaf} - ${s.nama}` : s.nama,
-                                                            nama: s.nama
-                                                        }));
-
-                                                        const selectedOption = sukaOptions.find(opt => opt.value === rawValue) || null;
+                                                        const lookup = sukarelawanList.find(s => s.noStaf?.toString() === rawValue?.toString());
+                                                        const notFound = rawValue && !lookup;
 
                                                         return (
-                                                            <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'} align-top`}>
+                                                            <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'} ${notFound ? 'bg-red-50' : ''} align-top`}>
                                                                 {isSpreadsheetMode ? (
-                                                                    <div className="min-w-[180px]">
-                                                                        <Select
-                                                                            options={sukaOptions}
-                                                                            value={selectedOption}
-                                                                            onChange={(selected) => {
-                                                                                handleCellChange(row.id, col.id, selected ? selected.value : '');
-                                                                                if (selected) {
-                                                                                    // Auto-fill nama
-                                                                                    handleCellChange(row.id, 'nama', selected.nama);
+                                                                    <div className="relative group">
+                                                                        <input
+                                                                            type="text"
+                                                                            list="sukarelawan-datalist"
+                                                                            value={rawValue || ''}
+                                                                            onChange={(e) => {
+                                                                                const val = e.target.value;
+                                                                                handleCellChange(row.id, col.id, val);
+                                                                                const found = sukarelawanList.find(s => s.noStaf?.toString() === val);
+                                                                                if (found) {
+                                                                                    handleCellChange(row.id, 'nama', found.nama);
                                                                                 }
                                                                             }}
-                                                                            placeholder="Cari ID / Nama..."
-                                                                            isClearable
-                                                                            formatOptionLabel={(option, { context }) => (
-                                                                                <div className={context === 'menu' ? 'text-[9px]' : 'text-[10px]'}>
-                                                                                    {context === 'menu' ? option.label : option.value}
-                                                                                </div>
-                                                                            )}
-                                                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
-                                                                            menuPosition="fixed"
-                                                                            className="text-[10px]"
-                                                                            styles={{
-                                                                                menuPortal: base => ({ ...base, zIndex: 9999 }),
-                                                                                control: (base) => ({
-                                                                                    ...base,
-                                                                                    minHeight: '26px',
-                                                                                    height: '26px',
-                                                                                    fontSize: '10px'
-                                                                                }),
-                                                                                valueContainer: (base) => ({
-                                                                                    ...base,
-                                                                                    padding: '0 4px',
-                                                                                }),
-                                                                                input: (base) => ({
-                                                                                    ...base,
-                                                                                    margin: 0,
-                                                                                    padding: 0
-                                                                                }),
-                                                                                indicatorsContainer: (base) => ({
-                                                                                    ...base,
-                                                                                    height: '26px'
-                                                                                })
-                                                                            }}
+                                                                            className={`w-full bg-white border rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500 outline-none transition-colors ${notFound ? 'border-red-500 text-red-600 font-bold bg-red-50' : 'border-gray-200'}`}
+                                                                            placeholder="No. Ahli..."
                                                                         />
+                                                                        {notFound && (
+                                                                            <div className="absolute hidden group-hover:block z-50 bg-red-600 text-white text-[9px] p-1 rounded -top-8 left-0 whitespace-nowrap shadow-lg">
+                                                                                ID tidak dijumpai dalam pangkalan data pekerja
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 ) : (
-                                                                    <div className="truncate max-w-[200px]" title={rawValue}>
+                                                                    <div className={`truncate max-w-[200px] ${notFound ? 'text-red-600 font-bold' : ''}`} title={rawValue}>
                                                                         {rawValue || '-'}
                                                                     </div>
                                                                 )}
@@ -1019,7 +1082,7 @@ export default function RakanHidayahKPIPage() {
                                                         );
                                                     }
 
-                                                    if (col.id === 'nama_mualaf' || (col.id === 'nama' && activeTab === 'rh_aktif')) {
+                                                    if (col.id === 'nama_mualaf') {
                                                         return (
                                                             <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-slate-50'}`}>
                                                                 <input
@@ -1029,6 +1092,46 @@ export default function RakanHidayahKPIPage() {
                                                                     className="w-full bg-slate-100 border border-slate-200 rounded px-1 py-0.5 text-[10px] text-slate-500 cursor-not-allowed"
                                                                     title="Diisi secara automatik"
                                                                 />
+                                                            </td>
+                                                        );
+                                                    }
+
+                                                    if (col.id === 'nama' && activeTab === 'rh_aktif') {
+                                                        const noAhliVal = isEdited ? (pendingChanges[row.id]?.no_ahli ?? row.no_ahli) : row.no_ahli;
+                                                        const workerLookup = sukarelawanList.find(s => s.noStaf?.toString() === noAhliVal?.toString());
+                                                        const mismatch = workerLookup && workerLookup.nama !== rawValue;
+
+                                                        return (
+                                                            <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${isEdited ? 'bg-amber-50' : 'bg-white'} ${mismatch ? 'bg-red-50' : ''} align-top`}>
+                                                                {isSpreadsheetMode ? (
+                                                                    <div className="flex items-center gap-1 group relative">
+                                                                        <input
+                                                                            type="text"
+                                                                            value={rawValue || ''}
+                                                                            onChange={(e) => handleCellChange(row.id, col.id, e.target.value)}
+                                                                            className={`w-full bg-white border rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500 outline-none transition-colors ${mismatch ? 'border-red-500 text-red-600 font-bold bg-red-50' : 'border-gray-200'}`}
+                                                                        />
+                                                                        {mismatch && (
+                                                                            <>
+                                                                                <button
+                                                                                    onClick={() => handleCellChange(row.id, 'nama', workerLookup.nama)}
+                                                                                    className="p-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200 shadow-sm transition-colors"
+                                                                                    title={`Pilih Nama dari Lookup: ${workerLookup.nama}`}
+                                                                                >
+                                                                                    <RefreshCw className="h-3.5 w-3.5" />
+                                                                                </button>
+                                                                                <div className="absolute hidden group-hover:block z-50 bg-red-600 text-white text-[9px] p-1.5 rounded -top-10 right-0 whitespace-nowrap shadow-xl">
+                                                                                    Nama tidak sepadan dengan rekod pekerja. <br />
+                                                                                    Dijumpai: <b>{workerLookup.nama}</b>
+                                                                                </div>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className={`truncate max-w-[200px] ${mismatch ? 'text-red-600 font-bold' : ''}`} title={rawValue}>
+                                                                        {rawValue || '-'}
+                                                                    </div>
+                                                                )}
                                                             </td>
                                                         );
                                                     }
@@ -1073,6 +1176,27 @@ export default function RakanHidayahKPIPage() {
                                                         </td>
                                                     );
                                                 }
+                                                if (col.type === 'sukarelawan-search') {
+                                                    const lookup = sukarelawanList.find(s => s.noStaf?.toString() === rawValue?.toString());
+                                                    const notFound = rawValue && !lookup;
+                                                    return (
+                                                        <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${notFound ? 'bg-red-50 text-red-600 font-bold' : ''}`}>
+                                                            {rawValue || '-'}
+                                                        </td>
+                                                    );
+                                                }
+
+                                                if (col.id === 'nama' && activeTab === 'rh_aktif') {
+                                                    const noAhliVal = pendingChanges[row.id]?.no_ahli !== undefined ? pendingChanges[row.id].no_ahli : row.no_ahli;
+                                                    const workerLookup = sukarelawanList.find(s => s.noStaf?.toString() === noAhliVal?.toString());
+                                                    const mismatch = workerLookup && workerLookup.nama !== rawValue;
+                                                    return (
+                                                        <td key={col.id} className={`py-1 px-2 border-r border-gray-200 ${mismatch ? 'bg-red-50 text-red-600 font-bold' : ''}`}>
+                                                            {rawValue || '-'}
+                                                        </td>
+                                                    );
+                                                }
+
                                                 return (
                                                     <td key={col.id} className="py-1 px-2 border-r border-gray-200">
                                                         {rawValue}
@@ -1094,6 +1218,11 @@ export default function RakanHidayahKPIPage() {
                         </div>
                     )}
                 </div>
+                <datalist id="sukarelawan-datalist">
+                    {sukarelawanList.map((s, idx) => (
+                        <option key={`${s.noStaf}-${idx}`} value={s.noStaf}>{s.nama}</option>
+                    ))}
+                </datalist>
             </div>
         </ProtectedRoute>
     );

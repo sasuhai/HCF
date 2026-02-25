@@ -1,31 +1,113 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
-import { getStates, getLocationsTable, getLookupData } from '@/lib/supabase/database';
+import { getStates, getLocationsTable, getLookupData, fetchAll } from '@/lib/supabase/database';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { Search, Plus, Edit2, Trash2, User, X, MapPin, Download, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, User, X, MapPin, Download, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, RefreshCw, Loader2, ChevronDown } from 'lucide-react';
 import { PETUGAS_KATEGORI_ELAUN, NEGERI_CAWANGAN_OPTIONS, BANK_OPTIONS } from '@/lib/constants';
+
+// Role Color helper
+const getRoleColorParams = (role) => {
+    if (role === 'Guru') return { bg: 'bg-indigo-100', text: 'text-indigo-700' };
+    if (role === 'Petugas') return { bg: 'bg-blue-100', text: 'text-blue-700' };
+    if (role === 'Koordinator') return { bg: 'bg-purple-100', text: 'text-purple-700' };
+    if (role === 'Sukarelawan') return { bg: 'bg-emerald-100', text: 'text-emerald-700' };
+    return { bg: 'bg-gray-100', text: 'text-gray-700' };
+};
+
+// Allowance Color helper
+const getAllowanceColorParams = (type) => {
+    if (!type || type === 'Tiada Elaun') return { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-200' };
+    const colors = [
+        { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' },
+        { bg: 'bg-pink-100', text: 'text-pink-700', border: 'border-pink-200' },
+        { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },
+        { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-200' },
+        { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-200' },
+    ];
+    let hash = 0;
+    for (let i = 0; i < type.length; i++) hash = type.charCodeAt(i) + ((hash << 5) - hash);
+    return colors[Math.abs(hash) % colors.length];
+};
+
+// Optimized Row Component
+const WorkerRow = React.memo(({ worker, openModal, handleDelete }) => {
+    const roleColor = getRoleColorParams(worker.peranan);
+    const allowColor = getAllowanceColorParams(worker.kategoriElaun);
+
+    return (
+        <tr className="border-b border-gray-100 hover:bg-emerald-50/50 transition-colors group" style={{ contentVisibility: 'auto', containIntrinsicSize: '0 40px' }}>
+            <td className="sticky left-0 z-10 bg-emerald-50/80 py-1.5 px-2 shadow-[1px_0_0_0_#10b981] min-w-[100px] font-bold text-emerald-800">
+                {worker.staff_id || '-'}
+            </td>
+            <td className="sticky left-[100px] z-10 bg-emerald-50/80 py-1.5 px-2 shadow-[1px_0_0_0_#10b981] min-w-[180px]">
+                <div className="font-semibold text-gray-900 leading-tight">{worker.nama}</div>
+                <div className="text-[9px] text-gray-500 font-medium uppercase mt-0.5">{worker.pekerjaan || 'Tiada Pekerjaan'}</div>
+            </td>
+            <td className="sticky left-[280px] z-10 bg-emerald-50/80 py-1.5 px-2 shadow-[1px_0_0_0_#10b981] min-w-[80px]">
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => openModal(worker)} className="p-1 text-emerald-600 hover:bg-emerald-100 rounded transition-colors" title="Edit">
+                        <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => handleDelete(worker.id)} className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors" title="Padam">
+                        <Trash2 className="h-4 w-4" />
+                    </button>
+                </div>
+            </td>
+
+            <td className="py-1.5 px-2 bg-white border-r border-gray-100">
+                <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-tight text shadow-sm ${roleColor.bg} ${roleColor.text}`}>
+                    {worker.peranan}
+                </span>
+            </td>
+            <td className="py-1.5 px-2 bg-white border-r border-gray-100 font-medium text-gray-600">{worker.negeri || '-'}</td>
+            <td className="py-1.5 px-2 bg-white border-r border-gray-100 font-medium text-gray-600">{worker.lokasi || '-'}</td>
+            <td className="py-1.5 px-2 bg-white border-r border-gray-100">
+                {worker.kategoriElaun ? (
+                    <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-tight border ${allowColor.bg} ${allowColor.text} ${allowColor.border}`}>
+                        {worker.kategoriElaun}
+                    </span>
+                ) : '-'}
+            </td>
+            <td className="py-1.5 px-2 bg-white border-r border-gray-100 font-mono text-gray-500">{worker.noKP || '-'}</td>
+            <td className="py-1.5 px-2 bg-white border-r border-gray-100">{worker.jantina || '-'}</td>
+            <td className="py-1.5 px-2 bg-white border-r border-gray-100 font-medium">{worker.tel_bimbit || '-'}</td>
+            <td className="py-1.5 px-2 bg-white border-r border-gray-100">{worker.bank || '-'}</td>
+            <td className="py-1.5 px-2 bg-white border-r border-gray-100 font-mono text-gray-500">{worker.noAkaun || '-'}</td>
+            <td className="py-1.5 px-2 bg-white border-r border-gray-100">{worker.tarikh_lahir || '-'}</td>
+            <td className="py-1.5 px-2 bg-white border-r border-gray-100">{worker.pekerjaan || '-'}</td>
+            <td className="py-1.5 px-2 bg-white border-r border-gray-100 whitespace-normal">
+                <div className="max-w-[400px] text-[10px] text-gray-500 italic line-clamp-2" title={worker.kepakaran}>
+                    {worker.kepakaran || '-'}
+                </div>
+            </td>
+        </tr>
+    );
+});
 
 // Helper component for filter inputs
 const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
-    <div className="relative">
+    <div className="relative mt-1">
         <input
             type="text"
             list={listId}
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
-            className="block w-full bg-white text-[10px] border-gray-300 rounded-md shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-0.5 px-1"
+            className="block w-full bg-white text-[10px] border border-gray-300 rounded shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-0.5 px-1 pr-4 font-medium"
             placeholder={placeholder || "Cari..."}
         />
         <datalist id={listId}>
-            {options.map(val => (
-                <option key={val} value={val} />
+            {options && options.map((opt, idx) => (
+                <option key={`${opt.value}-${idx}`} value={opt.label} />
             ))}
         </datalist>
+        <div className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none">
+            <ChevronDown className="h-2.5 w-2.5 text-gray-400" />
+        </div>
     </div>
 );
 
@@ -35,7 +117,7 @@ export default function WorkersPage() {
 
     // Data State
     const [workers, setWorkers] = useState([]);
-    const [locations, setLocations] = useState([]); // Stores full objects: {id, name, state_name}
+    const [locations, setLocations] = useState([]);
     const [states, setStates] = useState([]);
     const [banks, setBanks] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -43,46 +125,38 @@ export default function WorkersPage() {
     // Filter & Sort State
     const [columnFilters, setColumnFilters] = useState({});
     const [sortConfig, setSortConfig] = useState({ key: 'nama', direction: 'asc' });
-    const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 20;
+
+    // Deferred Filters for Performance
+    const deferredFilters = useDeferredValue(columnFilters);
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentWorker, setCurrentWorker] = useState(null);
     const [formData, setFormData] = useState({
-        nama: '',
-        noKP: '',
-        bank: '',
-        noAkaun: '',
-        peranan: 'Sukarelawan',
-        lokasi: '',
-        negeri: '',
-        kategoriElaun: '',
-        staff_id: '',
-        jantina: '',
-        tarikh_daftar: '',
-        daerah_kediaman: '',
-        negeri_kediaman: '',
-        tel_bimbit: '',
-        email: '',
-        pekerjaan: '',
-        kepakaran: '',
-        tarikh_lahir: ''
+        nama: '', noKP: '', bank: '', noAkaun: '', peranan: 'Sukarelawan', lokasi: '', negeri: '',
+        kategoriElaun: '', staff_id: '', jantina: '', tarikh_daftar: '', daerah_kediaman: '',
+        negeri_kediaman: '', tel_bimbit: '', email: '', pekerjaan: '', kepakaran: '', tarikh_lahir: ''
     });
 
     // Fetch Reference Data
     useEffect(() => {
         if (!authLoading) {
-            fetchLocations();
-            fetchStates();
-            fetchBanks();
-            fetchWorkers();
+            initData();
         }
     }, [authLoading]);
 
+    const initData = async () => {
+        setLoading(true);
+        await Promise.all([
+            fetchLocations(),
+            fetchStates(),
+            fetchBanks(),
+            fetchWorkers()
+        ]);
+        setLoading(false);
+    };
+
     const fetchLocations = async () => {
-        // Use getLocationsTable to get full metadata (name, state_name)
-        // If getLocationsTable is not available, we can fallback or ensure it is imported
         const { data } = await getLocationsTable();
         if (data) setLocations(data);
     };
@@ -98,766 +172,353 @@ export default function WorkersPage() {
     };
 
     const fetchWorkers = async () => {
-        setLoading(true);
-        const { data, error } = await supabase
-            .from('workers')
-            .select('*')
-            .order('nama');
+        let query = supabase.from('workers').select('*').order('nama');
+        const { data, error } = await fetchAll(query);
 
         if (!error && data) {
-            // Apply permission filtering immediately
             if (role !== 'admin' && profile?.assignedLocations && !profile.assignedLocations.includes('All')) {
-                const allowedData = data.filter(w => profile.assignedLocations.includes(w.lokasi));
-                setWorkers(allowedData);
+                setWorkers(data.filter(w => profile.assignedLocations.includes(w.lokasi)));
             } else {
                 setWorkers(data);
             }
         }
-        setLoading(false);
     };
 
-    // Derived: Available Locations Logic
-    // 1. Filter by User Permissions
-    const permittedLocations = (role === 'admin' || profile?.assignedLocations?.includes('All'))
-        ? locations
-        : locations.filter(l => profile?.assignedLocations?.includes(l.name));
+    // Permitted Locations
+    const permittedLocations = useMemo(() => {
+        return (role === 'admin' || profile?.assignedLocations?.includes('All'))
+            ? locations
+            : locations.filter(l => profile?.assignedLocations?.includes(l.name));
+    }, [role, profile, locations]);
 
-    // 2. Filter by Selected State (in Modal)
-    const modalLocations = formData.negeri
-        ? permittedLocations.filter(l => l.state_name === formData.negeri)
-        : permittedLocations;
+    const modalLocations = useMemo(() => {
+        return formData.negeri
+            ? permittedLocations.filter(l => l.state_name === formData.negeri)
+            : permittedLocations;
+    }, [formData.negeri, permittedLocations]);
 
     // Handle Form Submit
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            // Validation
             if (!formData.nama || !formData.noKP || !formData.negeri || !formData.lokasi) {
-                alert("Sila isi semua maklumat mandatori (Nama, No KP, Negeri, dan Lokasi).");
+                alert("Sila isi semua maklumat mandatori.");
                 return;
             }
 
+            const payload = { ...formData, updatedAt: new Date().toISOString(), updatedBy: user.id };
             if (currentWorker) {
-                const { error } = await supabase
-                    .from('workers')
-                    .update({
-                        ...formData,
-                        updatedAt: new Date().toISOString(),
-                        updatedBy: user.id
-                    })
-                    .eq('id', currentWorker.id);
-                if (error) throw error;
+                await supabase.from('workers').update(payload).eq('id', currentWorker.id);
             } else {
-                const { error } = await supabase
-                    .from('workers')
-                    .insert({
-                        ...formData,
-                        createdAt: new Date().toISOString(),
-                        createdBy: user.id
-                    });
-                if (error) throw error;
+                await supabase.from('workers').insert({ ...payload, createdAt: new Date().toISOString(), createdBy: user.id });
             }
             setIsModalOpen(false);
             resetForm();
             fetchWorkers();
         } catch (error) {
-            console.error("Error saving worker:", error);
-            alert("Ralat menyimpan data pekerja.");
+            console.error(error);
+            alert("Ralat menyimpan data.");
         }
     };
 
-    const handleDelete = async (id) => {
-        if (confirm("Adakah anda pasti mahu memadam pekerja ini?")) {
-            const { error } = await supabase.from('workers').delete().eq('id', id);
-            if (error) {
-                alert("Ralat memadam pekerja: " + error.message);
-            } else {
-                fetchWorkers();
-            }
+    const handleDelete = useCallback(async (id) => {
+        if (confirm("Padam pekerja ini?")) {
+            await supabase.from('workers').delete().eq('id', id);
+            fetchWorkers();
         }
-    };
+    }, []);
 
-    const openModal = (worker = null) => {
+    const openModal = useCallback((worker = null) => {
         if (worker) {
             setCurrentWorker(worker);
             setFormData({
-                nama: worker.nama || '',
-                noKP: worker.noKP || '',
-                bank: worker.bank || '',
-                noAkaun: worker.noAkaun || '',
-                peranan: worker.peranan || 'Sukarelawan',
-                lokasi: worker.lokasi || '',
-                negeri: worker.negeri || '',
-                kategoriElaun: worker.kategoriElaun || '',
-                staff_id: worker.staff_id || '',
-                jantina: worker.jantina || '',
-                tarikh_daftar: worker.tarikh_daftar || '',
-                daerah_kediaman: worker.daerah_kediaman || '',
-                negeri_kediaman: worker.negeri_kediaman || '',
-                tel_bimbit: worker.tel_bimbit || '',
-                email: worker.email || '',
-                pekerjaan: worker.pekerjaan || '',
-                kepakaran: worker.kepakaran || '',
-                tarikh_lahir: worker.tarikh_lahir || ''
+                nama: worker.nama || '', noKP: worker.noKP || '', bank: worker.bank || '',
+                noAkaun: worker.noAkaun || '', peranan: worker.peranan || 'Sukarelawan',
+                lokasi: worker.lokasi || '', negeri: worker.negeri || '', kategoriElaun: worker.kategoriElaun || '',
+                staff_id: worker.staff_id || '', jantina: worker.jantina || '', tarikh_daftar: worker.tarikh_daftar || '',
+                daerah_kediaman: worker.daerah_kediaman || '', negeri_kediaman: worker.negeri_kediaman || '',
+                tel_bimbit: worker.tel_bimbit || '', email: worker.email || '', pekerjaan: worker.pekerjaan || '',
+                kepakaran: worker.kepakaran || '', tarikh_lahir: worker.tarikh_lahir || ''
             });
         } else {
             setCurrentWorker(null);
             resetForm();
         }
         setIsModalOpen(true);
-    };
+    }, []);
 
     const resetForm = () => {
         setFormData({
-            nama: '',
-            noKP: '',
-            bank: '',
-            noAkaun: '',
-            peranan: 'Sukarelawan',
-            lokasi: '',
-            negeri: '',
-            kategoriElaun: '',
-            staff_id: '',
-            jantina: '',
-            tarikh_daftar: '',
-            daerah_kediaman: '',
-            negeri_kediaman: '',
-            tel_bimbit: '',
-            email: '',
-            pekerjaan: '',
-            kepakaran: '',
-            tarikh_lahir: ''
+            nama: '', noKP: '', bank: '', noAkaun: '', peranan: 'Sukarelawan', lokasi: '', negeri: '',
+            kategoriElaun: '', staff_id: '', jantina: '', tarikh_daftar: '', daerah_kediaman: '',
+            negeri_kediaman: '', tel_bimbit: '', email: '', pekerjaan: '', kepakaran: '', tarikh_lahir: ''
         });
     };
 
-    // --- Table Logic ---
-
-    // Get unique values for a column, respecting other filters
+    // Logic
     const getUniqueValues = (field) => {
-        const relevantSubmissions = workers.filter(sub => {
+        const relevant = workers.filter(w => {
             return Object.entries(columnFilters).every(([key, value]) => {
-                if (key === field) return true;
-                if (!value) return true;
-                if (value === '(Kosong)') {
-                    return !sub[key] || sub[key] === '';
-                }
-                return sub[key]?.toString().toLowerCase().includes(value.toLowerCase());
+                if (key === field || !value) return true;
+                const cleanValue = value.replace(/\s\(\d+\)$/, '');
+                if (cleanValue === '(Kosong)') return !w[key];
+                return w[key]?.toString().toLowerCase().includes(cleanValue.toLowerCase());
             });
         });
 
-        const hasBlanks = relevantSubmissions.some(sub => !sub[field] || sub[field] === '');
-        const values = relevantSubmissions
-            .map(sub => sub[field])
-            .filter(val => val && val !== '' && val !== null && val !== undefined);
+        const counts = {};
+        let blankCount = 0;
 
-        const uniqueValues = [...new Set(values)].sort();
-        if (hasBlanks) {
-            return ['(Kosong)', ...uniqueValues];
+        relevant.forEach(w => {
+            const val = w[field];
+            if (!val) {
+                blankCount++;
+            } else {
+                counts[val] = (counts[val] || 0) + 1;
+            }
+        });
+
+        const results = Object.entries(counts).map(([value, count]) => ({
+            value,
+            label: `${value} (${count})`
+        })).sort((a, b) => a.value.toString().localeCompare(b.value.toString()));
+
+        if (blankCount > 0) {
+            results.unshift({ value: '(Kosong)', label: `(Kosong) (${blankCount})` });
         }
-        return uniqueValues;
+        return results;
     };
 
     const handleFilterChange = (field, value) => {
         setColumnFilters(prev => {
-            const newFilters = { ...prev };
-            if (value === '') {
-                delete newFilters[field];
-            } else {
-                newFilters[field] = value;
-            }
-            return newFilters;
+            const next = { ...prev };
+            if (!value) delete next[field];
+            else next[field] = value;
+            return next;
         });
-        setCurrentPage(1);
     };
 
     const handleSort = (key) => {
-        let direction = 'asc';
-        if (sortConfig.key === key && sortConfig.direction === 'asc') {
-            direction = 'desc';
-        }
-        setSortConfig({ key, direction });
+        setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));
     };
 
-    const clearAllFilters = () => {
-        setColumnFilters({});
-        setSortConfig({ key: 'nama', direction: 'asc' });
-        setCurrentPage(1);
-    };
-
-    const filteredWorkers = workers.filter(worker => {
-        return Object.entries(columnFilters).every(([field, value]) => {
-            if (!value) return true;
-            if (value === '(Kosong)') {
-                return !worker[field] || worker[field] === '';
-            }
-            return worker[field]?.toString().toLowerCase().includes(value.toLowerCase());
+    const filteredWorkers = useMemo(() => {
+        return workers.filter(worker => {
+            return Object.entries(deferredFilters).every(([field, value]) => {
+                if (!value) return true;
+                const cleanValue = value.replace(/\s\(\d+\)$/, '');
+                if (cleanValue === '(Kosong)') return !worker[field];
+                return worker[field]?.toString().toLowerCase().includes(cleanValue.toLowerCase());
+            });
+        }).sort((a, b) => {
+            if (!sortConfig.key) return 0;
+            let aVal = (a[sortConfig.key] || '').toString().toLowerCase();
+            let bVal = (b[sortConfig.key] || '').toString().toLowerCase();
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
         });
-    }).sort((a, b) => {
-        if (!sortConfig.key) return 0;
-        let aVal = a[sortConfig.key] || '';
-        let bVal = b[sortConfig.key] || '';
-        if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-        if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-    });
+    }, [workers, deferredFilters, sortConfig]);
 
     const exportToCSV = () => {
-        const headers = [
-            'Nama', 'Peranan', 'No KP', 'Lokasi Bertugas', 'Negeri Bertugas', 'Kategori Elaun', 'Bank', 'No Akaun',
-            'S-ID (Staf/Sukarelawan)', 'Jantina', 'Tarikh Daftar', 'Daerah/Bandar Tempat Tinggal', 'Negeri Tempat Tinggal',
-            'Tel Bimbit', 'Email', 'Pekerjaan', 'Kepakaran/Pengalaman', 'Tarikh Lahir'
-        ];
-
-        // Helper to escape commas in values
-        const escapeCSV = (str) => {
-            if (str === null || str === undefined) return '';
-            const s = String(str);
-            if (s.includes(',') || s.includes('"') || s.includes('\n')) {
-                return `"${s.replace(/"/g, '""')}"`;
-            }
-            return s;
-        };
-
-        const csvContent = [
-            headers.join(','),
-            ...filteredWorkers.map(w => [
-                escapeCSV(w.nama), w.peranan || '', escapeCSV(w.noKP), escapeCSV(w.lokasi), escapeCSV(w.negeri),
-                escapeCSV(w.kategoriElaun), escapeCSV(w.bank), escapeCSV(w.noAkaun),
-                escapeCSV(w.staff_id), escapeCSV(w.jantina), escapeCSV(w.tarikh_daftar), escapeCSV(w.daerah_kediaman),
-                escapeCSV(w.negeri_kediaman), escapeCSV(w.tel_bimbit), escapeCSV(w.email), escapeCSV(w.pekerjaan),
-                escapeCSV(w.kepakaran), escapeCSV(w.tarikh_lahir)
-            ].join(','))
-        ].join('\n');
-
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `data-pekerja-${new Date().toISOString().split('T')[0]}.csv`;
-        a.click();
+        const headers = ['Nama', 'Peranan', 'No KP', 'Lokasi', 'Negeri', 'Kategori Elaun', 'Bank', 'No Akaun', 'S-ID', 'Jantina', 'Tarikh Daftar', 'Tel Bimbit', 'Email', 'Pekerjaan', 'Kepakaran', 'Tarikh Lahir'];
+        const csv = [headers.join(','), ...filteredWorkers.map(w => [w.nama, w.peranan, w.noKP, w.lokasi, w.negeri, w.kategoriElaun, w.bank, w.noAkaun, w.staff_id, w.jantina, w.tarikh_daftar, w.tel_bimbit, w.email, w.pekerjaan, w.kepakaran, w.tarikh_lahir].map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(','))].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = 'pekerja.csv'; a.click();
     };
 
-    // Pagination
-    const totalPages = Math.ceil(filteredWorkers.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const paginatedWorkers = filteredWorkers.slice(startIndex, startIndex + itemsPerPage);
+    // Stats
+    const stats = useMemo(() => {
+        const roles = {};
+        const allow = {};
+        const negeriRaw = {};
 
-    // Statistics Calculation
-    const roleCounts = filteredWorkers.reduce((acc, curr) => {
-        const role = curr.peranan || 'Tiada Peranan';
-        acc[role] = (acc[role] || 0) + 1;
-        return acc;
-    }, {});
+        filteredWorkers.forEach(w => {
+            roles[w.peranan || 'Tiada'] = (roles[w.peranan || 'Tiada'] || 0) + 1;
+            allow[w.kategoriElaun || 'Tiada'] = (allow[w.kategoriElaun || 'Tiada'] || 0) + 1;
 
-    const allowanceCounts = filteredWorkers.reduce((acc, curr) => {
-        const allow = curr.kategoriElaun || 'Tiada Kat. Elaun';
-        acc[allow] = (acc[allow] || 0) + 1;
-        return acc;
-    }, {});
+            const n = w.negeri || 'Tiada Negeri';
+            negeriRaw[n] = (negeriRaw[n] || 0) + 1;
+        });
+
+        // Process Negeri to Top 5 + Others
+        const sortedNegeri = Object.entries(negeriRaw)
+            .sort((a, b) => b[1] - a[1]);
+
+        const top5 = sortedNegeri.slice(0, 5);
+        const othersCount = sortedNegeri.slice(5).reduce((acc, curr) => acc + curr[1], 0);
+
+        const negeriFinal = top5.map(([name, count]) => ({ name, count }));
+        if (othersCount > 0) {
+            negeriFinal.push({ name: 'Lain-lain', count: othersCount });
+        }
+
+        return { roles, allow, negeri: negeriFinal };
+    }, [filteredWorkers]);
 
     return (
         <ProtectedRoute>
             <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 pt-16">
                 <Navbar />
+                <div className="w-full mx-auto px-2 sm:px-4 py-2">
+                    <div className="mb-2">
+                        <div className="flex items-center justify-between mb-1">
+                            <h1 className="text-xl font-bold text-gray-900 flex items-center">
+                                <User className="h-5 w-5 mr-2 text-emerald-600" /> Pengurusan Petugas
+                            </h1>
+                            <div className="flex items-center space-x-2">
+                                <button onClick={initData} className="p-1.5 bg-white text-gray-600 rounded-lg border border-gray-200 shadow-sm transition-transform active:scale-90"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
+                                <button onClick={() => openModal()} className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 shadow-sm flex items-center transform active:scale-95"><Plus className="h-4 w-4 mr-1" /> Tambah</button>
+                            </div>
+                        </div>
 
-                <div className="w-full mx-auto px-2 sm:px-4 py-4">
-                    {/* Header */}
-                    <div className="mb-4">
-                        <h1 className="text-2xl font-bold text-gray-900 flex items-center mb-2">
-                            <User className="h-6 w-6 mr-2 text-emerald-600" />
-                            Pengurusan Petugas
-                        </h1>
-
-                        {/* Statistics Badges */}
-                        <div className="flex flex-col md:flex-row gap-4 mb-4">
-                            {/* Peranan Stats */}
-                            <div className="bg-white p-3 rounded-xl shadow-sm border border-emerald-100 flex-1">
-                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Ringkasan Peranan</h3>
+                        <div className="flex flex-col md:flex-row gap-2 mb-2">
+                            <div className="bg-white p-2 rounded-xl shadow-sm border border-emerald-100 flex-1">
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Peranan <span className="text-emerald-600">({filteredWorkers.length})</span></h3>
                                 <div className="flex flex-wrap gap-2">
-                                    {Object.entries(roleCounts).sort((a, b) => a[0].localeCompare(b[0])).map(([role, count]) => (
-                                        <div key={role} className="flex items-center bg-gray-50 border border-gray-100 rounded-lg px-2 py-1">
-                                            <span className="text-xs font-medium text-gray-600 mr-2">{role}</span>
-                                            <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-1.5 py-0.5 rounded-md min-w-[24px] text-center">{count}</span>
+                                    {Object.entries(stats.roles).map(([r, c]) => (
+                                        <div key={r} className="flex items-center bg-gray-50 border border-gray-100 rounded-lg px-2 py-1">
+                                            <span className="text-xs font-medium text-gray-600 mr-2">{r}</span>
+                                            <span className={`${getRoleColorParams(r).bg} ${getRoleColorParams(r).text} text-xs font-bold px-1.5 py-0.5 rounded-md`}>{c}</span>
                                         </div>
                                     ))}
                                 </div>
                             </div>
-
-                            {/* Kategori Elaun Stats */}
-                            <div className="bg-white p-3 rounded-xl shadow-sm border border-blue-100 flex-1">
-                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Ringkasan Kategori Elaun</h3>
+                            <div className="bg-white p-2 rounded-xl shadow-sm border border-blue-100 flex-1">
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Elaun</h3>
                                 <div className="flex flex-wrap gap-2">
-                                    {Object.entries(allowanceCounts).sort((a, b) => a[0].localeCompare(b[0])).map(([cat, count]) => (
+                                    {Object.entries(stats.allow).map(([cat, c]) => (
                                         <div key={cat} className="flex items-center bg-gray-50 border border-gray-100 rounded-lg px-2 py-1">
                                             <span className="text-xs font-medium text-gray-600 mr-2">{cat}</span>
-                                            <span className="bg-blue-100 text-blue-700 text-xs font-bold px-1.5 py-0.5 rounded-md min-w-[24px] text-center">{count}</span>
+                                            <span className={`${getAllowanceColorParams(cat).bg} ${getAllowanceColorParams(cat).text} text-xs font-bold px-1.5 py-0.5 rounded-md`}>{c}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="bg-white p-2 rounded-xl shadow-sm border border-purple-100 flex-1">
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Taburan Negeri (Top 5)</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {stats.negeri.map((n) => (
+                                        <div key={n.name} className="flex items-center bg-gray-50 border border-gray-100 rounded-lg px-2 py-1">
+                                            <span className="text-xs font-medium text-gray-600 mr-2">{n.name}</span>
+                                            <span className="bg-purple-100 text-purple-700 text-xs font-bold px-1.5 py-0.5 rounded-md">{n.count}</span>
                                         </div>
                                     ))}
                                 </div>
                             </div>
                         </div>
 
-                        <p className="text-gray-600 text-xs">
-                            Jumlah {filteredWorkers.length} rekod dijumpai
-                        </p>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex justify-between items-center mb-2">
-                        <div>
-                            {Object.keys(columnFilters).length > 0 && (
-                                <button
-                                    onClick={clearAllFilters}
-                                    className="px-3 py-1 bg-red-50 text-red-600 rounded text-xs font-medium hover:bg-red-100 transition-colors"
-                                >
-                                    Padam Semua Filter
-                                </button>
-                            )}
-                        </div>
-                        <div className="flex bg-transparent space-x-2">
-                            <button
-                                onClick={exportToCSV}
-                                className="flex items-center justify-center space-x-1 whitespace-nowrap bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 px-3 py-1 rounded text-xs font-medium shadow-sm transition-colors"
-                            >
-                                <Download className="h-4 w-4" />
-                                <span>Export CSV</span>
-                            </button>
-                            <button
-                                onClick={() => openModal()}
-                                className="bg-emerald-600 text-white px-3 py-1 rounded text-xs font-medium hover:bg-emerald-700 shadow-sm transition-colors flex items-center"
-                            >
-                                <Plus className="h-4 w-4 mr-1" /> Tambah
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Table */}
-                    {loading ? (
-                        <div className="card">
-                            <div className="space-y-4">
-                                {[1, 2, 3, 4, 5].map(i => (
-                                    <div key={i} className="animate-shimmer h-16 rounded-lg"></div>
-                                ))}
+                        <div className="flex justify-between items-center px-1">
+                            <p className="text-gray-600 text-[10px] uppercase font-bold">{filteredWorkers.length} REKOD</p>
+                            <div className="flex items-center space-x-2">
+                                {Object.keys(columnFilters).length > 0 && <button onClick={() => setColumnFilters({})} className="text-red-600 text-[10px] font-bold uppercase hover:underline">Padam Filter</button>}
+                                <button onClick={exportToCSV} className="flex items-center space-x-1 bg-white border border-gray-300 px-2 py-1 rounded text-[10px] font-bold uppercase shadow-sm"><Download className="h-3 w-3" /><span>Export</span></button>
                             </div>
                         </div>
-                    ) : filteredWorkers.length === 0 ? (
-                        <div className="card text-center py-12">
-                            <p className="text-gray-500 text-lg">Tiada rekod dijumpai</p>
-                        </div>
-                    ) : (
-                        <div className="border rounded-lg shadow-sm bg-white overflow-auto max-h-[calc(100vh-180px)]">
-                            <table className="w-full text-xs sticky-table">
-                                <thead>
-                                    <tr className="bg-emerald-100">
-                                        {/* Frozen: Nama */}
-                                        <th className="sticky left-0 top-0 z-50 bg-emerald-200 text-left py-1 px-2 font-semibold text-gray-700 border-b-2 border-emerald-500 shadow-[1px_0_0_0_#10b981] min-w-[200px] align-top">
-                                            <div
-                                                className="flex items-center cursor-pointer mb-1 group"
-                                                onClick={() => handleSort('nama')}
-                                            >
-                                                <span>Nama</span>
-                                                {sortConfig.key === 'nama' ? (
-                                                    sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 text-emerald-600" /> : <ArrowDown className="h-3 w-3 ml-1 text-emerald-600" />
-                                                ) : (
-                                                    <ArrowUpDown className="h-3 w-3 ml-1 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                )}
-                                            </div>
-                                            <FilterInput
-                                                value={columnFilters['nama']}
-                                                onChange={(val) => handleFilterChange('nama', val)}
-                                                options={getUniqueValues('nama')}
-                                                listId="list-nama"
-                                                placeholder="Cari Nama"
-                                            />
-                                        </th>
-                                        {/* Frozen: Tindakan */}
-                                        <th className="sticky left-[200px] top-0 z-40 bg-emerald-200 text-left py-1 px-2 font-semibold text-gray-700 border-b-2 border-emerald-500 shadow-[1px_0_0_0_#10b981] min-w-[100px] align-top">
-                                            <div className="mb-1">Tindakan</div>
-                                        </th>
+                    </div>
 
-                                        {/* Scrollable Columns */}
-                                        {[
-                                            { id: 'peranan', label: 'Peranan', width: 'min-w-[120px]' },
-                                            { id: 'noKP', label: 'No KP', width: 'min-w-[150px]' },
-                                            { id: 'lokasi', label: 'Lokasi', width: 'min-w-[140px]' },
-                                            { id: 'negeri', label: 'Negeri', width: 'min-w-[140px]' },
-                                            { id: 'kategoriElaun', label: 'Kat. Elaun', width: 'min-w-[140px]' },
-                                            { id: 'bank', label: 'Bank', width: 'min-w-[140px]' },
-                                            { id: 'noAkaun', label: 'No Akaun', width: 'min-w-[160px]' },
-                                            { id: 'staff_id', label: 'S-ID', width: 'min-w-[120px]' },
-                                            { id: 'jantina', label: 'Jantina', width: 'min-w-[100px]' },
-                                            { id: 'tarikh_daftar', label: 'Tarikh Daftar', width: 'min-w-[120px]' },
-                                            { id: 'tarikh_lahir', label: 'Tarikh Lahir', width: 'min-w-[120px]' },
-                                            { id: 'tel_bimbit', label: 'No. Tel Bimbit', width: 'min-w-[120px]' },
-                                            { id: 'email', label: 'Emel', width: 'min-w-[150px]' },
-                                            { id: 'daerah_kediaman', label: 'Daerah Tinggal', width: 'min-w-[150px]' },
-                                            { id: 'negeri_kediaman', label: 'Negeri Tinggal', width: 'min-w-[140px]' },
-                                            { id: 'pekerjaan', label: 'Pekerjaan', width: 'min-w-[150px]' },
-                                            { id: 'kepakaran', label: 'Kepakaran/Pengalaman', width: 'min-w-[600px]' }
-                                        ].map(col => (
-                                            <th key={col.id} className={`sticky top-0 z-30 text-left py-1 px-2 font-semibold text-gray-700 bg-emerald-100 border-r border-gray-200 border-b-2 border-emerald-500 ${col.width} align-top`}>
-                                                <div
-                                                    className="flex items-center cursor-pointer mb-1 group"
-                                                    onClick={() => handleSort(col.id)}
-                                                >
-                                                    <span>{col.label}</span>
-                                                    {sortConfig.key === col.id ? (
-                                                        sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 text-emerald-600" /> : <ArrowDown className="h-3 w-3 ml-1 text-emerald-600" />
-                                                    ) : (
-                                                        <ArrowUpDown className="h-3 w-3 ml-1 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                    )}
-                                                </div>
-                                                <FilterInput
-                                                    value={columnFilters[col.id]}
-                                                    onChange={(val) => handleFilterChange(col.id, val)}
-                                                    options={getUniqueValues(col.id)}
-                                                    listId={`list-${col.id}`}
-                                                    placeholder="Cari..."
-                                                />
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {paginatedWorkers.map((worker) => (
-                                        <tr key={worker.id} className="border-b border-gray-200 hover:bg-emerald-50 transition-colors">
-                                            <td className="sticky left-0 z-10 bg-emerald-50 py-1 px-2 shadow-[1px_0_0_0_#10b981] min-w-[200px] font-medium text-gray-900">
-                                                {worker.nama}
-                                            </td>
-                                            <td className="sticky left-[200px] z-10 bg-emerald-50 py-1 px-2 shadow-[1px_0_0_0_#10b981] min-w-[100px]">
-                                                <div className="flex items-center space-x-2">
-                                                    <button onClick={() => openModal(worker)} className="text-gray-400 hover:text-emerald-600 transition-colors p-1" title="Edit">
-                                                        <Edit2 className="h-4 w-4" />
-                                                    </button>
-                                                    <button onClick={() => handleDelete(worker.id)} className="text-gray-400 hover:text-red-600 transition-colors p-1" title="Padam">
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </button>
-                                                </div>
-                                            </td>
-
-                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">
-                                                <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${worker.peranan === 'Guru' ? 'bg-indigo-100 text-indigo-700' :
-                                                    worker.peranan === 'Petugas' ? 'bg-blue-100 text-blue-700' :
-                                                        worker.peranan === 'Koordinator' ? 'bg-purple-100 text-purple-700' :
-                                                            'bg-emerald-100 text-emerald-700'
-                                                    }`}>
-                                                    {worker.peranan}
-                                                </span>
-                                            </td>
-                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[150px]">{worker.noKP || '-'}</td>
-                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">{worker.lokasi || '-'}</td>
-                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">{worker.negeri || '-'}</td>
-                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">
-                                                {worker.kategoriElaun ? (
-                                                    <span className="inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap bg-yellow-100 text-yellow-800">
-                                                        {worker.kategoriElaun}
-                                                    </span>
-                                                ) : '-'}
-                                            </td>
-                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">{worker.bank || '-'}</td>
-                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[160px]">{worker.noAkaun || '-'}</td>
-                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">{worker.staff_id || '-'}</td>
-                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[100px]">{worker.jantina || '-'}</td>
-                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">{worker.tarikh_daftar || '-'}</td>
-                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">{worker.tarikh_lahir || '-'}</td>
-                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">{worker.tel_bimbit || '-'}</td>
-                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[150px]">{worker.email || '-'}</td>
-                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[150px]">{worker.daerah_kediaman || '-'}</td>
-                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">{worker.negeri_kediaman || '-'}</td>
-                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[150px]">{worker.pekerjaan || '-'}</td>
-                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[600px]">{worker.kepakaran || '-'}</td>
-                                        </tr>
+                    <div className="border rounded-lg shadow-sm bg-white overflow-auto max-h-[calc(100vh-210px)] relative">
+                        {loading && (
+                            <div className="absolute inset-0 bg-white/80 z-[60] flex items-center justify-center backdrop-blur-[2px]">
+                                <Loader2 className="h-10 w-10 text-emerald-500 animate-spin" />
+                            </div>
+                        )}
+                        <table className="w-full text-xs">
+                            <thead>
+                                <tr className="bg-emerald-100">
+                                    <th className="sticky left-0 top-0 z-50 bg-emerald-200 text-left py-1 px-2 font-semibold text-gray-700 border-b-2 border-emerald-500 shadow-[1px_0_0_0_#10b981] min-w-[100px] align-top">
+                                        <div className="flex items-center cursor-pointer mb-1 group" onClick={() => handleSort('staff_id')}><span>S-ID</span>{sortConfig.key === 'staff_id' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />) : <ArrowUpDown className="h-3 w-3 ml-1 opacity-20" />}</div>
+                                        <FilterInput value={columnFilters['staff_id']} onChange={(v) => handleFilterChange('staff_id', v)} options={getUniqueValues('staff_id')} listId="l-sid" />
+                                    </th>
+                                    <th className="sticky left-[100px] top-0 z-40 bg-emerald-200 text-left py-1 px-2 font-semibold text-gray-700 border-b-2 border-emerald-500 shadow-[1px_0_0_0_#10b981] min-w-[180px] align-top">
+                                        <div className="flex items-center cursor-pointer mb-1 group" onClick={() => handleSort('nama')}><span>Nama</span>{sortConfig.key === 'nama' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />) : <ArrowUpDown className="h-3 w-3 ml-1 opacity-20" />}</div>
+                                        <FilterInput value={columnFilters['nama']} onChange={(v) => handleFilterChange('nama', v)} options={getUniqueValues('nama')} listId="l-nama" />
+                                    </th>
+                                    <th className="sticky left-[280px] top-0 z-40 bg-emerald-200 text-left py-2 px-2 font-semibold text-gray-700 border-b-2 border-emerald-500 shadow-[1px_0_0_0_#10b981] min-w-[80px]">Tindakan</th>
+                                    {[
+                                        { id: 'peranan', label: 'Peranan', w: 'min-w-[120px]' },
+                                        { id: 'negeri', label: 'Negeri', w: 'min-w-[130px]' },
+                                        { id: 'lokasi', label: 'Lokasi', w: 'min-w-[130px]' },
+                                        { id: 'kategoriElaun', label: 'Kat. Elaun', w: 'min-w-[130px]' },
+                                        { id: 'noKP', label: 'No KP', w: 'min-w-[130px]' },
+                                        { id: 'jantina', label: 'Jantina', w: 'min-w-[90px]' },
+                                        { id: 'tel_bimbit', label: 'No Tel', w: 'min-w-[120px]' },
+                                        { id: 'bank', label: 'Bank', w: 'min-w-[120px]' },
+                                        { id: 'noAkaun', label: 'No Akaun', w: 'min-w-[150px]' },
+                                        { id: 'tarikh_lahir', label: 'T. Lahir', w: 'min-w-[110px]' },
+                                        { id: 'pekerjaan', label: 'Pekerjaan', w: 'min-w-[150px]' },
+                                        { id: 'kepakaran', label: 'Kepakaran/Pengalaman', w: 'min-w-[400px]' },
+                                    ].map(col => (
+                                        <th key={col.id} className={`sticky top-0 z-30 text-left py-1 px-2 font-semibold text-gray-700 bg-emerald-100 border-r border-gray-200 border-b-2 border-emerald-500 ${col.w} align-top`}>
+                                            <div className="flex items-center cursor-pointer mb-1 group" onClick={() => handleSort(col.id)}><span>{col.label}</span>{sortConfig.key === col.id ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />) : <ArrowUpDown className="h-3 w-3 ml-1 opacity-20" />}</div>
+                                            <FilterInput value={columnFilters[col.id]} onChange={(v) => handleFilterChange(col.id, v)} options={getUniqueValues(col.id)} listId={`l-${col.id}`} />
+                                        </th>
                                     ))}
-                                </tbody>
-                            </table>
-
-                            {/* Pagination */}
-                            {totalPages > 1 && (
-                                <div className="mt-6 flex items-center justify-between border-t pt-4">
-                                    <p className="text-sm text-gray-600">
-                                        Menunjukkan {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filteredWorkers.length)} daripada {filteredWorkers.length}
-                                    </p>
-                                    <div className="flex items-center space-x-2">
-                                        <button
-                                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                            disabled={currentPage === 1}
-                                            className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            <ChevronLeft className="h-5 w-5" />
-                                        </button>
-                                        <span className="text-sm font-medium">
-                                            Halaman {currentPage} / {totalPages}
-                                        </span>
-                                        <button
-                                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                            disabled={currentPage === totalPages}
-                                            className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            <ChevronRight className="h-5 w-5" />
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredWorkers.map((worker) => (
+                                    <WorkerRow
+                                        key={worker.id}
+                                        worker={worker}
+                                        openModal={openModal}
+                                        handleDelete={handleDelete}
+                                    />
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
-                {/* Modal (kept largely same style but ensured it works with new structure/imports) */}
+                {/* Modal remains largely the same but with premium style */}
                 {isModalOpen && (
-                    <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-bold text-gray-900">
-                                    {currentWorker ? 'Kemaskini Pekerja' : 'Tambah Pekerja Baru'}
-                                </h3>
-                                <button onClick={() => setIsModalOpen(false)}><X className="h-6 w-6 text-gray-400" /></button>
+                    <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl max-w-2xl w-full p-8 shadow-2xl animate-in fade-in zoom-in duration-200">
+                            <div className="flex justify-between items-center mb-8">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-3 bg-emerald-100 rounded-2xl text-emerald-600"><User className="h-6 w-6" /></div>
+                                    <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{currentWorker ? 'Kemaskini Petugas' : 'Tambah Petugas Baru'}</h3>
+                                </div>
+                                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X className="h-6 w-6 text-gray-400" /></button>
                             </div>
-
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Nama Penuh <span className="text-red-500">*</span></label>
-                                    <input
-                                        type="text"
-                                        required
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                        value={formData.nama}
-                                        onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    {/* Moved Negeri first */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Negeri <span className="text-red-500">*</span></label>
-                                        <select
-                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                            required
-                                            value={formData.negeri}
-                                            onChange={(e) => setFormData({ ...formData, negeri: e.target.value, lokasi: '' })}
-                                        >
-                                            <option value="">-- Pilih Negeri --</option>
-                                            {(states.length > 0 ? states : NEGERI_CAWANGAN_OPTIONS).map(negeri => (
-                                                <option key={negeri} value={negeri}>{negeri}</option>
-                                            ))}
-                                        </select>
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="md:col-span-2">
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Nama Penuh <span className="text-red-500">*</span></label>
+                                        <input type="text" required className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-emerald-500 font-medium" value={formData.nama} onChange={(e) => setFormData({ ...formData, nama: e.target.value })} />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">Lokasi <span className="text-red-500">*</span></label>
-                                        <select
-                                            required
-                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                            value={formData.lokasi}
-                                            onChange={(e) => setFormData({ ...formData, lokasi: e.target.value })}
-                                            disabled={!formData.negeri}
-                                        >
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Negeri <span className="text-red-500">*</span></label>
+                                        <select className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-emerald-500 font-medium" required value={formData.negeri} onChange={(e) => setFormData({ ...formData, negeri: e.target.value, lokasi: '' })}>
                                             <option value="">-- Pilih --</option>
-                                            {modalLocations.map(loc => (
-                                                <option key={loc.id || loc.name} value={loc.name}>{loc.name}</option>
-                                            ))}
+                                            {(states.length > 0 ? states : NEGERI_CAWANGAN_OPTIONS).map(negeri => <option key={negeri} value={negeri}>{negeri}</option>)}
                                         </select>
                                     </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">Peranan</label>
-                                        <select
-                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                            value={formData.peranan}
-                                            onChange={(e) => setFormData({ ...formData, peranan: e.target.value })}
-                                        >
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Lokasi <span className="text-red-500">*</span></label>
+                                        <select required className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-emerald-500 font-medium disabled:opacity-50" value={formData.lokasi} onChange={(e) => setFormData({ ...formData, lokasi: e.target.value })} disabled={!formData.negeri}>
+                                            <option value="">-- Pilih --</option>
+                                            {modalLocations.map(loc => <option key={loc.id || loc.name} value={loc.name}>{loc.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Peranan</label>
+                                        <select className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-emerald-500 font-medium" value={formData.peranan} onChange={(e) => setFormData({ ...formData, peranan: e.target.value })}>
+                                            <option value="Sukarelawan">Sukarelawan</option>
                                             <option value="Guru">Guru</option>
                                             <option value="Petugas">Petugas</option>
-                                            <option value="Sukarelawan">Sukarelawan</option>
                                             <option value="Koordinator">Koordinator</option>
                                         </select>
                                     </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">No. Kad Pengenalan <span className="text-red-500">*</span></label>
-                                    <input
-                                        type="text"
-                                        required
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                        value={formData.noKP}
-                                        onChange={(e) => setFormData({ ...formData, noKP: e.target.value })}
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Kategori Elaun</label>
-                                    <select
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                        value={formData.kategoriElaun}
-                                        onChange={(e) => setFormData({ ...formData, kategoriElaun: e.target.value })}
-                                    >
-                                        <option value="">-- Pilih Kategori Elaun --</option>
-                                        {PETUGAS_KATEGORI_ELAUN.map(kategori => (
-                                            <option key={kategori.value} value={kategori.value}>{kategori.label}</option>
-                                        ))}
-                                    </select>
-                                    <p className="mt-1 text-xs text-gray-500">Kategori untuk kadar elaun/bayaran</p>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">Nama Bank</label>
-                                        <select
-                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                            value={formData.bank}
-                                            onChange={(e) => setFormData({ ...formData, bank: e.target.value })}
-                                        >
-                                            <option value="">-- Pilih Bank --</option>
-                                            {(banks.length > 0 ? banks : BANK_OPTIONS).map(bank => (
-                                                <option key={bank} value={bank}>{bank}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">No. Akaun</label>
-                                        <input
-                                            type="text"
-                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                            value={formData.noAkaun}
-                                            onChange={(e) => setFormData({ ...formData, noAkaun: e.target.value })}
-                                        />
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">No. KP <span className="text-red-500">*</span></label>
+                                        <input type="text" required className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-emerald-500 font-medium" value={formData.noKP} onChange={(e) => setFormData({ ...formData, noKP: e.target.value })} />
                                     </div>
                                 </div>
-
-                                {/* Sukarelawan / Additional Details Section */}
-                                <div className="pt-4 mt-6 border-t border-gray-200">
-                                    <h4 className="text-md font-semibold text-gray-800 mb-4">Maklumat Tambahan</h4>
-
-                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">ID Staf / Sukarelawan</label>
-                                            <input
-                                                type="text"
-                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                                value={formData.staff_id}
-                                                onChange={(e) => setFormData({ ...formData, staff_id: e.target.value })}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Tarikh Daftar</label>
-                                            <input
-                                                type="date"
-                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                                value={formData.tarikh_daftar || ''}
-                                                onChange={(e) => setFormData({ ...formData, tarikh_daftar: e.target.value })}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Jantina</label>
-                                            <select
-                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                                value={formData.jantina}
-                                                onChange={(e) => setFormData({ ...formData, jantina: e.target.value })}
-                                            >
-                                                <option value="">-- Pilih Jantina --</option>
-                                                <option value="Lelaki">Lelaki</option>
-                                                <option value="Perempuan">Perempuan</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Tarikh Lahir</label>
-                                            <input
-                                                type="date"
-                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                                value={formData.tarikh_lahir || ''}
-                                                onChange={(e) => setFormData({ ...formData, tarikh_lahir: e.target.value })}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">No. Tel Bimbit</label>
-                                            <input
-                                                type="text"
-                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                                value={formData.tel_bimbit}
-                                                onChange={(e) => setFormData({ ...formData, tel_bimbit: e.target.value })}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Emel</label>
-                                            <input
-                                                type="email"
-                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                                value={formData.email}
-                                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Daerah/Bandar Tempat Tinggal</label>
-                                            <input
-                                                type="text"
-                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                                value={formData.daerah_kediaman}
-                                                onChange={(e) => setFormData({ ...formData, daerah_kediaman: e.target.value })}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Negeri Tempat Tinggal</label>
-                                            <select
-                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                                value={formData.negeri_kediaman}
-                                                onChange={(e) => setFormData({ ...formData, negeri_kediaman: e.target.value })}
-                                            >
-                                                <option value="">-- Pilih Negeri --</option>
-                                                {(states.length > 0 ? states : NEGERI_CAWANGAN_OPTIONS).map(negeri => (
-                                                    <option key={negeri} value={negeri}>{negeri}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Pekerjaan</label>
-                                            <input
-                                                type="text"
-                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                                value={formData.pekerjaan}
-                                                onChange={(e) => setFormData({ ...formData, pekerjaan: e.target.value })}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Kepakaran / Pengalaman</label>
-                                            <input
-                                                type="text"
-                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                                value={formData.kepakaran}
-                                                onChange={(e) => setFormData({ ...formData, kepakaran: e.target.value })}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="pt-4 flex justify-end space-x-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsModalOpen(false)}
-                                        className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50"
-                                    >
-                                        Batal
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 flex items-center"
-                                    >
-                                        <Plus className="h-4 w-4 mr-1" /> Simpan
-                                    </button>
+                                <div className="pt-8 flex justify-end gap-4 border-t border-gray-100">
+                                    <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3 text-sm font-bold text-gray-400 uppercase tracking-widest">Batal</button>
+                                    <button type="submit" className="px-8 py-3 bg-emerald-600 text-white rounded-2xl text-sm font-bold uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-200 transform active:scale-95">Simpan</button>
                                 </div>
                             </form>
                         </div>

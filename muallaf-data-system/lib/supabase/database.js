@@ -9,7 +9,7 @@ const formatResponse = (data, error, total = 0) => {
 };
 
 // Internal helper to fetch ALL records from a query by handling Supabase's 1000-record limit
-const fetchAll = async (queryBuilder) => {
+export const fetchAll = async (queryBuilder) => {
     let allData = [];
     let page = 0;
     const size = 1000;

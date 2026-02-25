@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
-import { Plus, Search, Filter, Activity, FileText, ArrowUp, ArrowDown, ArrowUpDown, Trash2, Loader2, RefreshCw, Download, Save, LayoutGrid } from 'lucide-react';
+import { Plus, Search, Filter, Activity, FileText, ArrowUp, ArrowDown, ArrowUpDown, Trash2, Loader2, RefreshCw, Download, Save, LayoutGrid, ChevronDown } from 'lucide-react';
 import Select from 'react-select';
 
 const TABS = [
@@ -65,6 +65,7 @@ const COLUMNS_MAP = {
     ],
     'organisasi_nm': [
         { id: 'nama_organisasi', label: 'Nama Organisasi', type: 'text', width: 'min-w-[200px]' },
+        { id: 'kawasan', label: 'Kawasan', type: 'select', width: 'min-w-[150px]' },
         { id: 'contact_person', label: 'Contact Person', type: 'text', width: 'min-w-[150px]' },
         { id: 'no_tel', label: 'No. Tel', type: 'text', width: 'min-w-[120px]' },
         { id: 'catatan', label: 'Catatan', type: 'text', width: 'min-w-[200px]' }
@@ -82,22 +83,23 @@ const COLUMNS_MAP = {
 };
 
 const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
-    <div className="relative">
+    <div className="relative mt-1">
         <input
             type="text"
             list={listId}
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
-            className="block w-full bg-white text-[10px] border-gray-300 rounded-md shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-0.5 px-1 mt-1"
+            className="block w-full bg-white text-[10px] border border-gray-300 rounded shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-0.5 px-1 pr-4 font-medium"
             placeholder={placeholder || "Cari..."}
         />
-        {options && (
-            <datalist id={listId}>
-                {options.map(val => (
-                    <option key={val} value={val} />
-                ))}
-            </datalist>
-        )}
+        <datalist id={listId}>
+            {options && options.map((opt, idx) => (
+                <option key={`${opt.value}-${idx}`} value={opt.label} />
+            ))}
+        </datalist>
+        <div className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none">
+            <ChevronDown className="h-2.5 w-2.5 text-gray-400" />
+        </div>
     </div>
 );
 
@@ -112,6 +114,8 @@ export default function OtherKPIPage() {
 
     const [selectedState, setSelectedState] = useState('');
     const [states, setStates] = useState([]);
+    const [availableYears, setAvailableYears] = useState([]);
+    const [availableStates, setAvailableStates] = useState([]);
 
     const [columnFilters, setColumnFilters] = useState({});
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -196,6 +200,31 @@ export default function OtherKPIPage() {
     };
 
     useEffect(() => {
+        const fetchAvailableFilters = async () => {
+            const { data } = await supabase.from('other_kpis').select('year, state').eq('category', activeTab);
+            if (data) {
+                const yCounts = {};
+                const sCounts = {};
+                data.forEach(item => {
+                    const y = item.year || 0;
+                    const s = item.state || 'Semua';
+                    yCounts[y] = (yCounts[y] || 0) + 1;
+                    sCounts[s] = (sCounts[s] || 0) + 1;
+                });
+
+                const ySorted = Object.entries(yCounts)
+                    .map(([year, count]) => ({ value: Number(year), label: `${year} (${count})` }))
+                    .sort((a, b) => b.value - a.value);
+
+                const sSorted = Object.entries(sCounts)
+                    .map(([state, count]) => ({ value: state, label: `${state} (${count})` }))
+                    .sort((a, b) => a.value.localeCompare(b.value));
+
+                setAvailableYears(ySorted);
+                setAvailableStates(sSorted);
+            }
+        };
+        fetchAvailableFilters();
         setColumnFilters({});
         setSortConfig({ key: null, direction: 'asc' });
         setPendingChanges({});
@@ -249,28 +278,40 @@ export default function OtherKPIPage() {
     };
 
     const getUniqueValues = (field) => {
-        const relevantData = kpiData.filter(prog => {
+        const filteredByOthers = kpiData.filter(prog => {
             return Object.entries(columnFilters).every(([key, value]) => {
-                if (key === field) return true;
-                if (!value) return true;
-                if (value === '(Kosong)') {
-                    return !prog[key] || prog[key] === '';
-                }
+                if (key === field || !value) return true;
+                const cleanValue = value.replace(/\s\(\d+\)$/, '');
+                if (cleanValue === '(Kosong)') return !prog[key] || prog[key] === '';
                 const progVal = typeof prog[key] === 'boolean' ? (prog[key] ? 'Ya' : 'Tidak') : prog[key];
-                return progVal?.toString().toLowerCase().includes(value.toLowerCase());
+                return progVal?.toString().toLowerCase().includes(cleanValue.toLowerCase());
             });
         });
 
-        const hasBlanks = relevantData.some(prog => prog[field] === undefined || prog[field] === null || prog[field] === '');
-        const values = relevantData
-            .map(prog => typeof prog[field] === 'boolean' ? (prog[field] ? 'Ya' : 'Tidak') : prog[field])
-            .filter(val => val !== '' && val !== null && val !== undefined);
+        const counts = {};
+        let blankCount = 0;
 
-        const uniqueValues = [...new Set(values)].sort();
-        if (hasBlanks) {
-            return ['(Kosong)', ...uniqueValues];
+        filteredByOthers.forEach(prog => {
+            let val = prog[field];
+            if (typeof val === 'boolean') val = val ? 'Ya' : 'Tidak';
+
+            if (val === undefined || val === null || val === '') {
+                blankCount++;
+            } else {
+                counts[val] = (counts[val] || 0) + 1;
+            }
+        });
+
+        const results = Object.entries(counts).map(([value, count]) => ({
+            value,
+            label: `${value} (${count})`
+        })).sort((a, b) => a.value.toString().localeCompare(b.value.toString()));
+
+        if (blankCount > 0) {
+            results.unshift({ value: '(Kosong)', label: `(Kosong) (${blankCount})` });
         }
-        return uniqueValues;
+
+        return results;
     };
 
     const handleFilterChange = (field, value) => {
@@ -384,28 +425,41 @@ export default function OtherKPIPage() {
     const filteredData = kpiData.filter(prog => {
         return Object.entries(columnFilters).every(([field, value]) => {
             if (!value) return true;
-            if (value === '(Kosong)') {
+            const cleanValue = value.replace(/\s\(\d+\)$/, '');
+            if (cleanValue === '(Kosong)') {
                 return prog[field] === undefined || prog[field] === null || prog[field] === '';
             }
             const progVal = typeof prog[field] === 'boolean' ? (prog[field] ? 'Ya' : 'Tidak') : prog[field];
-            return progVal?.toString().toLowerCase().includes(value.toLowerCase());
+            return progVal?.toString().toLowerCase().includes(cleanValue.toLowerCase());
         });
-    }).sort((a, b) => {
-        if (!sortConfig.key) return 0;
-
-        let aVal = a[sortConfig.key];
-        let bVal = b[sortConfig.key];
-
-        if (aVal === undefined || aVal === null) aVal = '';
-        if (bVal === undefined || bVal === null) bVal = '';
-
-        if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-        if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-
-        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
     });
+
+    const columnTotals = useMemo(() => {
+        const totals = {};
+        currentColumns.forEach(col => {
+            if (col.type === 'number') {
+                totals[col.id] = filteredData.reduce((sum, row) => sum + (Number(row[col.id]) || 0), 0);
+            } else if (col.type === 'checkbox') {
+                totals[col.id] = filteredData.filter(row => !!row[col.id]).length;
+            }
+        });
+        return totals;
+    }, [filteredData, currentColumns]);
+
+    const sortedData = useMemo(() => {
+        return [...filteredData].sort((a, b) => {
+            if (!sortConfig.key) return 0;
+            let aVal = a[sortConfig.key];
+            let bVal = b[sortConfig.key];
+            if (aVal === undefined || aVal === null) aVal = '';
+            if (bVal === undefined || bVal === null) bVal = '';
+            if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+            if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }, [filteredData, sortConfig]);
 
     const exportToCSV = () => {
         const csvContent = [
@@ -431,8 +485,8 @@ export default function OtherKPIPage() {
         a.click();
     };
 
-    const displayedData = filteredData.slice(0, displayLimit);
-    const hasMore = displayLimit < filteredData.length;
+    const displayedData = sortedData.slice(0, displayLimit);
+    const hasMore = displayedData.length < sortedData.length;
 
     const loadMore = useCallback(() => {
         if (hasMore) {
@@ -484,9 +538,8 @@ export default function OtherKPIPage() {
                             ))}
                         </div>
 
-                        {/* Filter Section */}
                         <div className="bg-white rounded-xl p-4 mt-3 mb-1 shadow-sm border border-slate-200 flex items-center justify-between">
-                            <div className="w-1/3 mr-4">
+                            <div className="w-1/4 mr-4">
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tahun</label>
                                 <select
                                     className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-medium"
@@ -494,11 +547,14 @@ export default function OtherKPIPage() {
                                     onChange={(e) => setSelectedYear(Number(e.target.value))}
                                 >
                                     <option value={0}>Semua Tahun</option>
-                                    {years.map(y => <option key={y} value={y}>{y}</option>)}
+                                    {availableYears.map(y => <option key={y.value} value={y.value}>{y.label}</option>)}
+                                    {!availableYears.some(y => y.value === selectedYear) && selectedYear !== 0 && (
+                                        <option value={selectedYear}>{selectedYear}</option>
+                                    )}
                                 </select>
                             </div>
 
-                            <div className="w-1/3">
+                            <div className="w-1/4 mr-4">
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Negeri / Kawasan</label>
                                 <select
                                     className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-medium"
@@ -506,7 +562,10 @@ export default function OtherKPIPage() {
                                     onChange={(e) => setSelectedState(e.target.value)}
                                 >
                                     <option value="">Semua Negeri</option>
-                                    {states.map((s, index) => <option key={s.id || index} value={s.name}>{s.name}</option>)}
+                                    {availableStates.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                    {!availableStates.some(s => s.value === selectedState) && selectedState !== '' && (
+                                        <option value={selectedState}>{selectedState}</option>
+                                    )}
                                 </select>
                             </div>
 
@@ -651,7 +710,14 @@ export default function OtherKPIPage() {
                                                     className="flex items-center cursor-pointer mb-1 group"
                                                     onClick={() => handleSort(col.id)}
                                                 >
-                                                    <span>{col.label}</span>
+                                                    <div className="flex flex-col">
+                                                        <span>{col.label}</span>
+                                                        {(col.type === 'number' || col.type === 'checkbox') && (
+                                                            <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 mt-1 w-fit">
+                                                                {columnTotals[col.id]?.toLocaleString() || 0}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     {sortConfig.key === col.id ? (
                                                         sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 text-emerald-600" /> : <ArrowDown className="h-3 w-3 ml-1 text-emerald-600" />
                                                     ) : (
@@ -661,7 +727,7 @@ export default function OtherKPIPage() {
                                                 <FilterInput
                                                     value={columnFilters[col.id]}
                                                     onChange={(val) => handleFilterChange(col.id, val)}
-                                                    options={col.type !== 'text' ? getUniqueValues(col.id) : null}
+                                                    options={getUniqueValues(col.id)}
                                                     listId={`list-${col.id}`}
                                                     placeholder="Cari..."
                                                 />

@@ -63,7 +63,7 @@ export default function MetadataManagementPage() {
     // Modal/Edit state
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
-    const [formData, setFormData] = useState({ name: '', state_name: '', cawangan: [], groups: '' });
+    const [formData, setFormData] = useState({ name: '', state_name: '', cawangan: [], groups: '', zon: '' });
     const [newCawanganValue, setNewCawanganValue] = useState('');
 
     // Fetch data when tab changes
@@ -97,11 +97,12 @@ export default function MetadataManagementPage() {
                 name: item.name,
                 state_name: item.state_name || '',
                 cawangan: item.cawangan || [],
-                groups: item.groups || ''
+                groups: item.groups || '',
+                zon: item.zon || ''
             });
         } else {
             setEditingItem(null);
-            setFormData({ name: '', state_name: '', cawangan: [], groups: '' });
+            setFormData({ name: '', state_name: '', cawangan: [], groups: '', zon: '' });
         }
         setIsModalOpen(true);
         setMessage({ type: '', text: '' });
@@ -115,7 +116,7 @@ export default function MetadataManagementPage() {
         let result;
 
         let extraData = {};
-        if (activeTab.id === 'states') extraData = { cawangan: formData.cawangan };
+        if (activeTab.id === 'states') extraData = { cawangan: formData.cawangan, zon: formData.zon };
         if (activeTab.id === 'locations') extraData = { state_name: formData.state_name };
         if (activeTab.id === 'program_types') extraData = { groups: formData.groups };
 
@@ -369,9 +370,18 @@ export default function MetadataManagementPage() {
                                                                         <activeTab.icon className="w-4 h-4" />
                                                                     </div>
                                                                     <div className="min-w-0">
-                                                                        <p className="font-medium text-gray-900 text-sm break-words">{item.name}</p>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <p className="font-medium text-gray-900 text-sm break-words">{item.name}</p>
+                                                                            {item.zon && (
+                                                                                <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[9px] font-bold uppercase tracking-tighter border border-emerald-200">
+                                                                                    {item.zon}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
                                                                         {(item.state_name || item.groups) && (
-                                                                            <p className="text-[10px] text-gray-500">{item.state_name || item.groups}</p>
+                                                                            <p className="text-[10px] text-gray-500">
+                                                                                {item.state_name || item.groups}
+                                                                            </p>
                                                                         )}
                                                                         {activeTab.id === 'states' && item.cawangan && item.cawangan.length > 0 && (
                                                                             <div className="flex flex-wrap gap-1 mt-1 max-w-md">
@@ -452,56 +462,74 @@ export default function MetadataManagementPage() {
                                     </div>
 
                                     {activeTab.id === 'states' && (
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                                Cawangan (Lokasi)
-                                            </label>
-                                            <div className="flex space-x-2 mb-2">
-                                                <input
-                                                    type="text"
-                                                    value={newCawanganValue}
-                                                    onChange={(e) => setNewCawanganValue(e.target.value)}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
+                                        <>
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                    Zon
+                                                </label>
+                                                <select
+                                                    value={formData.zon}
+                                                    onChange={(e) => setFormData({ ...formData, zon: e.target.value })}
+                                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all cursor-pointer"
+                                                >
+                                                    <option value="">-- Tiada Zon --</option>
+                                                    {['Zon 1', 'Zon 2', 'Zon 3', 'Zon 4', 'Zon 5'].map(z => (
+                                                        <option key={z} value={z}>{z}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                    Cawangan (Lokasi)
+                                                </label>
+                                                <div className="flex space-x-2 mb-2">
+                                                    <input
+                                                        type="text"
+                                                        value={newCawanganValue}
+                                                        onChange={(e) => setNewCawanganValue(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                if (newCawanganValue.trim()) {
+                                                                    setFormData({ ...formData, cawangan: [...formData.cawangan, newCawanganValue.trim()] });
+                                                                    setNewCawanganValue('');
+                                                                }
+                                                            }
+                                                        }}
+                                                        placeholder="Tambah cawangan baru..."
+                                                        className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
                                                             if (newCawanganValue.trim()) {
                                                                 setFormData({ ...formData, cawangan: [...formData.cawangan, newCawanganValue.trim()] });
                                                                 setNewCawanganValue('');
                                                             }
-                                                        }
-                                                    }}
-                                                    placeholder="Tambah cawangan baru..."
-                                                    className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        if (newCawanganValue.trim()) {
-                                                            setFormData({ ...formData, cawangan: [...formData.cawangan, newCawanganValue.trim()] });
-                                                            setNewCawanganValue('');
-                                                        }
-                                                    }}
-                                                    className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-xl border border-emerald-200 hover:bg-emerald-200 transition-colors font-bold"
-                                                >
-                                                    Tambah
-                                                </button>
+                                                        }}
+                                                        className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-xl border border-emerald-200 hover:bg-emerald-200 transition-colors font-bold"
+                                                    >
+                                                        Tambah
+                                                    </button>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2 mt-3">
+                                                    {formData.cawangan.length === 0 && <span className="text-sm text-gray-400">Tiada cawangan lagi</span>}
+                                                    {formData.cawangan.map((cw, i) => (
+                                                        <div key={i} className="flex items-center space-x-1 bg-gray-100 text-gray-700 font-medium px-3 py-1.5 rounded-lg border border-gray-200">
+                                                            <span>{cw}</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setFormData({ ...formData, cawangan: formData.cawangan.filter((_, idx) => idx !== i) })}
+                                                                className="text-gray-400 hover:text-red-500 p-0.5 rounded-md"
+                                                            >
+                                                                <X className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <div className="flex flex-wrap gap-2 mt-3">
-                                                {formData.cawangan.length === 0 && <span className="text-sm text-gray-400">Tiada cawangan lagi</span>}
-                                                {formData.cawangan.map((cw, i) => (
-                                                    <div key={i} className="flex items-center space-x-1 bg-gray-100 text-gray-700 font-medium px-3 py-1.5 rounded-lg border border-gray-200">
-                                                        <span>{cw}</span>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setFormData({ ...formData, cawangan: formData.cawangan.filter((_, idx) => idx !== i) })}
-                                                            className="text-gray-400 hover:text-red-500 p-0.5 rounded-md"
-                                                        >
-                                                            <X className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
+                                        </>
                                     )}
 
                                     {activeTab.id === 'program_types' && (
