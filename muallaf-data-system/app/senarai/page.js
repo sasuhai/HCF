@@ -173,8 +173,14 @@ export default function SenaraiPage() {
             'Tarikh Lahir',
             'Tarikh Pengislaman',
             'Pegawai Mengislamkan',
+            'KP Pegawai',
+            'Tel Pegawai',
             'Saksi 1',
+            'KP Saksi 1',
+            'Tel Saksi 1',
             'Saksi 2',
+            'KP Saksi 2',
+            'Tel Saksi 2',
             'Poskod',
             'Bandar',
             'Negeri Adres',
@@ -185,6 +191,14 @@ export default function SenaraiPage() {
             'Bank',
             'No Akaun',
             'Nama di Bank',
+            'Status',
+            'KPI: Skor',
+            'KPI: Status',
+            'KPI: Delay',
+            'KPI: Hubungi 48j',
+            'KPI: Daftar 2m',
+            'KPI: Atur Kelas 1b',
+            'KPI: Kawasan',
             'Catatan',
             'Catatan Audit',
             'Dicipta Pada',
@@ -209,8 +223,14 @@ export default function SenaraiPage() {
                 sub.tarikhLahir || '',
                 sub.tarikhPengislaman,
                 sub.namaPegawaiMengislamkan || '',
+                sub.noKPPegawaiMengislamkan || '',
+                sub.noTelPegawaiMengislamkan || '',
                 sub.namaSaksi1 || '',
+                sub.noKPSaksi1 || '',
+                sub.noTelSaksi1 || '',
                 sub.namaSaksi2 || '',
+                sub.noKPSaksi2 || '',
+                sub.noTelSaksi2 || '',
                 sub.poskod || '',
                 sub.bandar || '',
                 sub.negeri || '',
@@ -221,6 +241,14 @@ export default function SenaraiPage() {
                 sub.bank || '',
                 sub.noAkaun || '',
                 sub.namaDiBank || '',
+                sub.status || 'active',
+                sub.pengislamanKPI?.metrics?.followUpScore || 0,
+                sub.pengislamanKPI?.metrics?.overallStatus || 'Belum Disusuli',
+                sub.pengislamanKPI?.metrics?.daysTakenToKeyIn || 0,
+                sub.pengislamanKPI?.hubungi48j ? 'Ya' : 'Tidak',
+                sub.pengislamanKPI?.daftar2m ? 'Ya' : 'Tidak',
+                sub.pengislamanKPI?.kelas1b ? 'Ya' : 'Tidak',
+                sub.pengislamanKPI?.kawasan || '',
                 sub.catatan || '',
                 sub.catatanAudit || '',
                 sub.createdAt,
@@ -485,9 +513,15 @@ export default function SenaraiPage() {
                                             { id: 'masaPengislaman', label: 'Masa', width: 'min-w-[80px]' },
                                             { id: 'tempatPengislaman', label: 'Tempat', width: 'min-w-[150px]' },
                                             { id: 'namaPegawaiMengislamkan', label: 'Pegawai Mengislamkan', width: 'min-w-[150px]' },
+                                            { id: 'noKPPegawaiMengislamkan', label: 'KP Pegawai', width: 'min-w-[130px]' },
+                                            { id: 'noTelPegawaiMengislamkan', label: 'Tel Pegawai', width: 'min-w-[120px]' },
                                             { id: 'negeriPengislaman', label: 'Negeri Pengislaman', width: 'min-w-[130px]' },
                                             { id: 'namaSaksi1', label: 'Saksi 1', width: 'min-w-[150px]' },
+                                            { id: 'noKPSaksi1', label: 'KP Saksi 1', width: 'min-w-[130px]' },
+                                            { id: 'noTelSaksi1', label: 'Tel Saksi 1', width: 'min-w-[120px]' },
                                             { id: 'namaSaksi2', label: 'Saksi 2', width: 'min-w-[150px]' },
+                                            { id: 'noKPSaksi2', label: 'KP Saksi 2', width: 'min-w-[130px]' },
+                                            { id: 'noTelSaksi2', label: 'Tel Saksi 2', width: 'min-w-[120px]' },
                                             { id: 'noTelefon', label: 'No Telefon', width: 'min-w-[120px]' },
                                             { id: 'alamatTinggal', label: 'Alamat Tinggal', width: 'min-w-[200px]' },
                                             { id: 'poskod', label: 'Poskod', width: 'min-w-[80px]' },
@@ -502,6 +536,12 @@ export default function SenaraiPage() {
                                             { id: 'bank', label: 'Bank', width: 'min-w-[120px]' },
                                             { id: 'noAkaun', label: 'No Akaun', width: 'min-w-[130px]' },
                                             { id: 'namaDiBank', label: 'Nama di Bank', width: 'min-w-[140px]' },
+                                            { id: 'status', label: 'Status', width: 'min-w-[100px]' },
+                                            { id: 'kpi_score', label: 'KPI: Skor', width: 'min-w-[90px]' },
+                                            { id: 'kpi_status', label: 'KPI: Status', width: 'min-w-[130px]' },
+                                            { id: 'kpi_delay', label: 'KPI: Delay', width: 'min-w-[90px]' },
+                                            { id: 'kpi_hubungi', label: 'KPI: Hubungi 48j', width: 'min-w-[110px]' },
+                                            { id: 'kpi_kawasan', label: 'KPI: Kawasan', width: 'min-w-[130px]' },
                                             { id: 'catatan', label: 'Catatan', width: 'min-w-[200px]' },
                                             { id: 'catatanAudit', label: 'Catatan Audit', width: 'min-w-[200px]' },
                                             { id: 'createdAt', label: 'Dicipta Pada', width: 'min-w-[150px]' },
@@ -611,9 +651,15 @@ export default function SenaraiPage() {
                                                 <div className="max-w-[150px] truncate" title={submission.tempatPengislaman}>{submission.tempatPengislaman || '-'}</div>
                                             </td>
                                             <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[150px]">{submission.namaPegawaiMengislamkan || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[130px]">{submission.noKPPegawaiMengislamkan || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">{submission.noTelPegawaiMengislamkan || '-'}</td>
                                             <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[130px]">{submission.negeriPengislaman || '-'}</td>
                                             <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[150px]">{submission.namaSaksi1 || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[130px]">{submission.noKPSaksi1 || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">{submission.noTelSaksi1 || '-'}</td>
                                             <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[150px]">{submission.namaSaksi2 || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[130px]">{submission.noKPSaksi2 || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">{submission.noTelSaksi2 || '-'}</td>
                                             <td className="py-1 px-2 bg-white border-r border-gray-200 whitespace-nowrap min-w-[120px]">{submission.noTelefon || '-'}</td>
                                             <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[200px]">
                                                 <div className="max-w-[200px] truncate" title={submission.alamatTinggal}>{submission.alamatTinggal || '-'}</div>
@@ -632,6 +678,37 @@ export default function SenaraiPage() {
                                             <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[120px]">{submission.bank || '-'}</td>
                                             <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[130px]">{submission.noAkaun || '-'}</td>
                                             <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[140px]">{submission.namaDiBank || '-'}</td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[100px]">
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${submission.status === 'active' || !submission.status ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                    {submission.status || 'active'}
+                                                </span>
+                                            </td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[90px]">
+                                                <div className="font-bold text-center">
+                                                    {submission.pengislamanKPI?.metrics?.followUpScore ?? 0}%
+                                                </div>
+                                            </td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[130px]">
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${submission.pengislamanKPI?.metrics?.overallStatus === 'Selesai' ? 'bg-green-100 text-green-700' :
+                                                    submission.pengislamanKPI?.metrics?.overallStatus === 'Sedang Disusuli' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                                                    }`}>
+                                                    {submission.pengislamanKPI?.metrics?.overallStatus || 'Belum Disusuli'}
+                                                </span>
+                                            </td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[90px] text-center">
+                                                <span className={`${(submission.pengislamanKPI?.metrics?.daysTakenToKeyIn || 0) > 7 ? 'text-red-600 font-bold' : 'text-gray-600'}`}>
+                                                    {submission.pengislamanKPI?.metrics?.daysTakenToKeyIn || 0}d
+                                                </span>
+                                            </td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[110px] text-center">
+                                                {submission.pengislamanKPI?.hubungi48j ?
+                                                    <span className="text-green-600 font-bold">Ya</span> :
+                                                    <span className="text-gray-300">-</span>
+                                                }
+                                            </td>
+                                            <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[130px]">
+                                                {submission.pengislamanKPI?.kawasan || '-'}
+                                            </td>
                                             <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[200px]">
                                                 <div className="max-w-[200px] truncate" title={submission.catatan}>{submission.catatan || '-'}</div>
                                             </td>

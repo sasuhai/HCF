@@ -139,9 +139,13 @@ export default function RakanHidayahKPIPage() {
         setLoading(true);
         try {
             // Load states once
+            let currentStates = states;
             if (states.length === 0) {
                 const { data: statesRes } = await supabase.from('states').select('*').order('name');
-                if (statesRes) setStates(statesRes);
+                if (statesRes) {
+                    setStates(statesRes);
+                    currentStates = statesRes;
+                }
             }
 
             // Load Sukarelawan data once
@@ -165,13 +169,17 @@ export default function RakanHidayahKPIPage() {
             if (error) throw error;
 
             // Flatten JSON for easier rendering
-            let flattenedData = data.map(item => ({
-                id: item.id,
-                year: item.year,
-                state: item.state,
-                createdAt: item.createdAt,
-                ...item.data
-            }));
+            let flattenedData = data.map(item => {
+                const stateObj = currentStates.find(s => s.name === item.state);
+                return {
+                    id: item.id,
+                    year: item.year,
+                    state: item.state,
+                    zon: stateObj?.zon || '-',
+                    createdAt: item.createdAt,
+                    ...item.data
+                };
+            });
 
             if (activeTab === 'kpi_utama') {
                 const allowedJenis = ["DU'AT", "Sukarelawan"];
@@ -256,10 +264,12 @@ export default function RakanHidayahKPIPage() {
 
             if (data && data.length > 0) {
                 const inserted = data[0];
+                const stateObj = states.find(s => s.name === inserted.state);
                 setKpiData(prev => [{
                     id: inserted.id,
                     year: inserted.year,
                     state: inserted.state,
+                    zon: stateObj?.zon || '-',
                     createdAt: inserted.createdAt,
                     ...inserted.data
                 }, ...prev]);
@@ -300,10 +310,12 @@ export default function RakanHidayahKPIPage() {
 
             if (data && data.length > 0) {
                 const inserted = data[0];
+                const stateObj = states.find(s => s.name === inserted.state);
                 setKpiData(prev => [{
                     id: inserted.id,
                     year: inserted.year,
                     state: inserted.state,
+                    zon: stateObj?.zon || '-',
                     createdAt: inserted.createdAt,
                     ...inserted.data
                 }, ...prev]);
@@ -511,9 +523,10 @@ export default function RakanHidayahKPIPage() {
 
     const exportToCSV = () => {
         const csvContent = [
-            ['Tahun', 'Negeri', ...currentColumns.map(c => c.label)].join(','),
+            ['Tahun', 'Zon', 'Negeri', ...currentColumns.map(c => c.label)].join(','),
             ...filteredData.map(prog => [
                 `"${(prog.year || '').toString().replace(/"/g, '""')}"`,
+                `"${(prog.zon || '').toString().replace(/"/g, '""')}"`,
                 `"${(prog.state || '').toString().replace(/"/g, '""')}"`,
                 ...currentColumns.map(c => {
                     let val = prog[c.id];
@@ -732,6 +745,26 @@ export default function RakanHidayahKPIPage() {
                                                 placeholder="Semua"
                                             />
                                         </th>
+                                        <th className="sticky top-0 z-30 bg-emerald-100 text-left py-1 px-2 font-semibold text-gray-700 border-r border-gray-200 border-b-2 border-emerald-500 min-w-[120px] align-top">
+                                            <div
+                                                className="flex items-center cursor-pointer mb-1 group"
+                                                onClick={() => handleSort('zon')}
+                                            >
+                                                <span>Zon</span>
+                                                {sortConfig.key === 'zon' ? (
+                                                    sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 text-emerald-600" /> : <ArrowDown className="h-3 w-3 ml-1 text-emerald-600" />
+                                                ) : (
+                                                    <ArrowUpDown className="h-3 w-3 ml-1 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                )}
+                                            </div>
+                                            <FilterInput
+                                                value={columnFilters['zon']}
+                                                onChange={(val) => handleFilterChange('zon', val)}
+                                                options={getUniqueValues('zon')}
+                                                listId="list-zon"
+                                                placeholder="Semua"
+                                            />
+                                        </th>
                                         <th className="sticky top-0 z-30 bg-emerald-100 text-left py-1 px-2 font-semibold text-gray-700 border-r border-gray-200 border-b-2 border-emerald-500 min-w-[150px] align-top">
                                             <div
                                                 className="flex items-center cursor-pointer mb-1 group"
@@ -787,7 +820,7 @@ export default function RakanHidayahKPIPage() {
                                 <tbody>
                                     {displayedData.length === 0 ? (
                                         <tr>
-                                            <td colSpan={currentColumns.length + 2} className="py-12 text-center text-gray-500 text-sm bg-white border-b">
+                                            <td colSpan={currentColumns.length + 3} className="py-12 text-center text-gray-500 text-sm bg-white border-b">
                                                 Tiada rekod dijumpai.
                                             </td>
                                         </tr>
@@ -838,6 +871,15 @@ export default function RakanHidayahKPIPage() {
                                                 ) : (
                                                     <span>{row.year}</span>
                                                 )}
+                                            </td>
+
+                                            {/* ZON COLUMN */}
+                                            <td className="py-1 px-2 border-r border-gray-200 bg-gray-50 text-gray-500 font-medium">
+                                                {(() => {
+                                                    const currentState = pendingChanges[row.id]?.state !== undefined ? pendingChanges[row.id].state : row.state;
+                                                    const stateObj = states.find(s => s.name === currentState);
+                                                    return stateObj?.zon || '-';
+                                                })()}
                                             </td>
 
                                             {/* NEGERI COLUMN */}

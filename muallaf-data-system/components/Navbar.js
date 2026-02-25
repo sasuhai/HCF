@@ -24,7 +24,7 @@ export default function Navbar() {
     const toggleDropdown = (name) => setActiveDropdown(activeDropdown === name ? null : name);
 
     return (
-        <nav className="bg-white shadow-sm fixed top-0 left-0 w-full z-50">
+        <nav className="bg-white shadow-sm fixed top-0 left-0 w-full z-[100]">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between h-16">
                     {/* Logo & Brand */}
@@ -114,6 +114,9 @@ export default function Navbar() {
                                         <Link href="/dashboard/scoreboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
                                             <Activity className="w-4 h-4 mr-2 text-emerald-500" /> Scoreboard KPI
                                         </Link>
+                                        <Link href="/laporan-prestasi" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                                            <FileText className="w-4 h-4 mr-2 text-emerald-500" /> Laporan Prestasi
+                                        </Link>
                                         <Link href="/map-intelligence" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
                                             <MapPin className="w-4 h-4 mr-2 text-rose-500" /> Peta Taburan
                                         </Link>
@@ -196,6 +199,7 @@ export default function Navbar() {
                         <div className="pl-3 pr-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-2">Analisis & Tetapan</div>
                         <Link href="/dashboard" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Dashboard Utama</Link>
                         <Link href="/dashboard/scoreboard" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Scoreboard KPI</Link>
+                        <Link href="/laporan-prestasi" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Laporan Prestasi</Link>
                         <Link href="/map-intelligence" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Peta Taburan</Link>
                         <Link href="/mualaf/dashboard" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Analisis & Laporan</Link>
 
