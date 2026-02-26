@@ -610,96 +610,123 @@ function processClientRequest(request) {
             ) : (
                 /* Instructions View */
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-                    <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200">
-                        <h2 className="text-xl font-black mb-6 flex items-center gap-3">
-                            <span className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-sm">1</span>
-                            Persediaan Google Apps Script
-                        </h2>
+                    <div className="bg-white p-6 md:p-10 rounded-3xl shadow-sm border border-slate-200">
+                        <div className="text-center max-w-2xl mx-auto mb-12">
+                            <h2 className="text-2xl font-black mb-3">Panduan Persediaan (Mudah)</h2>
+                            <p className="text-slate-500 font-medium">Ikuti 3 langkah mudah di bawah untuk menyambungkan Google Sheet anda dengan sistem database iSantuni.</p>
+                        </div>
 
-                        <div className="space-y-12">
-                            {/* Step 1: Code.gs */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-                                <div className="space-y-4">
-                                    <h3 className="text-lg font-bold flex items-center gap-2">
-                                        <span className="bg-slate-900 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span>
-                                        Fail Code.gs
-                                    </h3>
+                        <div className="space-y-16">
+                            {/* Step 0: Open Editor */}
+                            <div className="flex flex-col md:flex-row gap-8 items-start">
+                                <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-900 flex items-center justify-center font-black shrink-0 shadow-sm border border-slate-200">0</div>
+                                <div className="space-y-3">
+                                    <h3 className="text-lg font-bold">Buka Editor Script</h3>
                                     <p className="text-sm text-slate-500 leading-relaxed">
-                                        Di dalam editor Apps Script, pilih fail <code className="bg-slate-100 px-1 rounded text-red-500 font-bold">Code.gs</code>.
-                                        Padam semua kod asal dan gantikan dengan kod di sebelah.
+                                        Di Google Sheet anda, klik menu <b className="text-slate-900 px-1 bg-slate-100 rounded">Extensions</b> &gt; <b className="text-slate-900 px-1 bg-slate-100 rounded">Apps Script</b>. Satu tab baru akan dibuka.
                                     </p>
                                 </div>
-                                <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-100 flex flex-col items-center gap-4">
-                                    <button
-                                        onClick={() => copyToClipboard(getGASScript(), 'script')}
-                                        className="w-full group relative bg-slate-900 text-white px-6 py-4 rounded-2xl font-black flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-lg active:scale-95"
-                                    >
-                                        {copiedScript ? <Check className="text-emerald-400" /> : <Copy size={18} />}
-                                        {copiedScript ? 'KOD CODE.GS DISALIN!' : 'SALIN KOD CODE.GS'}
-                                    </button>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Wajib paste dalam Code.gs sahaja</p>
+                            </div>
+
+                            {/* Step 1: Code.gs */}
+                            <div className="flex flex-col md:flex-row gap-8 items-start relative before:absolute before:left-6 before:-top-8 before:w-px before:h-8 before:bg-slate-200">
+                                <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-black shrink-0 shadow-lg shadow-emerald-200">1</div>
+                                <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+                                    <div className="space-y-3">
+                                        <h3 className="text-lg font-bold">Salin Kod Utama (Code.gs)</h3>
+                                        <p className="text-sm text-slate-500 leading-relaxed">
+                                            Padam semua kod sedia ada di dalam fail <code className="text-red-500 font-bold bg-red-50 px-1 rounded">Code.gs</code>. Kemudian, klik butang di sebelah dan <b>Paste (Ctrl+V)</b> ke dalam fail tersebut.
+                                        </p>
+                                    </div>
+                                    <div className="bg-slate-50 p-6 rounded-2xl border-2 border-slate-100 group hover:border-emerald-200 transition-colors">
+                                        <button
+                                            onClick={() => copyToClipboard(getGASScript(), 'script')}
+                                            className="w-full bg-slate-900 text-white py-4 rounded-xl font-black flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-md active:scale-95"
+                                        >
+                                            {copiedScript ? <Check className="text-emerald-400" /> : <Copy size={18} />}
+                                            {copiedScript ? 'KOD DISALIN!' : 'SALIN KOD CODE.GS'}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Step 2: Index.html */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start border-t border-slate-100 pt-8">
-                                <div className="space-y-4">
-                                    <h3 className="text-lg font-bold flex items-center gap-2">
-                                        <span className="bg-slate-900 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span>
-                                        Fail Index.html
-                                    </h3>
-                                    <p className="text-sm text-slate-500 leading-relaxed">
-                                        Klik <code className="bg-slate-100 px-1 rounded font-bold">+</code> (Add a file) &gt; <code className="bg-slate-100 px-1 rounded font-bold">HTML</code>.
-                                        Namakan fail sebagai <code className="bg-slate-100 px-1 rounded text-emerald-600 font-bold">Index</code> (Apps Script akan auto tambah .html).
-                                        Gantikan kod asalnya dengan kod di sebelah.
-                                    </p>
-                                </div>
-                                <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-100 flex flex-col items-center gap-4">
-                                    <button
-                                        onClick={() => copyToClipboard(getGASHtml(), 'html')}
-                                        className="w-full group relative bg-white border-2 border-emerald-500 text-emerald-600 px-6 py-4 rounded-2xl font-black flex items-center justify-center gap-3 hover:bg-emerald-50 transition-all shadow-sm active:scale-95"
-                                    >
-                                        {copiedHtml ? <Check className="text-emerald-400" /> : <Layers size={18} />}
-                                        {copiedHtml ? 'KOD INDEX.HTML DISALIN!' : 'SALIN KOD INDEX.HTML'}
-                                    </button>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Wajib paste dalam Index.html sahaja</p>
+                            <div className="flex flex-col md:flex-row gap-8 items-start relative before:absolute before:left-6 before:-top-8 before:w-px before:h-8 before:bg-slate-200">
+                                <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-black shrink-0 shadow-lg shadow-emerald-200">2</div>
+                                <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+                                    <div className="space-y-3">
+                                        <h3 className="text-lg font-bold">Tambah Fail Panel (Index.html)</h3>
+                                        <p className="text-sm text-slate-500 leading-relaxed">
+                                            Klik butang <b className="px-1 bg-slate-100 rounded">+ (Tambah fail)</b> &gt; pilih <b className="px-1 bg-slate-100 rounded">HTML</b>. Namakan fail sebagai <b className="text-emerald-600">Index</b>. Pastikan anda <b>Paste</b> kod di bawah ke dalamnya.
+                                        </p>
+                                    </div>
+                                    <div className="bg-slate-50 p-6 rounded-2xl border-2 border-slate-100 group hover:border-emerald-200 transition-colors">
+                                        <button
+                                            onClick={() => copyToClipboard(getGASHtml(), 'html')}
+                                            className="w-full bg-white border-2 border-emerald-500 text-emerald-600 py-4 rounded-xl font-black flex items-center justify-center gap-3 hover:bg-emerald-50 transition-all shadow-sm active:scale-95"
+                                        >
+                                            {copiedHtml ? <Check className="text-emerald-400" /> : <Layers size={18} />}
+                                            {copiedHtml ? 'KOD DISALIN!' : 'SALIN KOD INDEX.HTML'}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Step 3: Auth */}
-                            <div className="border-t border-slate-100 pt-8">
-                                <div className="bg-amber-50 border border-amber-100 p-6 rounded-3xl space-y-4">
-                                    <h4 className="font-bold flex items-center gap-2 text-amber-800">
-                                        <ShieldAlert size={20} />
-                                        Langkah Terakhir: Kebenaran (Authorize)
-                                    </h4>
-                                    <ul className="text-sm text-amber-900/80 space-y-2 ml-2 list-disc list-inside">
-                                        <li>Klik butang <b className="text-amber-900">Run</b> di menu atas.</li>
-                                        <li>Klik <b className="text-amber-900">Review Permissions</b> dan pilih akaun Google anda.</li>
-                                        <li>Pilih <b className="text-amber-900">Advanced &gt; Go to iSantuni (unsafe)</b> untuk membolehkan script ini berjalan.</li>
-                                        <li>Refresh Google Sheet anda. Menu 🔄 iSantuni Sync akan muncul!</li>
-                                    </ul>
+                            <div className="flex flex-col md:flex-row gap-8 items-start relative before:absolute before:left-6 before:-top-8 before:w-px before:h-8 before:bg-slate-200">
+                                <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-black shrink-0 shadow-lg shadow-amber-200">3</div>
+                                <div className="flex-1 space-y-6">
+                                    <div>
+                                        <h3 className="text-lg font-bold">Aktifkan Menu Sync</h3>
+                                        <p className="text-sm text-slate-500 leading-relaxed italic">"Simpan fail dahulu (Ctrl+S), kemudian ikuti langkah ini untuk memberi kebenaran kepada Google."</p>
+                                    </div>
+
+                                    <div className="bg-amber-50 border border-amber-100 p-6 rounded-3xl space-y-6 border-l-4 border-l-amber-500">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <p className="text-xs font-black text-amber-800 uppercase tracking-widest">Cara Authorize:</p>
+                                                <ul className="text-xs text-amber-900/70 space-y-2 ml-4 list-decimal">
+                                                    <li>Klik butang <b className="text-amber-900">Run</b> di menu atas.</li>
+                                                    <li>Klik <b className="text-amber-900">Review Permissions</b>.</li>
+                                                    <li>Pilih akaun Google anda.</li>
+                                                </ul>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <p className="text-xs font-black text-amber-800 uppercase tracking-widest">Penting (Advanced):</p>
+                                                <p className="text-[10px] text-amber-900/60 leading-relaxed">
+                                                    Jika Google kata <i>"Google hasn't verified this app"</i>, klik <b className="text-amber-900">Advanced</b> &gt; <b className="text-amber-900">Go to iSantuni (unsafe)</b> &gt; kemudian klik <b className="text-amber-900">Allow</b>.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-emerald-500 p-4 rounded-2xl flex items-center justify-between text-white shadow-lg shadow-emerald-100">
+                                        <div className="flex items-center gap-3">
+                                            <div className="bg-white/20 p-2 rounded-lg"><Check /></div>
+                                            <p className="text-sm font-bold">Siap! Refresh Google Sheet dan nikmati automasi anda.</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-
-                    <div className="bg-emerald-600 p-8 rounded-3xl text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-emerald-200">
-                        <div className="space-y-2 text-center md:text-left">
-                            <h3 className="text-xl font-black">Adakah anda seorang admin?</h3>
-                            <p className="text-emerald-100 text-sm opacity-90">Jangan lupa untuk menjalankan SQL di Supabase untuk membolehkan senarai jadual dinamik.</p>
-                        </div>
-                        <a
-                            href="https://supabase.com/dashboard/project/utddacblhitaoyaneyyk/sql/new"
-                            target="_blank"
-                            className="bg-white text-emerald-600 px-6 py-4 rounded-2xl font-black flex items-center gap-2 hover:bg-emerald-50 transition-colors shrink-0"
-                        >
-                            <ExternalLink size={20} />
-                            BUKA SQL EDITOR
-                        </a>
-                    </div>
                 </div>
             )}
+
+            <div className="bg-emerald-600 p-8 rounded-3xl text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-emerald-200 mt-12">
+                <div className="space-y-2 text-center md:text-left">
+                    <h3 className="text-xl font-black">Adakah anda seorang admin?</h3>
+                    <p className="text-emerald-100 text-sm opacity-90">Jangan lupa untuk menjalankan SQL di Supabase untuk membolehkan senarai jadual dinamik.</p>
+                </div>
+                <a
+                    href="https://supabase.com/dashboard/project/utddacblhitaoyaneyyk/sql/new"
+                    target="_blank"
+                    className="bg-white text-emerald-600 px-6 py-4 rounded-2xl font-black flex items-center gap-2 hover:bg-emerald-50 transition-colors shrink-0"
+                >
+                    <ExternalLink size={20} />
+                    BUKA SQL EDITOR
+                </a>
+            </div>
 
             {/* Footer */}
             <footer className="mt-12 pt-8 border-t border-slate-200 text-center text-slate-400 text-xs font-medium pb-8">
