@@ -276,9 +276,17 @@ function onOpen() {
 }
 
 function showSyncSidebar() {
-  var html = HtmlService.createTemplateFromFile('Index').evaluate()
-      .setTitle('iSantuni Database Sync')
-      .setWidth(400);
+  var html;
+  try {
+    html = HtmlService.createTemplateFromFile('index').evaluate();
+  } catch (e) {
+    try {
+      html = HtmlService.createTemplateFromFile('Index').evaluate();
+    } catch (err) {
+      throw "Fail 'index' atau 'Index' tidak dijumpai. Sila pastikan anda telah menambah fail HTML bernama 'index'.";
+    }
+  }
+  html.setTitle('iSantuni Database Sync').setWidth(400);
   SpreadsheetApp.getUi().showSidebar(html);
 }
 
@@ -657,7 +665,7 @@ function processClientRequest(request) {
                                     <div className="space-y-3">
                                         <h3 className="text-lg font-bold">Tambah Fail Panel (Index.html)</h3>
                                         <p className="text-sm text-slate-500 leading-relaxed">
-                                            Klik butang <b className="px-1 bg-slate-100 rounded">+ (Tambah fail)</b> &gt; pilih <b className="px-1 bg-slate-100 rounded">HTML</b>. Namakan fail sebagai <b className="text-emerald-600">Index</b>. Pastikan anda <b>Paste</b> kod di bawah ke dalamnya.
+                                            Klik butang <b className="px-1 bg-slate-100 rounded">+ (Tambah fail)</b> &gt; pilih <b className="px-1 bg-slate-100 rounded">HTML</b>. Namakan fail sebagai <b className="text-emerald-600">index</b> (huruf kecil). Pastikan anda <b>Paste</b> kod di bawah ke dalamnya.
                                         </p>
                                     </div>
                                     <div className="bg-slate-50 p-6 rounded-2xl border-2 border-slate-100 group hover:border-emerald-200 transition-colors">
