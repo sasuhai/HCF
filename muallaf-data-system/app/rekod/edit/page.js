@@ -7,6 +7,7 @@ import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
 import { useData } from '@/contexts/DataContext';
 import { getSubmission, updateSubmission, getLocations, getStates, getLookupData } from '@/lib/supabase/database';
 import {
@@ -30,6 +31,7 @@ function EditRekodContent() {
     const id = searchParams.get('id');
     const router = useRouter();
     const { user, role, profile, loading: authLoading } = useAuth();
+    const { showError, showSuccess, showConfirm } = useModal();
     const { markAsDirty } = useData();
     const { register, handleSubmit, reset, watch, formState: { errors } } = useForm();
     const selectedNegeri = watch('negeriCawangan');
@@ -101,7 +103,7 @@ function EditRekodContent() {
                 setSubmission(data);
                 reset(data);
             } else {
-                alert("Anda tidak mempunyai akses untuk mengedit rekod ini.");
+                showError("Akses Ditolak", "Anda tidak mempunyai akses untuk mengedit rekod ini.");
                 router.push('/senarai');
             }
         }

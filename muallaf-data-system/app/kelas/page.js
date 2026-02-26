@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
+import { useModal } from '@/contexts/ModalContext';
 import { getStates, getClassLevels, getClassTypes, getLocationsTable } from '@/lib/supabase/database';
 import { NEGERI_CAWANGAN_OPTIONS } from '@/lib/constants';
 import Navbar from '@/components/Navbar';
@@ -31,6 +32,7 @@ const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
 
 export default function ClassesPage() {
     const { user, role, profile, loading: authLoading } = useAuth();
+    const { showAlert, showSuccess, showError, showConfirm } = useModal();
     const router = useRouter();
 
     const [classes, setClasses] = useState([]);
@@ -142,25 +144,27 @@ export default function ClassesPage() {
             setIsModalOpen(false);
             resetForm();
             fetchClasses();
+            showSuccess('Berjaya', 'Data kelas telah disimpan.');
         } catch (error) {
             console.error("Error saving class:", error);
-            alert("Ralat menyimpan kelas.");
+            showError('Ralat Simpan', "Ralat menyimpan kelas.");
         }
     };
 
     const handleDelete = async (id) => {
-        if (confirm("Adakah anda pasti mahu memadam kelas ini?")) {
+        showConfirm('Sahkan Padam', 'Adakah anda pasti mahu memadam kelas ini?', async () => {
             const { error } = await supabase
                 .from('classes')
                 .delete()
                 .eq('id', id);
 
             if (error) {
-                alert("Ralat memadam kelas: " + error.message);
+                showError('Ralat Padam', error.message);
             } else {
                 fetchClasses();
+                showSuccess('Berjaya', 'Kelas telah dipadam.');
             }
-        }
+        });
     };
 
     const openModal = (cls = null) => {

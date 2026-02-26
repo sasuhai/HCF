@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { supabase } from '@/lib/supabase/client';
+import { useModal } from '@/contexts/ModalContext';
 import {
     Save,
     Plus,
@@ -30,6 +31,7 @@ const SOURCES = [
 const CATEGORIES = ['Outreach', 'Mualaf', 'PDS/Pasukan RH', 'Umum'];
 
 export default function KPISettingsPage() {
+    const { showAlert, showSuccess, showError, showConfirm } = useModal();
     const [settings, setSettings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -78,19 +80,20 @@ export default function KPISettingsPage() {
     };
 
     const handleDelete = async (id) => {
-        if (!confirm('Adakah anda pasti ingin memadam tetapan ini?')) return;
+        showConfirm('Sahkan Padam', 'Adakah anda pasti ingin memadam tetapan ini?', async () => {
+            if (id.toString().startsWith('temp-')) {
+                setSettings(settings.filter(s => s.id !== id));
+                return;
+            }
 
-        if (id.toString().startsWith('temp-')) {
-            setSettings(settings.filter(s => s.id !== id));
-            return;
-        }
-
-        const { error } = await supabase.from('kpi_settings').delete().eq('id', id);
-        if (!error) {
-            setSettings(settings.filter(s => s.id !== id));
-        } else {
-            alert('Ralat memadam: ' + error.message);
-        }
+            const { error } = await supabase.from('kpi_settings').delete().eq('id', id);
+            if (!error) {
+                setSettings(settings.filter(s => s.id !== id));
+                showSuccess('Berjaya', 'Tetapan telah dipadam.');
+            } else {
+                showError('Ralat Padam', error.message);
+            }
+        });
     };
 
     const handleSave = async () => {
@@ -113,11 +116,11 @@ export default function KPISettingsPage() {
                     const { error } = await supabase.from('kpi_settings').update(payload).eq('id', row.id);
                 }
             }
-            alert('Semua tetapan telah disimpan!');
+            showSuccess('Berjaya', 'Semua tetapan telah disimpan!');
             fetchSettings();
         } catch (error) {
             console.error("Error saving settings:", error);
-            alert('Ralat menyimpan tetapan: ' + error.message);
+            showError('Ralat Simpan', 'Ralat menyimpan tetapan: ' + error.message);
         } finally {
             setSaving(false);
         }

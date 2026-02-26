@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import { useModal } from '@/contexts/ModalContext';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Trash2, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 
 export default function DebugAttendancePage() {
+    const { showAlert, showSuccess, showError, showConfirm } = useModal();
     const [issues, setIssues] = useState([]);
     const [loading, setLoading] = useState(true);
     const [fixing, setFixing] = useState(false);
@@ -80,7 +82,7 @@ export default function DebugAttendancePage() {
             setIssues(found);
         } catch (err) {
             console.error(err);
-            alert('Error scanning: ' + err.message);
+            showError('Ralat Imbasan', 'Ralat mengimbas: ' + err.message);
         }
         setLoading(false);
     };
@@ -121,21 +123,23 @@ export default function DebugAttendancePage() {
             // Remove fixed issue from list
             setIssues(prev => prev.filter(i => i.id !== issue.id));
         } catch (err) {
-            alert('Failed to fix: ' + err.message);
+            showError('Ralat Baik Pulih', 'Gagal membaiki: ' + err.message);
         }
         setFixing(false);
     };
 
     const fixAll = async () => {
-        if (!confirm('Are you sure you want to fix all issues?')) return;
-        setFixing(true);
-        // Process sequentially to be safe
-        for (const issue of issues) {
-            await fixIssue(issue);
-        }
-        // Rescan to confirm
-        await scanRecords();
-        setFixing(false);
+        showConfirm('Sahkan Semua', 'Adakah anda pasti mahu membaiki semua isu?', async () => {
+            setFixing(true);
+            // Process sequentially to be safe
+            for (const issue of issues) {
+                await fixIssue(issue);
+            }
+            // Rescan to confirm
+            await scanRecords();
+            setFixing(false);
+            showSuccess('Berjaya', 'Semua isu telah dibaiki.');
+        });
     };
 
     return (

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
 import {
     getRateCategories,
     createRateCategory,
@@ -16,6 +17,7 @@ import { DollarSign, Plus, Edit2, Trash2, X, AlertCircle } from 'lucide-react';
 
 export default function RatesPage() {
     const { user, role } = useAuth();
+    const { showAlert, showSuccess, showError, showConfirm } = useModal();
 
     // Data State
     const [rates, setRates] = useState([]);
@@ -50,20 +52,18 @@ export default function RatesPage() {
         setLoading(false);
     };
 
-    const handleInitializeDefaults = async () => {
-        if (!confirm('Adakah anda pasti mahu memulakan kadar elaun dengan nilai default? Ini tidak akan memadam data sedia ada.')) {
-            return;
-        }
-
-        setLoading(true);
-        const { error } = await initializeDefaultRates(DEFAULT_RATE_CATEGORIES, user.id);
-        if (error) {
-            alert('Ralat: ' + error);
-        } else {
-            alert('Kadar elaun default berjaya ditambah!');
-            loadRates();
-        }
-        setLoading(false);
+    const handleInitializeDefaults = () => {
+        showConfirm('Sahkan Inisialisasi', 'Adakah anda pasti mahu memulakan kadar elaun dengan nilai default? Ini tidak akan memadam data sedia ada.', async () => {
+            setLoading(true);
+            const { error } = await initializeDefaultRates(DEFAULT_RATE_CATEGORIES, user.id);
+            if (error) {
+                showError('Ralat', error);
+            } else {
+                showSuccess('Berjaya', 'Kadar elaun default berjaya ditambah!');
+                loadRates();
+            }
+            setLoading(false);
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -81,21 +81,23 @@ export default function RatesPage() {
             setIsModalOpen(false);
             resetForm();
             loadRates();
+            showSuccess('Berjaya', 'Data kadar elaun telah disimpan.');
         } catch (error) {
             console.error('Error saving rate:', error);
-            alert('Ralat menyimpan data kadar elaun: ' + error.message);
+            showError('Ralat Simpan', 'Ralat menyimpan data kadar elaun: ' + error.message);
         }
     };
 
     const handleDelete = async (id) => {
-        if (confirm('Adakah anda pasti mahu memadam kadar elaun ini?')) {
+        showConfirm('Sahkan Padam', 'Adakah anda pasti mahu memadam kadar elaun ini?', async () => {
             const { error } = await deleteRateCategory(id);
             if (error) {
-                alert('Ralat memadam data: ' + error);
+                showError('Ralat Padam', error);
             } else {
                 loadRates();
+                showSuccess('Berjaya', 'Kadar elaun telah dipadam.');
             }
-        }
+        });
     };
 
     const openModal = (rate = null) => {

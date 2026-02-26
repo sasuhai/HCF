@@ -57,7 +57,8 @@ export default function DashboardPage() {
     const [trendView, setTrendView] = useState('yearly'); // 'yearly' or 'monthly'
     const [selectedLokasi, setSelectedLokasi] = useState(null);
     const [selectedNegeri, setSelectedNegeri] = useState(null);
-    const [dateType, setDateType] = useState('pendaftaran'); // 'pendaftaran' or 'pengislaman'
+    const [stateDateType, setStateDateType] = useState('pendaftaran');
+    const [locDateType, setLocDateType] = useState('pendaftaran');
 
     // Date Range Selectors
     const currentYear = new Date().getFullYear();
@@ -128,31 +129,38 @@ export default function DashboardPage() {
 
         const getMonthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
-        // 1. Filter Mualaf Data based on Date Type
-        const filteredRaw = (stats.mualaf.rawData || []).filter(item => {
-            // Apply category filter if Pengislaman is selected
-            if (dateType === 'pengislaman' && item.kategori !== 'Pengislaman') return false;
+        const getFilteredData = (dType) => {
+            return (stats.mualaf.rawData || []).filter(item => {
+                // Apply category filter if Pengislaman is selected
+                if (dType === 'pengislaman' && item.kategori !== 'Pengislaman') return false;
 
-            const dateValue = dateType === 'pendaftaran' ? item.createdAt : item.tarikhPengislaman;
-            if (!dateValue) return false;
+                const dateValue = dType === 'pendaftaran' ? item.createdAt : item.tarikhPengislaman;
+                if (!dateValue) return false;
 
-            const itemDate = new Date(dateValue);
+                const itemDate = new Date(dateValue);
 
-            if (trendView === 'yearly') {
-                const year = itemDate.getFullYear();
-                return year && year >= yearFrom && year <= yearTo;
-            } else {
-                const mon = getMonthKey(itemDate);
-                return mon && mon >= monthFrom && mon <= monthTo;
-            }
-        });
+                if (trendView === 'yearly') {
+                    const year = itemDate.getFullYear();
+                    return year && year >= yearFrom && year <= yearTo;
+                } else {
+                    const mon = getMonthKey(itemDate);
+                    return mon && mon >= monthFrom && mon <= monthTo;
+                }
+            });
+        };
+
+        const filteredForState = getFilteredData(stateDateType);
+        const filteredForLoc = getFilteredData(locDateType);
 
         // 2. Re-calculate distribution
         const byStateCounts = {};
-        const byLocationCounts = {};
-        filteredRaw.forEach(item => {
+        filteredForState.forEach(item => {
             const state = item.negeriCawangan || 'Lain-lain';
             byStateCounts[state] = (byStateCounts[state] || 0) + 1;
+        });
+
+        const byLocationCounts = {};
+        filteredForLoc.forEach(item => {
             const loc = item.lokasi || 'Tiada Lokasi';
             byLocationCounts[loc] = (byLocationCounts[loc] || 0) + 1;
         });
@@ -166,12 +174,13 @@ export default function DashboardPage() {
             .map(([name, value]) => ({ name, value }));
 
         return {
-            total: filteredRaw.length,
             byState,
             byLocation,
-            filteredRaw
+            total: filteredForState.length, // use pendaftaran as base total if needed or state
+            totalForState: filteredForState.length,
+            totalForLoc: filteredForLoc.length
         };
-    }, [stats, trendView, yearFrom, yearTo, monthFrom, monthTo]);
+    }, [stats, trendView, yearFrom, yearTo, monthFrom, monthTo, stateDateType, locDateType]);
 
     const stateData = filteredStats?.byState || [];
     const locationData = filteredStats?.byLocation || [];
@@ -322,47 +331,26 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Global Analytics Filter Bar */}
-                    <div className="sticky top-[64px] z-40 bg-white/95 backdrop-blur-xl backdrop-saturate-150 px-7 py-5 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-white/50 flex flex-col xl:flex-row items-center justify-between gap-5 mt-4 group transition-[shadow,transform] duration-300 hover:shadow-[0_25px_60px_rgba(0,0,0,0.15)] transform-gpu backface-visibility-hidden">
-
-                        <div className="flex flex-wrap items-center justify-center gap-6">
-                            {/* Trend Type Toggle */}
-                            <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50 shadow-inner">
-                                <button
-                                    onClick={() => setTrendView('yearly')}
-                                    className={`px-5 py-2 text-[11px] font-bold rounded-xl transition-all duration-300 ${trendView === 'yearly' ? 'bg-white text-slate-900 shadow-md transform scale-105' : 'text-slate-500 hover:text-slate-800'}`}
-                                >
-                                    TAHUNAN
-                                </button>
-                                <button
-                                    onClick={() => setTrendView('monthly')}
-                                    className={`px-5 py-2 text-[11px] font-bold rounded-xl transition-all duration-300 ${trendView === 'monthly' ? 'bg-white text-slate-900 shadow-md transform scale-105' : 'text-slate-500 hover:text-slate-800'}`}
-                                >
-                                    BULANAN
-                                </button>
-                            </div>
-
-                            <div className="h-8 w-px bg-slate-200 hidden md:block opacity-50"></div>
-
-                            {/* Date Field Type Toggle (NEW) */}
-                            <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50 shadow-inner">
-                                <button
-                                    onClick={() => setDateType('pendaftaran')}
-                                    className={`px-5 py-2 text-[11px] font-bold rounded-xl transition-all duration-300 ${dateType === 'pendaftaran' ? 'bg-emerald-500 text-white shadow-md transform scale-105' : 'text-slate-500 hover:text-slate-800'}`}
-                                >
-                                    PENDAFTARAN
-                                </button>
-                                <button
-                                    onClick={() => setDateType('pengislaman')}
-                                    className={`px-5 py-2 text-[11px] font-bold rounded-xl transition-all duration-300 ${dateType === 'pengislaman' ? 'bg-indigo-500 text-white shadow-md transform scale-105' : 'text-slate-500 hover:text-slate-800'}`}
-                                >
-                                    PENGISLAMAN
-                                </button>
-                            </div>
+                    <div className="sticky top-[64px] z-40 bg-white/95 backdrop-blur-xl backdrop-saturate-150 px-7 py-5 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-white/50 flex flex-col xl:flex-row items-center justify-between gap-5 mt-4 group transition-all duration-300 hover:shadow-[0_25px_60px_rgba(0,0,0,0.15)] w-full">
+                        {/* Left: Trend Type Toggle */}
+                        <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50 shadow-inner shrink-0">
+                            <button
+                                onClick={() => setTrendView('yearly')}
+                                className={`px-5 py-2 text-[11px] font-bold rounded-xl transition-all duration-300 ${trendView === 'yearly' ? 'bg-white text-slate-900 shadow-md transform scale-105' : 'text-slate-500 hover:text-slate-800'}`}
+                            >
+                                TAHUNAN
+                            </button>
+                            <button
+                                onClick={() => setTrendView('monthly')}
+                                className={`px-5 py-2 text-[11px] font-bold rounded-xl transition-all duration-300 ${trendView === 'monthly' ? 'bg-white text-slate-900 shadow-md transform scale-105' : 'text-slate-500 hover:text-slate-800'}`}
+                            >
+                                BULANAN
+                            </button>
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-center gap-4">
-                            {/* Current Selection Indicators */}
-                            <div className="flex flex-col">
+                        {/* Right: Date Selectors & Indicators */}
+                        <div className="flex flex-wrap items-center justify-center xl:justify-end gap-6 w-full">
+                            <div className="flex flex-col items-center xl:items-end">
                                 <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Tempoh Analisis</span>
                                 <div className="flex items-center space-x-2">
                                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
@@ -624,14 +612,30 @@ export default function DashboardPage() {
                                     <h3 className="text-xl font-bold text-slate-900 tracking-tight">Taburan Mengikut Negeri</h3>
                                     <p className="text-sm text-slate-500 font-medium">Klik untuk analisis trend bulanan</p>
                                 </div>
-                                {selectedNegeri && (
-                                    <button
-                                        onClick={() => setSelectedNegeri(null)}
-                                        className="text-[10px] font-bold text-emerald-600 hover:text-white bg-emerald-50 hover:bg-emerald-500 px-3 py-1.5 rounded-xl transition-all duration-300 uppercase tracking-widest border border-emerald-100"
-                                    >
-                                        RESET
-                                    </button>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-sm mr-2">
+                                        <button
+                                            onClick={() => setStateDateType('pendaftaran')}
+                                            className={`px-3 py-1 text-[9px] font-bold rounded-lg transition-all ${stateDateType === 'pendaftaran' ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                        >
+                                            PENDAFTARAN
+                                        </button>
+                                        <button
+                                            onClick={() => setStateDateType('pengislaman')}
+                                            className={`px-3 py-1 text-[9px] font-bold rounded-lg transition-all ${stateDateType === 'pengislaman' ? 'bg-indigo-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                        >
+                                            PENGISLAMAN
+                                        </button>
+                                    </div>
+                                    {selectedNegeri && (
+                                        <button
+                                            onClick={() => setSelectedNegeri(null)}
+                                            className="text-[10px] font-bold text-emerald-600 hover:text-white bg-emerald-50 hover:bg-emerald-500 px-3 py-1.5 rounded-xl transition-all duration-300 uppercase tracking-widest border border-emerald-100"
+                                        >
+                                            RESET
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                             <div className="h-[700px] w-full mt-4">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -755,14 +759,30 @@ export default function DashboardPage() {
                                     <h3 className="text-xl font-bold text-slate-900 tracking-tight">Mualaf Mengikut Lokasi</h3>
                                     <p className="text-sm text-slate-500 font-medium">Klik lokasi untuk pecahan trend</p>
                                 </div>
-                                {selectedLokasi && (
-                                    <button
-                                        onClick={() => setSelectedLokasi(null)}
-                                        className="text-[10px] font-bold text-emerald-600 hover:text-white bg-emerald-50 hover:bg-emerald-500 px-3 py-1.5 rounded-xl transition-all duration-300 uppercase tracking-widest border border-emerald-100"
-                                    >
-                                        RESET
-                                    </button>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-sm mr-2">
+                                        <button
+                                            onClick={() => setLocDateType('pendaftaran')}
+                                            className={`px-3 py-1 text-[9px] font-bold rounded-lg transition-all ${locDateType === 'pendaftaran' ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                        >
+                                            PENDAFTARAN
+                                        </button>
+                                        <button
+                                            onClick={() => setLocDateType('pengislaman')}
+                                            className={`px-3 py-1 text-[9px] font-bold rounded-lg transition-all ${locDateType === 'pengislaman' ? 'bg-indigo-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                        >
+                                            PENGISLAMAN
+                                        </button>
+                                    </div>
+                                    {selectedLokasi && (
+                                        <button
+                                            onClick={() => setSelectedLokasi(null)}
+                                            className="text-[10px] font-bold text-emerald-600 hover:text-white bg-emerald-50 hover:bg-emerald-500 px-3 py-1.5 rounded-xl transition-all duration-300 uppercase tracking-widest border border-emerald-100"
+                                        >
+                                            RESET
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                             <div className="h-[600px] w-full mt-4">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -1021,8 +1041,8 @@ export default function DashboardPage() {
                         </div>
                     </div>
 
-                </main >
-            </div >
-        </ProtectedRoute >
+                </main>
+            </div>
+        </ProtectedRoute>
     );
 }

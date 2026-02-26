@@ -2,6 +2,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DataProvider } from "@/contexts/DataContext";
+import { ModalProvider } from "@/contexts/ModalContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -42,9 +43,11 @@ export default function RootLayout({ children }) {
     <html lang="ms">
       <body className={inter.className} suppressHydrationWarning>
         <AuthProvider>
-          <DataProvider>
-            {children}
-          </DataProvider>
+          <ModalProvider>
+            <DataProvider>
+              {children}
+            </DataProvider>
+          </ModalProvider>
         </AuthProvider>
       </body>
     </html>

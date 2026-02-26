@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
 import { supabase } from '@/lib/supabase/client';
 import { getStates, getLocationsTable, getLookupData, fetchAll } from '@/lib/supabase/database';
 import Navbar from '@/components/Navbar';
@@ -113,6 +114,7 @@ const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
 
 export default function WorkersPage() {
     const { user, role, profile, loading: authLoading } = useAuth();
+    const { showAlert, showSuccess, showError, showConfirm } = useModal();
     const router = useRouter();
 
     // Data State
@@ -202,7 +204,7 @@ export default function WorkersPage() {
         e.preventDefault();
         try {
             if (!formData.nama || !formData.noKP || !formData.negeri || !formData.lokasi) {
-                alert("Sila isi semua maklumat mandatori.");
+                showError('Maklumat Tidak Lengkap', "Sila isi semua maklumat mandatori.");
                 return;
             }
 
@@ -215,18 +217,20 @@ export default function WorkersPage() {
             setIsModalOpen(false);
             resetForm();
             fetchWorkers();
+            showSuccess('Berjaya', 'Data petugas telah disimpan.');
         } catch (error) {
             console.error(error);
-            alert("Ralat menyimpan data.");
+            showError('Ralat Simpan', "Ralat menyimpan data.");
         }
     };
 
     const handleDelete = useCallback(async (id) => {
-        if (confirm("Padam pekerja ini?")) {
+        showConfirm('Sahkan Padam', 'Padam pekerja ini?', async () => {
             await supabase.from('workers').delete().eq('id', id);
             fetchWorkers();
-        }
-    }, []);
+            showSuccess('Berjaya', 'Petugas telah dipadam.');
+        });
+    }, [fetchWorkers, showConfirm, showSuccess]);
 
     const openModal = useCallback((worker = null) => {
         if (worker) {

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
+import { useModal } from '@/contexts/ModalContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import Link from 'next/link';
@@ -29,6 +30,7 @@ const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
 
 export default function ProgramPage() {
     const { role } = useAuth();
+    const { showAlert, showSuccess, showError, showConfirm } = useModal();
     const [programs, setPrograms] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -116,14 +118,15 @@ export default function ProgramPage() {
     }, [selectedYear, selectedMonth, selectedState]);
 
     const handleDelete = async (id) => {
-        if (confirm('Adakah anda pasti ingin memadam rekod program ini?')) {
+        showConfirm('Sahkan Padam', 'Adakah anda pasti ingin memadam rekod program ini?', async () => {
             const { error } = await supabase.from('programs').delete().eq('id', id);
             if (!error) {
                 setPrograms(prev => prev.filter(p => p.id !== id));
+                showSuccess('Berjaya', 'Rekod program telah dipadam.');
             } else {
-                alert('Ralat memadam rekod: ' + error.message);
+                showError('Ralat Padam', error.message);
             }
-        }
+        });
     };
 
     const getUniqueValues = (field) => {
@@ -205,16 +208,16 @@ export default function ProgramPage() {
 
             if (errors.length > 0) {
                 console.error("Errors saving some changes:", errors);
-                alert(`Ralat semasa menyimpan beberapa rekod.`);
+                showError('Ralat Simpan', `Ralat semasa menyimpan beberapa rekod.`);
             } else {
                 await loadPrograms();
                 setPendingChanges({});
                 setIsSpreadsheetMode(false);
-                alert('Semua perubahan telah berjaya disimpan!');
+                showSuccess('Berjaya', 'Semua perubahan telah berjaya disimpan!');
             }
         } catch (err) {
             console.error("Error saving layout changes", err);
-            alert("Ralat sistem semasa menyimpan. Cuba lagi.");
+            showError('Ralat Sistem', "Ralat sistem semasa menyimpan. Cuba lagi.");
         } finally {
             setSaving(false);
         }

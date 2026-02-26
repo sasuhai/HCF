@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
 import { useData } from '@/contexts/DataContext';
 import { createSubmission, getLocations, getStates, getLookupData } from '@/lib/supabase/database';
 import {
@@ -26,6 +27,7 @@ import { calculateKPI } from '@/lib/utils/kpi';
 
 export default function BorangPage() {
     const { markAsDirty } = useData();
+    const { showAlert, showSuccess, showError, showConfirm } = useModal();
     const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm();
     const selectedNegeri = watch('negeriCawangan');
     const selectedKategori = watch('kategori');
@@ -143,17 +145,13 @@ export default function BorangPage() {
             // Mark as dirty so list page knows to show refresh button
             markAsDirty('mualaf');
 
-            setSuccess(true);
-            setUploadProgress(100);
-            setUploadingFile('Selesai!');
-            setLoading(false);
-
+            showSuccess('Berjaya!', 'Data telah disimpan.');
             setTimeout(() => {
                 router.push('/senarai');
             }, 2000);
 
         } catch (err) {
-            setError('Ralat: ' + err.message);
+            showError('Ralat Penyerahan', 'Ralat: ' + err.message);
             setLoading(false);
             setUploadProgress(0);
             setUploadingFile('');

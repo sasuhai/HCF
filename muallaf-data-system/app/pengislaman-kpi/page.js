@@ -5,6 +5,7 @@ import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { supabase } from '@/lib/supabase/client';
 import { getSubmissions, getStates, getLocations } from '@/lib/supabase/database';
+import { useModal } from '@/contexts/ModalContext';
 import { calculateKPI } from '@/lib/utils/kpi';
 import {
     Search,
@@ -76,6 +77,7 @@ const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
 );
 
 export default function PengislamanKPIPage() {
+    const { showAlert, showSuccess, showError, showConfirm } = useModal();
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isSpreadsheetMode, setIsSpreadsheetMode] = useState(false);
@@ -214,7 +216,7 @@ export default function PengislamanKPIPage() {
             setRecords(data || []);
         } catch (err) {
             console.error("Error loading mualaf records:", err);
-            alert("Ralat memuatkan data.");
+            showError('Ralat Data', "Ralat memuatkan data.");
         } finally {
             setLoading(false);
         }
@@ -276,17 +278,17 @@ export default function PengislamanKPIPage() {
 
             if (errors.length > 0) {
                 console.error("Errors saving some changes:", errors.map(e => e.error.message));
-                alert(`Ralat semasa menyimpan ${errors.length} rekod. Sila semak konsol untuk maklumat lanjut.`);
+                showError('Ralat Simpan', `Ralat semasa menyimpan ${errors.length} rekod. Sila semak konsol untuk maklumat lanjut.`);
             } else {
                 await loadRecords();
                 setPendingChanges({});
                 setIsSpreadsheetMode(false);
                 sessionStorage.removeItem('kpi_spreadsheet_state');
-                alert('Semua perubahan telah berjaya disimpan!');
+                showSuccess('Berjaya', 'Semua perubahan telah berjaya disimpan!');
             }
         } catch (err) {
             console.error("Error saving KPI changes", err);
-            alert("Ralat sistem semasa menyimpan. Cuba lagi.");
+            showError('Ralat Sistem', "Ralat sistem semasa menyimpan. Cuba lagi.");
         } finally {
             setSaving(false);
         }

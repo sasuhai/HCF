@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
 import { supabase } from '@/lib/supabase/client';
 import { getLocations } from '@/lib/supabase/database';
 import Navbar from '@/components/Navbar';
@@ -11,6 +12,7 @@ import { User, Plus, Search, Edit2, Trash2, Shield, MapPin, X, Check, Eye, EyeOf
 
 export default function UsersPage() {
     const { user, role } = useAuth();
+    const { showAlert, showSuccess, showError, showConfirm } = useModal();
     const router = useRouter();
 
     const [users, setUsers] = useState([]);
@@ -135,7 +137,7 @@ export default function UsersPage() {
                 const json = await res.json();
                 if (!res.ok) throw new Error(json.error || 'Failed to create user');
 
-                alert("Pengguna berjaya dicipta!");
+                showSuccess('Berjaya', "Pengguna berjaya dicipta!");
                 setIsModalOpen(false);
 
                 // Refresh list
@@ -164,46 +166,45 @@ export default function UsersPage() {
                     assignedLocations: formData.assignedLocations
                 } : u));
 
-                alert("Pengguna berjaya dikemaskini!");
+                showSuccess('Berjaya', "Pengguna berjaya dikemaskini!");
                 setIsModalOpen(false);
             }
         } catch (error) {
             console.error("Error submitting form:", error);
-            alert("Ralat memproses borang: " + error.message);
+            showError('Ralat Borang', "Ralat memproses borang: " + error.message);
         } finally {
             setLoading(false);
         }
     };
 
     const handleDelete = async (targetUser) => {
-        if (!confirm(`Adakah anda pasti ingin memadam pengguna "${targetUser.name}"?`)) return;
-
         // Check if admin is trying to delete themselves
         if (targetUser.id === user.id) {
-            alert("Ralat: Anda tidak boleh memadam akaun anda sendiri.");
+            showError('Ralat Akses', "Anda tidak boleh memadam akaun anda sendiri.");
             return;
         }
 
-        const confirmFinal = confirm("PERHATIAN: Tindakan ini akan memadam rekod pangkalan data DAN pengguna Auth login. Teruskan?");
-        if (!confirmFinal) return;
+        showConfirm('Sahkan Padam', `Adakah anda pasti ingin memadam pengguna "${targetUser.name}"?`, async () => {
+            showConfirm('Pengesahan Akhir', "PERHATIAN: Tindakan ini akan memadam rekod pangkalan data DAN pengguna Auth login. Teruskan?", async () => {
+                try {
+                    // Use API Route to delete (Auth + DB)
+                    const res = await fetch(`/api/admin/users/${targetUser.id}`, {
+                        method: 'DELETE'
+                    });
+                    const json = await res.json();
 
-        try {
-            // Use API Route to delete (Auth + DB)
-            const res = await fetch(`/api/admin/users/${targetUser.id}`, {
-                method: 'DELETE'
+                    if (!res.ok) throw new Error(json.error || 'Failed to delete user');
+
+                    // Update local state
+                    setUsers(prev => prev.filter(u => u.id !== targetUser.id));
+
+                    showSuccess('Berjaya', `Pengguna berjaya dipadam.`);
+                } catch (error) {
+                    console.error("Error deleting user:", error);
+                    showError('Ralat Padam', "Ralat memadam pengguna: " + error.message);
+                }
             });
-            const json = await res.json();
-
-            if (!res.ok) throw new Error(json.error || 'Failed to delete user');
-
-            // Update local state
-            setUsers(prev => prev.filter(u => u.id !== targetUser.id));
-
-            alert(`Pengguna berjaya dipadam.`);
-        } catch (error) {
-            console.error("Error deleting user:", error);
-            alert("Ralat memadam pengguna: " + error.message);
-        }
+        });
     };
 
     // Filter Users

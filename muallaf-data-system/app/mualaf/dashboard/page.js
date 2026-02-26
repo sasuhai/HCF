@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
+import { useModal } from '@/contexts/ModalContext';
 import { getRateCategories } from '@/lib/supabase/database';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -17,6 +18,7 @@ function AttendanceDashboardContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user, role, profile, loading: authLoading } = useAuth();
+    const { showError, showWarning, showInfo, showSuccess, showConfirm } = useModal();
 
     // UI State
     const [activeTab, setActiveTab] = useState('overview'); // overview, tracker, reports, geo
@@ -186,7 +188,7 @@ function AttendanceDashboardContent() {
             } catch (error) {
                 console.error("Error loading data:", error);
                 if (error.code === 'resource-exhausted') {
-                    alert("Kouta pangkalan data habis. (Quota Exceeded)");
+                    showError("Ralat Kuota", "Kouta pangkalan data habis. (Quota Exceeded)");
                 }
             } finally {
                 setLoading(false);

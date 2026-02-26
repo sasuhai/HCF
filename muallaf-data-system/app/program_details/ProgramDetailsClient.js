@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
 import { supabase } from '@/lib/supabase/client';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
@@ -14,6 +15,7 @@ import {
 
 export default function ProgramDetailsClient() {
     const { role } = useAuth();
+    const { showAlert, showSuccess, showError, showConfirm } = useModal();
     const router = useRouter();
     const searchParams = useSearchParams();
     const id = searchParams.get('id');
@@ -68,7 +70,7 @@ export default function ProgramDetailsClient() {
             router.push('/program');
         } catch (err) {
             console.error("Error deleting program:", err);
-            alert("Ralat memadam program. Sila cuba lagi.");
+            showError('Ralat Padam', "Ralat memadam program. Sila cuba lagi.");
             setIsDeleting(false);
             setShowDeleteConfirm(false);
         }

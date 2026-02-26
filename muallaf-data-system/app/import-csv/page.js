@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { useModal } from '@/contexts/ModalContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { createSubmission } from '@/lib/supabase/database';
 
 export default function ImportPage() {
     const { user } = useAuth();
+    const { showAlert, showSuccess, showError, showConfirm } = useModal();
     const [data, setData] = useState([]);
     const [status, setStatus] = useState('idle');
     const [logs, setLogs] = useState([]);
@@ -60,7 +62,7 @@ export default function ImportPage() {
 
     const runImport = async () => {
         if (!user) {
-            alert('User not authenticated');
+            showError('Ralat Akses', 'User not authenticated');
             return;
         }
         setStatus('importing');

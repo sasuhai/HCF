@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
 import { supabase } from '@/lib/supabase/client';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
@@ -105,6 +106,7 @@ const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
 
 export default function OtherKPIPage() {
     const { role } = useAuth();
+    const { showAlert, showSuccess, showError, showConfirm } = useModal();
     const [activeTab, setActiveTab] = useState(TABS[0].id);
     const [kpiData, setKpiData] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -237,14 +239,15 @@ export default function OtherKPIPage() {
     };
 
     const handleDelete = async (id) => {
-        if (confirm('Adakah anda pasti ingin memadam rekod ini?')) {
+        showConfirm('Sahkan Padam', 'Adakah anda pasti ingin memadam rekod ini?', async () => {
             const { error } = await supabase.from('other_kpis').delete().eq('id', id);
             if (!error) {
                 setKpiData(prev => prev.filter(p => p.id !== id));
+                showSuccess('Berjaya', 'Rekod telah dipadam.');
             } else {
-                alert('Ralat memadam rekod: ' + error.message);
+                showError('Ralat Padam', error.message);
             }
-        }
+        });
     };
 
     const handleAddRow = async () => {
@@ -271,7 +274,7 @@ export default function OtherKPIPage() {
                 setIsSpreadsheetMode(true); // Automatically enter edit mode
             }
         } catch (error) {
-            alert('Ralat menambah rekod: ' + error.message);
+            showError('Ralat Tambah', error.message);
         } finally {
             setLoading(false);
         }
@@ -348,7 +351,7 @@ export default function OtherKPIPage() {
                 const currentJenis = isJenisEdited ? pendingChanges[id].jenis : originalRow?.jenis;
 
                 if (!currentJenis) {
-                    alert('Sila pilih Jenis (Mualaf / Outreach) untuk semua rekod yang disunting sebelum menyimpan.');
+                    showWarning('Maklumat Tidak Lengkap', 'Sila pilih Jenis (Mualaf / Outreach) untuk semua rekod yang disunting sebelum menyimpan.');
                     return;
                 }
             }
@@ -393,16 +396,16 @@ export default function OtherKPIPage() {
 
             if (errors.length > 0) {
                 console.error("Errors saving some changes:", errors);
-                alert(`Ralat semasa menyimpan beberapa rekod.`);
+                showError('Ralat Simpan', 'Ralat semasa menyimpan beberapa rekod.');
             } else {
                 await loadData();
                 setPendingChanges({});
                 setIsSpreadsheetMode(false);
-                alert('Semua perubahan telah berjaya disimpan!');
+                showSuccess('Berjaya', 'Semua perubahan telah berjaya disimpan!');
             }
         } catch (err) {
             console.error("Error saving layout changes", err);
-            alert("Ralat sistem semasa menyimpan. Cuba lagi.");
+            showError('Ralat Sistem', "Ralat sistem semasa menyimpan. Cuba lagi.");
         } finally {
             setSaving(false);
         }

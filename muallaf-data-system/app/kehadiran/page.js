@@ -5,6 +5,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
+import { useModal } from '@/contexts/ModalContext';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Search, Save, UserPlus, FileText, CheckCircle, Trash2, Home, X, Check, Plus, Calendar, MapPin, Edit2, Copy, AlertCircle, ChevronDown, Download, Globe, Clock, User, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -13,6 +14,7 @@ function AttendancePageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user, role, profile, loading: authLoading } = useAuth();
+    const { showAlert, showSuccess, showError, showConfirm } = useModal();
 
     // Selection state
     const [selectedLocation, setSelectedLocation] = useState('');
@@ -277,7 +279,7 @@ function AttendancePageContent() {
 
         } catch (error) {
             console.error("Error saving:", error);
-            alert("Ralat menyimpan e-kehadiran");
+            showError('Ralat Simpan', "Ralat menyimpan e-kehadiran");
         }
     };
 
@@ -310,7 +312,7 @@ function AttendancePageContent() {
     const handleAddWorker = async (worker) => {
         const currentList = attendanceRecord?.workers || [];
         if (currentList.some(w => w.id === worker.id)) {
-            alert('Pekerja sudah ada dalam senarai.');
+            showWarning('Sudah Wujud', 'Pekerja sudah ada dalam senarai.');
             return;
         }
 
@@ -330,7 +332,7 @@ function AttendancePageContent() {
     const handleAddStudent = async (student) => {
         const currentList = attendanceRecord?.students || [];
         if (currentList.some(s => s.id === student.id)) {
-            alert('Pelajar sudah ada dalam senarai.');
+            showWarning('Sudah Wujud', 'Pelajar sudah ada dalam senarai.');
             return;
         }
 
@@ -348,11 +350,12 @@ function AttendancePageContent() {
     };
 
     const handleRemovePerson = async (type, personId) => {
-        if (!confirm("Buang dari senarai kehadiran bulan ini?")) return;
-
-        const listName = type === 'worker' ? 'workers' : 'students';
-        const list = attendanceRecord[listName].filter(p => p.id !== personId);
-        await saveAttendance({ [listName]: list });
+        showConfirm('Sahkan Buang', "Buang dari senarai kehadiran bulan ini?", async () => {
+            const listName = type === 'worker' ? 'workers' : 'students';
+            const list = attendanceRecord[listName].filter(p => p.id !== personId);
+            await saveAttendance({ [listName]: list });
+            showSuccess('Berjaya', 'Rekod telah dibuang.');
+        });
     };
 
     // Navigation for month
@@ -393,7 +396,7 @@ function AttendancePageContent() {
 
         const previousMonth = getPreviousMonth(selectedMonth);
         if (!previousMonth) {
-            alert('Tidak dapat menentukan bulan sebelumnya.');
+            showError('Ralat', 'Tidak dapat menentukan bulan sebelumnya.');
             return;
         }
 
@@ -407,7 +410,7 @@ function AttendancePageContent() {
                 .single();
 
             if (!previousData || error) {
-                alert(`Tiada data untuk bulan sebelumnya (${previousMonth}).`);
+                showWarning('Tiada Rekod', `Tiada data untuk bulan sebelumnya (${previousMonth}).`);
                 return;
             }
 
@@ -473,14 +476,14 @@ function AttendancePageContent() {
 
             const totalAdded = addedWorkersCount + addedStudentsCount;
             if (totalAdded > 0) {
-                alert(`Berjaya menyalin data! (${addedWorkersCount} petugas, ${addedStudentsCount} pelajar ditambah).`);
+                showSuccess('Berjaya Salin', `Berjaya menyalin data! (${addedWorkersCount} petugas, ${addedStudentsCount} pelajar ditambah).`);
             } else {
-                alert('Tiada data baharu untuk disalin. Semua petugas dan pelajar sudah wujud.');
+                showInfo('Tiada Data Baru', 'Tiada data baharu untuk disalin. Semua petugas dan pelajar sudah wujud.');
             }
 
         } catch (error) {
             console.error('Error copying from previous month:', error);
-            alert('Ralat menyalin data dari bulan sebelumnya.');
+            showError('Ralat Salin', 'Ralat menyalin data dari bulan sebelumnya.');
         }
     };
 
@@ -496,7 +499,7 @@ function AttendancePageContent() {
                 if (data) setAllWorkers(data);
             } catch (err) {
                 console.error("Error loading workers:", err);
-                alert("Gagal memuatkan senarai pekerja.");
+                showError('Gagal Muat', "Gagal memuatkan senarai pekerja.");
             }
         }
         setIsWorkerModalOpen(true);
@@ -513,7 +516,7 @@ function AttendancePageContent() {
                 if (data) setAllStudents(data);
             } catch (err) {
                 console.error("Error loading students:", err);
-                alert("Gagal memuatkan senarai pelajar.");
+                showError('Gagal Muat', "Gagal memuatkan senarai pelajar.");
             }
         }
         setIsStudentModalOpen(true);
@@ -546,7 +549,7 @@ function AttendancePageContent() {
 
     const handleGenerateReport = () => {
         if (!selectedMonth || !selectedLocation) {
-            alert("Sila pilih Lokasi dan Bulan untuk menjana laporan.");
+            showWarning('Pilihan Diperlukan', "Sila pilih Lokasi dan Bulan untuk menjana laporan.");
             return;
         }
         const [year, month] = selectedMonth.split('-');

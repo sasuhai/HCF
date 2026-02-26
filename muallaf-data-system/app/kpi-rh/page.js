@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
 import { supabase } from '@/lib/supabase/client';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
@@ -101,6 +102,7 @@ const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
 
 export default function RakanHidayahKPIPage() {
     const { role } = useAuth();
+    const { showAlert, showSuccess, showError, showConfirm } = useModal();
     const [activeTab, setActiveTab] = useState(TABS[0].id);
     const [kpiData, setKpiData] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -129,7 +131,6 @@ export default function RakanHidayahKPIPage() {
     const [isSpreadsheetMode, setIsSpreadsheetMode] = useState(false);
     const [pendingChanges, setPendingChanges] = useState({});
     const [saving, setSaving] = useState(false);
-    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
     const observerTarget = useRef(null);
     const INCREMENT = 50;
 
@@ -239,14 +240,14 @@ export default function RakanHidayahKPIPage() {
     };
 
     const executeDelete = async (id) => {
-        setDeleteConfirmId(null);
         const { data, error } = await supabase.from('other_kpis').delete().eq('id', id).select();
         if (error) {
-            alert('Ralat memadam rekod: ' + error.message);
+            showError('Ralat Padam', error.message);
         } else if (!data || data.length === 0) {
-            alert('Ralat: Tiada kebenaran untuk memadam rekod ini (RLS policy block) atau rekod gagal dijumpai.');
+            showError('Ralat Padam', 'Anda tidak mempunyai kebenaran untuk memadam rekod ini atau rekod gagal dijumpai.');
         } else {
             setKpiData(prev => prev.filter(p => p.id !== id));
+            showSuccess('Berjaya', 'Rekod telah dipadam.');
         }
     };
 
@@ -276,7 +277,7 @@ export default function RakanHidayahKPIPage() {
                 setIsSpreadsheetMode(true); // Automatically enter edit mode
             }
         } catch (error) {
-            alert('Ralat menambah rekod: ' + error.message);
+            showError('Ralat Tambah', error.message);
         } finally {
             setLoading(false);
         }
@@ -331,7 +332,7 @@ export default function RakanHidayahKPIPage() {
                 }
             }
         } catch (error) {
-            alert('Ralat menyalin rekod: ' + error.message);
+            showError('Ralat Salin', error.message);
         } finally {
             setLoading(false);
         }
@@ -408,7 +409,7 @@ export default function RakanHidayahKPIPage() {
                 const currentJenis = isJenisEdited ? pendingChanges[id].jenis : originalRow?.jenis;
 
                 if (!currentJenis) {
-                    alert("Sila pilih Jenis (DU'AT / Sukarelawan) untuk semua rekod yang disunting sebelum menyimpan.");
+                    showWarning('Maklumat Tidak Lengkap', "Sila pilih Jenis (DU'AT / Sukarelawan) untuk semua rekod yang disunting sebelum menyimpan.");
                     return;
                 }
             }
@@ -453,16 +454,16 @@ export default function RakanHidayahKPIPage() {
 
             if (errors.length > 0) {
                 console.error("Errors saving some changes:", errors);
-                alert(`Ralat semasa menyimpan beberapa rekod.`);
+                showError('Ralat Simpan', 'Ralat semasa menyimpan beberapa rekod.');
             } else {
                 await loadData();
                 setPendingChanges({});
                 setIsSpreadsheetMode(false);
-                alert('Semua perubahan telah berjaya disimpan!');
+                showSuccess('Berjaya', 'Semua perubahan telah berjaya disimpan!');
             }
         } catch (err) {
             console.error("Error saving layout changes", err);
-            alert("Ralat sistem semasa menyimpan. Cuba lagi.");
+            showError('Ralat Sistem', "Ralat sistem semasa menyimpan. Cuba lagi.");
         } finally {
             setSaving(false);
         }
@@ -828,29 +829,19 @@ export default function RakanHidayahKPIPage() {
                                         <tr key={row.id} className="border-b border-gray-200 hover:bg-emerald-50 transition-colors">
                                             <td className="sticky left-0 z-10 bg-emerald-50 py-1 px-2 shadow-[1px_0_0_0_#10b981] min-w-[60px]">
                                                 <div className="flex items-center justify-start gap-1">
-                                                    {deleteConfirmId === row.id ? (
-                                                        <div className="flex flex-col gap-1 items-start">
-                                                            <span className="text-[9px] font-bold text-red-600 leading-tight">Padam?</span>
-                                                            <div className="flex gap-1">
-                                                                <button onClick={() => executeDelete(row.id)} className="bg-red-600 text-white p-1 rounded shadow-sm hover:bg-red-700" title="Ya">
-                                                                    <Check className="h-3 w-3" />
-                                                                </button>
-                                                                <button onClick={() => setDeleteConfirmId(null)} className="bg-slate-200 text-slate-700 p-1 rounded shadow-sm hover:bg-slate-300" title="Batal">
-                                                                    <X className="h-3 w-3" />
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        (role === 'admin' || role === 'editor') && (
-                                                            <>
-                                                                <button onClick={() => handleDuplicateRow(row)} className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors" title="Salin (Duplicate) Rekod">
-                                                                    <Copy className="h-4 w-4" />
-                                                                </button>
-                                                                <button onClick={() => setDeleteConfirmId(row.id)} className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors" title="Padam">
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                </button>
-                                                            </>
-                                                        )
+                                                    {(role === 'admin' || role === 'editor') && (
+                                                        <>
+                                                            <button onClick={() => handleDuplicateRow(row)} className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors" title="Salin (Duplicate) Rekod">
+                                                                <Copy className="h-4 w-4" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => showConfirm('Sahkan Padam', 'Adakah anda pasti ingin memadam rekod ini?', () => executeDelete(row.id))}
+                                                                className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors"
+                                                                title="Padam"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </button>
+                                                        </>
                                                     )}
                                                 </div>
                                             </td>

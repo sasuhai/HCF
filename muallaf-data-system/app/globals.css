@@ -12,6 +12,11 @@
   }
 }
 
+html,
+body {
+  overscroll-behavior: none;
+}
+
 body {
   color: var(--foreground);
   background: var(--background);
@@ -166,6 +171,17 @@ body {
   overflow-x: auto;
   overflow-y: clip;
   position: relative;
+  overscroll-behavior-x: none;
+}
+
+/* Prevent overscroll navigation on all scrollable elements */
+[class*='overflow-auto'],
+[class*='overflow-x-auto'],
+[class*='overflow-y-auto'],
+.overflow-auto,
+.overflow-x-auto,
+.overflow-y-auto {
+  overscroll-behavior: none;
 }
 
 /* Ensure sticky headers work with border-separate */

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
 import { useData } from '@/contexts/DataContext';
 import { getSubmissions, deleteSubmission } from '@/lib/supabase/database';
 import { Search, Eye, Edit, Trash2, Download, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, RefreshCw, Loader2 } from 'lucide-react';
@@ -30,6 +31,7 @@ const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
 
 export default function SenaraiPage() {
     const { mualaf: submissions, setMualaf: setSubmissions, needsRefresh, markAsClean, markAsDirty } = useData();
+    const { showAlert, showSuccess, showError, showConfirm } = useModal();
     const [loading, setLoading] = useState(false);
     const [columnFilters, setColumnFilters] = useState({});
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -64,17 +66,18 @@ export default function SenaraiPage() {
     };
 
     const handleDelete = async (id) => {
-        if (confirm('Adakah anda pasti ingin memadam rekod ini?')) {
+        showConfirm('Sahkan Padam', 'Adakah anda pasti ingin memadam rekod ini?', async () => {
             const { error } = await deleteSubmission(id);
             if (!error) {
                 // Instead of loadSubmissions(), just mark as dirty and let user refresh
                 // OR we can update local state to keep it snappy
                 setSubmissions(prev => prev.filter(s => s.id !== id));
                 markAsDirty('mualaf');
+                showSuccess('Berjaya', 'Rekod telah dipadam.');
             } else {
-                alert('Ralat memadam rekod: ' + error);
+                showError('Ralat Padam', error);
             }
-        }
+        });
     };
 
     // Get unique values for a column, respecting other filters

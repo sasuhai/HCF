@@ -6,6 +6,7 @@ import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
 import { getSubmission, deleteSubmission } from '@/lib/supabase/database';
 import { ArrowLeft, Edit, Trash2, User, Calendar, MapPin, Phone, Mail, Briefcase, Activity, CheckCircle, XCircle } from 'lucide-react';
 
@@ -14,6 +15,7 @@ function RekodDetailContent() {
     const id = searchParams.get('id');
     const router = useRouter();
     const { role, profile, loading: authLoading } = useAuth();
+    const { showAlert, showSuccess, showError, showConfirm } = useModal();
     const [submission, setSubmission] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -38,7 +40,7 @@ function RekodDetailContent() {
             if (isAccessible) {
                 setSubmission(data);
             } else {
-                alert("Anda tidak mempunyai akses untuk melihat rekod ini.");
+                showError("Akses Ditolak", "Anda tidak mempunyai akses untuk melihat rekod ini.");
                 router.push('/senarai');
             }
         }
@@ -46,14 +48,15 @@ function RekodDetailContent() {
     };
 
     const handleDelete = async () => {
-        if (confirm('Adakah anda pasti ingin memadam rekod ini?')) {
+        showConfirm('Sahkan Padam', 'Adakah anda pasti ingin memadam rekod ini?', async () => {
             const { error } = await deleteSubmission(id);
             if (!error) {
+                showSuccess('Berjaya', 'Rekod telah dipadam.');
                 router.push('/senarai');
             } else {
-                alert('Ralat memadam rekod: ' + error);
+                showError('Ralat Padam', 'Ralat memadam rekod: ' + error);
             }
-        }
+        });
     };
 
     const handlePrint = () => {

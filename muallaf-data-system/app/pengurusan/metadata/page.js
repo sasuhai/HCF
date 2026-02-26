@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModal } from '@/contexts/ModalContext';
 import {
     getLookupData,
     createLookupItem,
@@ -51,6 +52,7 @@ const TABS = [
 
 export default function MetadataManagementPage() {
     const { role } = useAuth();
+    const { showAlert, showSuccess, showError, showConfirm } = useModal();
     const [activeTab, setActiveTab] = useState(TABS[0]);
     const [items, setItems] = useState([]);
     const [statesList, setStatesList] = useState([]);
@@ -139,16 +141,17 @@ export default function MetadataManagementPage() {
     };
 
     const handleDelete = async (id) => {
-        if (!confirm('Adakah anda pasti ingin memadam data ini? Ia mungkin menjejaskan rekod sedia ada.')) return;
-
-        setActionLoading(true);
-        const { error } = await deleteLookupItem(activeTab.table, id);
-        if (!error) {
-            fetchData();
-        } else {
-            alert('Ralat memadam: ' + error);
-        }
-        setActionLoading(false);
+        showConfirm('Sahkan Padam', 'Adakah anda pasti ingin memadam data ini? Ia mungkin menjejaskan rekod sedia ada.', async () => {
+            setActionLoading(true);
+            const { error } = await deleteLookupItem(activeTab.table, id);
+            if (!error) {
+                fetchData();
+                showSuccess('Berjaya', 'Data telah dipadam.');
+            } else {
+                showError('Ralat Padam', error);
+            }
+            setActionLoading(false);
+        });
     };
 
     if (role !== 'admin') {
