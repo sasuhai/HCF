@@ -57,6 +57,7 @@ export default function DashboardPage() {
     const [trendView, setTrendView] = useState('yearly'); // 'yearly' or 'monthly'
     const [selectedLokasi, setSelectedLokasi] = useState(null);
     const [selectedNegeri, setSelectedNegeri] = useState(null);
+    const [dateType, setDateType] = useState('pendaftaran'); // 'pendaftaran' or 'pengislaman'
 
     // Date Range Selectors
     const currentYear = new Date().getFullYear();
@@ -127,17 +128,21 @@ export default function DashboardPage() {
 
         const getMonthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
-        // 1. Filter Mualaf Data (All categories, based on Registration/createdAt)
+        // 1. Filter Mualaf Data based on Date Type
         const filteredRaw = (stats.mualaf.rawData || []).filter(item => {
-            const regDateStr = item.createdAt;
-            if (!regDateStr) return false;
-            const regDate = new Date(regDateStr);
+            // Apply category filter if Pengislaman is selected
+            if (dateType === 'pengislaman' && item.kategori !== 'Pengislaman') return false;
+
+            const dateValue = dateType === 'pendaftaran' ? item.createdAt : item.tarikhPengislaman;
+            if (!dateValue) return false;
+
+            const itemDate = new Date(dateValue);
 
             if (trendView === 'yearly') {
-                const year = regDate.getFullYear();
+                const year = itemDate.getFullYear();
                 return year && year >= yearFrom && year <= yearTo;
             } else {
-                const mon = getMonthKey(regDate);
+                const mon = getMonthKey(itemDate);
                 return mon && mon >= monthFrom && mon <= monthTo;
             }
         });
@@ -317,8 +322,10 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Global Analytics Filter Bar */}
-                    <div className="sticky top-[64px] z-40 bg-white/95 backdrop-blur-xl backdrop-saturate-150 px-7 py-5 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-white/50 flex flex-col md:flex-row items-center justify-between gap-5 mt-4 group transition-[shadow,transform] duration-300 hover:shadow-[0_25px_60px_rgba(0,0,0,0.15)] transform-gpu backface-visibility-hidden">
-                        <div className="flex items-center space-x-6">
+                    <div className="sticky top-[64px] z-40 bg-white/95 backdrop-blur-xl backdrop-saturate-150 px-7 py-5 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-white/50 flex flex-col xl:flex-row items-center justify-between gap-5 mt-4 group transition-[shadow,transform] duration-300 hover:shadow-[0_25px_60px_rgba(0,0,0,0.15)] transform-gpu backface-visibility-hidden">
+
+                        <div className="flex flex-wrap items-center justify-center gap-6">
+                            {/* Trend Type Toggle */}
                             <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50 shadow-inner">
                                 <button
                                     onClick={() => setTrendView('yearly')}
@@ -333,7 +340,28 @@ export default function DashboardPage() {
                                     BULANAN
                                 </button>
                             </div>
+
                             <div className="h-8 w-px bg-slate-200 hidden md:block opacity-50"></div>
+
+                            {/* Date Field Type Toggle (NEW) */}
+                            <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50 shadow-inner">
+                                <button
+                                    onClick={() => setDateType('pendaftaran')}
+                                    className={`px-5 py-2 text-[11px] font-bold rounded-xl transition-all duration-300 ${dateType === 'pendaftaran' ? 'bg-emerald-500 text-white shadow-md transform scale-105' : 'text-slate-500 hover:text-slate-800'}`}
+                                >
+                                    PENDAFTARAN
+                                </button>
+                                <button
+                                    onClick={() => setDateType('pengislaman')}
+                                    className={`px-5 py-2 text-[11px] font-bold rounded-xl transition-all duration-300 ${dateType === 'pengislaman' ? 'bg-indigo-500 text-white shadow-md transform scale-105' : 'text-slate-500 hover:text-slate-800'}`}
+                                >
+                                    PENGISLAMAN
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-center gap-4">
+                            {/* Current Selection Indicators */}
                             <div className="flex flex-col">
                                 <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Tempoh Analisis</span>
                                 <div className="flex items-center space-x-2">
@@ -343,60 +371,60 @@ export default function DashboardPage() {
                                     </span>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="flex items-center space-x-2 p-1.5 bg-slate-100/50 rounded-2xl border border-slate-200/30">
-                            {trendView === 'yearly' ? (
-                                <>
-                                    <div className="flex items-center space-x-2 px-4 py-2 hover:bg-white hover:shadow-sm rounded-xl transition-all group/select">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase group-hover/select:text-emerald-500 transition-colors">Dari</span>
-                                        <select
-                                            value={yearFrom}
-                                            onChange={(e) => setYearFrom(parseInt(e.target.value))}
-                                            className="bg-transparent text-sm font-bold text-slate-800 focus:outline-none cursor-pointer"
-                                        >
-                                            {(stats?.mualaf?.availableYears || []).map(y => (
-                                                <option key={y} value={y}>{y}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="w-px h-5 bg-slate-200 opacity-50"></div>
-                                    <div className="flex items-center space-x-2 px-4 py-2 hover:bg-white hover:shadow-sm rounded-xl transition-all group/select">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase group-hover/select:text-emerald-500 transition-colors">Hingga</span>
-                                        <select
-                                            value={yearTo}
-                                            onChange={(e) => setYearTo(parseInt(e.target.value))}
-                                            className="bg-transparent text-sm font-bold text-slate-800 focus:outline-none cursor-pointer"
-                                        >
-                                            {(stats?.mualaf?.availableYears || []).map(y => (
-                                                <option key={y} value={y}>{y}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="flex items-center space-x-2 px-4 py-2 hover:bg-white hover:shadow-sm rounded-xl transition-all group/select">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase group-hover/select:text-emerald-500 transition-colors">Dari</span>
-                                        <input
-                                            type="month"
-                                            value={monthFrom}
-                                            onChange={(e) => setMonthFrom(e.target.value)}
-                                            className="bg-transparent text-sm font-bold text-slate-800 focus:outline-none cursor-pointer outline-none"
-                                        />
-                                    </div>
-                                    <div className="w-px h-5 bg-slate-200 opacity-50"></div>
-                                    <div className="flex items-center space-x-2 px-4 py-2 hover:bg-white hover:shadow-sm rounded-xl transition-all group/select">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase group-hover/select:text-emerald-500 transition-colors">Hingga</span>
-                                        <input
-                                            type="month"
-                                            value={monthTo}
-                                            onChange={(e) => setMonthTo(e.target.value)}
-                                            className="bg-transparent text-sm font-bold text-slate-800 focus:outline-none cursor-pointer outline-none"
-                                        />
-                                    </div>
-                                </>
-                            )}
+                            <div className="flex items-center space-x-2 p-1.5 bg-slate-100/50 rounded-2xl border border-slate-200/30">
+                                {trendView === 'yearly' ? (
+                                    <>
+                                        <div className="flex items-center space-x-2 px-4 py-2 hover:bg-white hover:shadow-sm rounded-xl transition-all group/select">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase group-hover/select:text-emerald-500 transition-colors">Dari</span>
+                                            <select
+                                                value={yearFrom}
+                                                onChange={(e) => setYearFrom(parseInt(e.target.value))}
+                                                className="bg-transparent text-sm font-bold text-slate-800 focus:outline-none cursor-pointer"
+                                            >
+                                                {(stats?.mualaf?.availableYears || []).map(y => (
+                                                    <option key={y} value={y}>{y}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="w-px h-5 bg-slate-200 opacity-50"></div>
+                                        <div className="flex items-center space-x-2 px-4 py-2 hover:bg-white hover:shadow-sm rounded-xl transition-all group/select">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase group-hover/select:text-emerald-500 transition-colors">Hingga</span>
+                                            <select
+                                                value={yearTo}
+                                                onChange={(e) => setYearTo(parseInt(e.target.value))}
+                                                className="bg-transparent text-sm font-bold text-slate-800 focus:outline-none cursor-pointer"
+                                            >
+                                                {(stats?.mualaf?.availableYears || []).map(y => (
+                                                    <option key={y} value={y}>{y}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="flex items-center space-x-2 px-4 py-2 hover:bg-white hover:shadow-sm rounded-xl transition-all group/select">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase group-hover/select:text-emerald-500 transition-colors">Dari</span>
+                                            <input
+                                                type="month"
+                                                value={monthFrom}
+                                                onChange={(e) => setMonthFrom(e.target.value)}
+                                                className="bg-transparent text-sm font-bold text-slate-800 focus:outline-none cursor-pointer outline-none"
+                                            />
+                                        </div>
+                                        <div className="w-px h-5 bg-slate-200 opacity-50"></div>
+                                        <div className="flex items-center space-x-2 px-4 py-2 hover:bg-white hover:shadow-sm rounded-xl transition-all group/select">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase group-hover/select:text-emerald-500 transition-colors">Hingga</span>
+                                            <input
+                                                type="month"
+                                                value={monthTo}
+                                                onChange={(e) => setMonthTo(e.target.value)}
+                                                className="bg-transparent text-sm font-bold text-slate-800 focus:outline-none cursor-pointer outline-none"
+                                            />
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -993,7 +1021,7 @@ export default function DashboardPage() {
                         </div>
                     </div>
 
-                </main>
+                </main >
             </div >
         </ProtectedRoute >
     );
