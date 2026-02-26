@@ -47,6 +47,7 @@ export default function GoogleSheetsSyncPage() {
     const [view, setView] = useState('sync'); // 'sync' or 'instructions'
     const [syncMode, setSyncMode] = useState('view'); // 'view' or 'edit'
     const [jsonExpand, setJsonExpand] = useState('none'); // 'none' or 'auto'
+    const [refreshSetting, setRefreshSetting] = useState('all'); // 'all' or 'existing'
 
     useEffect(() => {
         setMounted(true);
@@ -168,7 +169,7 @@ export default function GoogleSheetsSyncPage() {
                 finalRefHeaders = [...dbRefHeaders, ...Array.from(extraHeaders)];
             }
 
-            const finalSheetHeaders = await runGAS('prepareSheet', selectedTable, finalRefHeaders);
+            const finalSheetHeaders = await runGAS('prepareSheet', selectedTable, finalRefHeaders, refreshSetting === 'all');
 
             const chunkSize = 1500;
             const totalChunks = Math.ceil(allData.length / chunkSize);
@@ -321,17 +322,20 @@ function showSyncSidebar() {
   SpreadsheetApp.getUi().showSidebar(html);
 }
 
-function prepareSheet(tableName, dbHeaders) {
+function prepareSheet(tableName, dbHeaders, addNewColumns) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(tableName) || ss.insertSheet(tableName);
   var existingHeaders = sheet.getLastColumn() > 0 ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0] : [];
-  var missing = dbHeaders.filter(function(h) { return existingHeaders.indexOf(h) === -1; });
-  if (missing.length > 0) {
-    var startCol = existingHeaders.length + 1;
-    sheet.getRange(1, startCol, 1, missing.length).setValues([missing])
-      .setBackground('#10b981').setFontColor('#ffffff').setFontWeight('bold').setVerticalAlignment('middle');
-    if (existingHeaders.length === 0) sheet.setFrozenRows(1);
-    existingHeaders = existingHeaders.concat(missing);
+  
+  if (addNewColumns !== false) {
+    var missing = dbHeaders.filter(function(h) { return existingHeaders.indexOf(h) === -1; });
+    if (missing.length > 0) {
+      var startCol = existingHeaders.length + 1;
+      sheet.getRange(1, startCol, 1, missing.length).setValues([missing])
+        .setBackground('#10b981').setFontColor('#ffffff').setFontWeight('bold').setVerticalAlignment('middle');
+      if (existingHeaders.length === 0) sheet.setFrozenRows(1);
+      existingHeaders = existingHeaders.concat(missing);
+    }
   }
   return existingHeaders;
 }
@@ -560,6 +564,31 @@ function PARSE_JSON(jsonString, field) {
                                             className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${jsonExpand === 'auto' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-slate-600'}`}
                                         >
                                             SEMUA (AUTO)
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Column Selection Toggle */}
+                                <div className="p-1 bg-slate-50 border border-slate-100 rounded-2xl flex gap-1 items-center">
+                                    <div className="pl-3 pr-2 py-2">
+                                        <ListFilter size={16} className="text-slate-400" />
+                                    </div>
+                                    <div className="flex-1 text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                                        Pilihan Kolum?
+                                    </div>
+                                    <div className="flex bg-white rounded-xl p-1 shadow-sm border border-slate-200">
+                                        <button
+                                            onClick={() => setRefreshSetting('all')}
+                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${refreshSetting === 'all' ? 'bg-slate-900 text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                                        >
+                                            SEMUA DB
+                                        </button>
+                                        <button
+                                            onClick={() => setRefreshSetting('existing')}
+                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${refreshSetting === 'existing' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                                            title="Hanya kemaskini kolum yang unik sedia ada di sheet"
+                                        >
+                                            SEDIA ADA
                                         </button>
                                     </div>
                                 </div>
