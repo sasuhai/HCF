@@ -16,12 +16,13 @@ import {
     ChevronRight,
     Search,
     Download,
-    AlertCircle,
     CheckCircle2,
     Info,
     Eye,
     Edit3,
-    ShieldAlert
+    ShieldAlert,
+    ToggleLeft,
+    ListFilter
 } from 'lucide-react';
 
 const COLORS = {
@@ -44,6 +45,7 @@ export default function GoogleSheetsSyncPage() {
     const [copiedHtml, setCopiedHtml] = useState(false);
     const [view, setView] = useState('sync'); // 'sync' or 'instructions'
     const [syncMode, setSyncMode] = useState('view'); // 'view' or 'edit'
+    const [jsonExpand, setJsonExpand] = useState('none'); // 'none' or 'auto'
 
     useEffect(() => {
         setMounted(true);
@@ -151,7 +153,21 @@ export default function GoogleSheetsSyncPage() {
             sessionStorage.setItem(`sync_v1_${selectedTable}`, JSON.stringify(fps));
 
             setStatus({ type: 'info', message: 'Menyediakan Sheet...' });
-            const finalSheetHeaders = await runGAS('prepareSheet', selectedTable, dbRefHeaders);
+
+            let finalRefHeaders = [...dbRefHeaders];
+            if (jsonExpand === 'auto') {
+                const extraHeaders = new Set();
+                allData.forEach(item => {
+                    dbRefHeaders.forEach(h => {
+                        if (item[h] && typeof item[h] === 'object' && !Array.isArray(item[h])) {
+                            Object.keys(item[h]).forEach(key => extraHeaders.add(`${h}.${key}`));
+                        }
+                    });
+                });
+                finalRefHeaders = [...dbRefHeaders, ...Array.from(extraHeaders)];
+            }
+
+            const finalSheetHeaders = await runGAS('prepareSheet', selectedTable, finalRefHeaders);
 
             const chunkSize = 1500;
             const totalChunks = Math.ceil(allData.length / chunkSize);
@@ -162,8 +178,15 @@ export default function GoogleSheetsSyncPage() {
 
                 // Map database data to exact sheet column positions
                 const rows = chunk.map(item => finalSheetHeaders.map(h => {
+                    if (h.includes('.')) {
+                        const [parent, child] = h.split('.');
+                        const val = item[parent] ? item[parent][child] : null;
+                        if (val === null || val === undefined) return null;
+                        return typeof val === 'object' ? JSON.stringify(val) : val;
+                    }
+
                     const val = item[h];
-                    if (val === null || val === undefined) return null; // Use null to indicate "no data/don't touch" if not a DB field
+                    if (val === null || val === undefined) return null;
                     if (typeof val === 'object') return JSON.stringify(val);
                     return val;
                 }));
@@ -215,9 +238,16 @@ export default function GoogleSheetsSyncPage() {
                 if (!id) return;
                 const cur = {};
                 sheetHeaders.forEach((h, j) => {
-                    if (dbFields.includes(h)) {
-                        let v = row[j];
-                        if (v === "") v = null;
+                    let v = row[j];
+                    if (v === "") v = null;
+
+                    if (h.includes('.')) {
+                        const [parent, child] = h.split('.');
+                        if (dbFields.includes(parent)) {
+                            if (!cur[parent]) cur[parent] = {};
+                            cur[parent][child] = v;
+                        }
+                    } else if (dbFields.includes(h)) {
                         cur[h] = v;
                     }
                 });
@@ -507,6 +537,30 @@ function PARSE_JSON(jsonString, field) {
                                     >
                                         <Edit3 size={18} /> EDIT & SYNC
                                     </button>
+                                </div>
+
+                                {/* JSON Expand Selection */}
+                                <div className="p-1 bg-slate-50 border border-slate-100 rounded-2xl flex gap-1 items-center">
+                                    <div className="pl-3 pr-2 py-2">
+                                        <ToggleLeft size={16} className="text-slate-400" />
+                                    </div>
+                                    <div className="flex-1 text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                                        Kembangkan JSONB?
+                                    </div>
+                                    <div className="flex bg-white rounded-xl p-1 shadow-sm border border-slate-200">
+                                        <button
+                                            onClick={() => setJsonExpand('none')}
+                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${jsonExpand === 'none' ? 'bg-slate-900 text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                                        >
+                                            TIADA
+                                        </button>
+                                        <button
+                                            onClick={() => setJsonExpand('auto')}
+                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${jsonExpand === 'auto' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                                        >
+                                            SEMUA (AUTO)
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {/* Mode Notice */}
