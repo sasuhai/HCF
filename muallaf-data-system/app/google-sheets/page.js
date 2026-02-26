@@ -265,7 +265,7 @@ export default function GoogleSheetsSyncPage() {
     const getGASScript = () => {
         return `/**
  * iSantuni Google Sheets Sync Script
- * Versi: 1.1 (Optimasi Upsert & Format)
+ * Versi: 1.2 (Sokongan JSONB & Optimasi)
  */
 
 function onOpen() {
@@ -349,12 +349,19 @@ function readDataFromSheet(tableName) {
   return sheet.getDataRange().getValues();
 }
 
-function processClientRequest(request) {
+}
+
+/**
+ * Helper: Ambil data dari kolum JSONB
+ * Cara guna: =PARSE_JSON(A2, "key_name")
+ */
+function PARSE_JSON(jsonString, field) {
   try {
-    var result = this[request.functionName].apply(this, request.args);
-    return { type: 'GS_RESPONSE', callId: request.callId, result: result };
-  } catch (err) {
-    return { type: 'GS_RESPONSE', callId: request.callId, error: err.toString() };
+    if (!jsonString || jsonString == "{}") return "";
+    var data = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
+    return data[field] || "";
+  } catch(e) {
+    return "";
   }
 }
 `;
@@ -601,6 +608,13 @@ function processClientRequest(request) {
                                 <li className="flex gap-2">
                                     <span className="text-emerald-500">3.</span>
                                     <span>Jangan padam lajur <b>id</b> kerana ia diperlukan untuk mengenalpasti rekod yang berubah.</span>
+                                </li>
+                                <li className="flex gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                                    <span className="text-emerald-500 font-bold">4.</span>
+                                    <div className="space-y-1">
+                                        <p className="font-bold text-emerald-800">Tips JSONB:</p>
+                                        <p>Gunakan formula <code>=PARSE_JSON(A2, "medan")</code> untuk memecah data JSON ke kolum baru.</p>
+                                    </div>
                                 </li>
                             </ul>
                         </div>
