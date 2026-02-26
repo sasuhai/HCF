@@ -349,6 +349,13 @@ function readDataFromSheet(tableName) {
   return sheet.getDataRange().getValues();
 }
 
+function processClientRequest(request) {
+  try {
+    var result = this[request.functionName].apply(this, request.args);
+    return { type: 'GS_RESPONSE', callId: request.callId, result: result };
+  } catch (err) {
+    return { type: 'GS_RESPONSE', callId: request.callId, error: err.toString() };
+  }
 }
 
 /**
