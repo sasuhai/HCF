@@ -40,8 +40,8 @@ const FALLBACK_ROWS = [
     { category: 'Outreach', perkara: 'Bil. Pengislaman oleh Duat Kualiti', source: 'submissions', config: { isDuatKualiti: true } },
     { category: 'Outreach', perkara: 'Bil. Pengislaman Lain-lain', source: 'submissions', config: { isPengislaman: false } },
     { category: 'Outreach', perkara: 'Bil. Syahadah Dibantu dan Disusuli oleh HCF', source: 'submissions', config: { isFollowedUp: true } },
-    { category: 'Outreach', perkara: 'Bil. Mad\'u 3 Bintang direkodkan', source: 'other_kpis', config: { kpiName: 'Mad\'u 3 Bintang' } },
-    { category: 'Outreach', perkara: 'Bil. Organisasi Non-muslim dibina hubungan', source: 'other_kpis', config: { kpiName: 'Organisasi Non-muslim' } }
+    { category: 'Outreach', perkara: 'Bil. Mad\'u 3 Bintang', source: 'other_kpis', config: { tab: 'madu_3' } },
+    { category: 'Outreach', perkara: 'Bil. Organisasi Non-muslim dibina hubungan', source: 'other_kpis', config: { tab: 'organisasi_nm' } }
 ];
 
 export default function LaporanKPIPage() {
@@ -152,13 +152,22 @@ export default function LaporanKPIPage() {
             });
             if (config.isPengislaman === true) filtered = filtered.filter(s => s.kategori?.toLowerCase() === 'pengislaman');
             if (config.isPengislaman === false) filtered = filtered.filter(s => s.kategori?.toLowerCase() !== 'pengislaman');
-            if (config.isDuatKualiti) filtered = filtered.filter(s => s.pengislamanKPI?.isDuatKualiti);
+            if (config.isDuatKualiti) filtered = filtered.filter(s => s.pengislamanKPI?.usahaDakwah && s.pengislamanKPI.usahaDakwah.trim() !== '');
             if (config.isFollowedUp) filtered = filtered.filter(s => s.pengislamanKPI?.isFollowedUp);
             return filtered.length;
         }
 
         if (rowConfig.source === 'other_kpis') {
-            const kpis = rawData.other_kpis.filter(k => k.month === m && matchesFilter(k, 'other_kpis'));
+            const kpis = rawData.other_kpis.filter(k => {
+                let kMonth = k.month;
+                if (!kMonth) {
+                    const dateStr = k.data?.tarikh || k.data?.tarikh_bantuan || k.createdAt;
+                    if (dateStr) {
+                        kMonth = new Date(dateStr).getMonth() + 1;
+                    }
+                }
+                return kMonth === m && matchesFilter(k, 'other_kpis');
+            });
             if (config.tab) {
                 filtered = kpis.filter(k => k.category === config.tab);
                 if (config.is_baru !== undefined) {

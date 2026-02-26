@@ -40,7 +40,7 @@ const KPI_COLUMNS = [
     { id: 'whatsappGroup', label: 'Group WA', width: 'min-w-[100px]', type: 'checkbox' },
     { id: 'ziarah3b', label: 'Ziarah 3b', width: 'min-w-[100px]', type: 'checkbox' },
     { id: 'hubungRH1b', label: 'Hubung RH 1b', width: 'min-w-[100px]', type: 'checkbox' },
-    { id: 'usahaDakwah', label: 'Usaha Dakwah', width: 'min-w-[250px]' },
+    { id: 'usahaDakwah', label: 'Usaha Dakwah oleh Duat', width: 'min-w-[250px]' },
     { id: 'catatanKPI', label: 'Catatan KPI', width: 'min-w-[250px]' },
 ];
 

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Users, FileText, Calendar, Settings, MapPin, User, LogOut, Menu, X, ChevronDown, List, DollarSign, BarChart2, Activity } from 'lucide-react';
+import { Users, FileText, Calendar, Settings, MapPin, User, LogOut, Menu, X, ChevronDown, List, DollarSign, BarChart2, Activity, Layout } from 'lucide-react';
 
 export default function Navbar() {
     const pathname = usePathname();
@@ -103,7 +103,7 @@ export default function Navbar() {
 
                             {/* Dropdown: Analisis & Tetapan */}
                             <div className="relative group">
-                                <button className={`inline-flex items-center px-3 py-2 text-sm font-medium border-b-2 transition-colors ${isActive('/dashboard') || isActive('/map-intelligence') || isActive('/mualaf/dashboard') || isActive('/pengurusan/metadata') || isActive('/pengguna') || isActive('/kadar-elaun') ? 'border-emerald-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+                                <button className={`inline-flex items-center px-3 py-2 text-sm font-medium border-b-2 transition-colors ${isActive('/dashboard') || isActive('/map-intelligence') || isActive('/mualaf/dashboard') || isActive('/pengurusan/metadata') || isActive('/pengguna') || isActive('/kadar-elaun') || isActive('/google-sheets') ? 'border-emerald-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
                                     <Settings className="w-4 h-4 mr-1.5" /> Analisis & Tetapan <ChevronDown className="w-3 h-3 ml-1" />
                                 </button>
                                 <div className="absolute left-0 mt-0 w-52 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden group-hover:block transition-all transform origin-top-left">
@@ -122,6 +122,9 @@ export default function Navbar() {
                                         </Link>
                                         <Link href="/mualaf/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
                                             <FileText className="w-4 h-4 mr-2 text-emerald-500" /> Analisis & Laporan
+                                        </Link>
+                                        <Link href="/google-sheets" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                                            <Layout className="w-4 h-4 mr-2 text-emerald-600" /> Google Sheets Sync
                                         </Link>
 
                                         {(role === 'admin') && (
@@ -202,6 +205,7 @@ export default function Navbar() {
                         <Link href="/laporan-prestasi" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Laporan Prestasi</Link>
                         <Link href="/map-intelligence" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Peta Taburan</Link>
                         <Link href="/mualaf/dashboard" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setIsMobileMenuOpen(false)}>Analisis & Laporan</Link>
+                        <Link href="/google-sheets" className="block pl-6 py-2 text-sm text-gray-600 hover:bg-gray-50 font-medium" onClick={() => setIsMobileMenuOpen(false)}>Google Sheets Sync</Link>
 
                         {role === 'admin' && (
                             <>
