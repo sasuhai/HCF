@@ -1198,7 +1198,14 @@ export default function RakanHidayahKPIPage() {
                                                 if (col.type === 'checkbox') {
                                                     return (
                                                         <td key={col.id} className="py-1 px-2 border-r border-gray-200 text-center">
-                                                            {rawValue ? <Check className="h-4 w-4 text-emerald-600 mx-auto" /> : '-'}
+                                                            <div className="flex justify-center items-center h-full">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={!!rawValue}
+                                                                    readOnly
+                                                                    className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 opacity-80 cursor-default"
+                                                                />
+                                                            </div>
                                                         </td>
                                                     )
                                                 }

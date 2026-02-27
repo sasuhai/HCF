@@ -774,7 +774,14 @@ export default function PengislamanKPIPage() {
                                                                             className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
                                                                         />
                                                                     ) : (
-                                                                        rawValue ? <CheckCircle className="h-4 w-4 text-emerald-500 mx-auto" /> : <XCircle className="h-4 w-4 text-slate-200 mx-auto" />
+                                                                        <div className="flex justify-center items-center h-full">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={!!rawValue}
+                                                                                readOnly
+                                                                                className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 opacity-80 cursor-default"
+                                                                            />
+                                                                        </div>
                                                                     )}
                                                                 </td>
                                                             );

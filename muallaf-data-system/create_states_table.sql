@@ -2,6 +2,7 @@
 CREATE TABLE IF NOT EXISTS "states" (
   "id" uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   "name" text UNIQUE NOT NULL,
+  "IDMualaf" text,
   "createdAt" timestamptz DEFAULT now()
 );
 
@@ -21,25 +22,33 @@ CREATE POLICY "Allow admin manage states" ON "states"
   );
 
 -- Insert initial Malaysian states (matching HCF requirements)
-INSERT INTO "states" (name) VALUES
-('Perlis'),
-('Kedah'),
-('Pulau Pinang'),
-('Perak'),
-('Kuala Lumpur'),
-('Selangor'),
-('Negeri Sembilan'),
-('Melaka'),
-('Johor'),
-('Kelantan'),
-('Terengganu'),
-('Pahang'),
-('Sarawak - Kuching'),
-('Sarawak - Sibu'),
-('Sarawak - Miri'),
-('Sarawak - Bintulu'),
-('Sabah - Kota Kinabalu'),
-('Sabah - Sandakan'),
-('Sabah - Tawau'),
-('Luar Negara')
-ON CONFLICT (name) DO NOTHING;
+INSERT INTO "states" (name, "IDMualaf") VALUES
+('Perlis', 'R'),
+('Kedah', 'K'),
+('Pulau Pinang', 'P'),
+('Perak', 'A'),
+('Kuala Lumpur', 'W'),
+('Selangor', 'B'),
+('Negeri Sembilan', 'N'),
+('Melaka', 'M'),
+('Johor', 'J'),
+('Kelantan', 'D'),
+('Terengganu', 'T'),
+('Pahang', 'C'),
+('Sarawak - Kuching', 'Q'),
+('Sarawak - Kota Samarahan', 'Q'),
+('Sarawak - Sibu', 'Q'),
+('Sarawak - Miri', 'Q'),
+('Sarawak - Bintulu', 'Q'),
+('Sabah - Kota Kinabalu', 'S'),
+('Sabah - Kota Marudu', 'S'),
+('Sabah - Papar', 'S'),
+('Sabah - Bundu Tuhan', 'S'),
+('Sabah - Keningau', 'S'),
+('Sabah - Pagalungan', 'S'),
+('Sabah - Beluran', 'S'),
+('Sabah - Labuan', 'S'),
+('Sabah - Sandakan', NULL),
+('Sabah - Tawau', NULL),
+('Luar Negara', NULL)
+ON CONFLICT (name) DO UPDATE SET "IDMualaf" = EXCLUDED."IDMualaf";

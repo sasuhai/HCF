@@ -65,7 +65,7 @@ export default function MetadataManagementPage() {
     // Modal/Edit state
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
-    const [formData, setFormData] = useState({ name: '', state_name: '', cawangan: [], groups: '', zon: '' });
+    const [formData, setFormData] = useState({ name: '', state_name: '', cawangan: [], groups: '', zon: '', IDMualaf: '' });
     const [newCawanganValue, setNewCawanganValue] = useState('');
 
     // Fetch data when tab changes
@@ -100,11 +100,12 @@ export default function MetadataManagementPage() {
                 state_name: item.state_name || '',
                 cawangan: item.cawangan || [],
                 groups: item.groups || '',
-                zon: item.zon || ''
+                zon: item.zon || '',
+                IDMualaf: item.IDMualaf || ''
             });
         } else {
             setEditingItem(null);
-            setFormData({ name: '', state_name: '', cawangan: [], groups: '', zon: '' });
+            setFormData({ name: '', state_name: '', cawangan: [], groups: '', zon: '', IDMualaf: '' });
         }
         setIsModalOpen(true);
         setMessage({ type: '', text: '' });
@@ -118,7 +119,7 @@ export default function MetadataManagementPage() {
         let result;
 
         let extraData = {};
-        if (activeTab.id === 'states') extraData = { cawangan: formData.cawangan, zon: formData.zon };
+        if (activeTab.id === 'states') extraData = { cawangan: formData.cawangan, zon: formData.zon, IDMualaf: formData.IDMualaf };
         if (activeTab.id === 'locations') extraData = { state_name: formData.state_name };
         if (activeTab.id === 'program_types') extraData = { groups: formData.groups };
 
@@ -380,6 +381,11 @@ export default function MetadataManagementPage() {
                                                                                     {item.zon}
                                                                                 </span>
                                                                             )}
+                                                                            {item.IDMualaf && (
+                                                                                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[9px] font-bold uppercase tracking-tighter border border-blue-200">
+                                                                                    {item.IDMualaf}
+                                                                                </span>
+                                                                            )}
                                                                         </div>
                                                                         {(item.state_name || item.groups) && (
                                                                             <p className="text-[10px] text-gray-500">
@@ -480,6 +486,19 @@ export default function MetadataManagementPage() {
                                                         <option key={z} value={z}>{z}</option>
                                                     ))}
                                                 </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                    ID Mualaf
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={formData.IDMualaf}
+                                                    onChange={(e) => setFormData({ ...formData, IDMualaf: e.target.value.toUpperCase() })}
+                                                    placeholder="Contoh: R, K, P..."
+                                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                                                />
                                             </div>
 
                                             <div>
