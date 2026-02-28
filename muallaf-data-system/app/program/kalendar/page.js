@@ -385,6 +385,7 @@ export default function KalendarProgram() {
                                         onChange={setSelectedProgramTitles}
                                         placeholder="Taip untuk mencari nama program..."
                                         formatCreateLabel={(inputValue) => `Cari "${inputValue}"`}
+                                        createOptionPosition="first"
                                         className="text-sm shadow-lg rounded-xl border-0 text-slate-800"
                                         styles={customSelectStyles}
                                         menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
