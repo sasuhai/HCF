@@ -30,6 +30,24 @@ import {
   Tag
 } from 'lucide-react';
 
+// Approximate major public holidays for Malaysia (2026/2027)
+const PUBLIC_HOLIDAYS = [
+  { title: "Tahun Baru", start: "2026-01-01", type: "holiday" },
+  { title: "Tahun Baru Cina", start: "2026-02-17", end: "2026-02-19", type: "holiday" },
+  { title: "Nuzul Al-Quran", start: "2026-03-04", type: "holiday" },
+  { title: "Hari Raya Aidilfitri", start: "2026-03-20", end: "2026-03-22", type: "holiday" },
+  { title: "Hari Pekerja", start: "2026-05-01", type: "holiday" },
+  { title: "Hari Raya Aidiladha", start: "2026-05-27", type: "holiday" },
+  { title: "Hari Keputeraan YDP Agong", start: "2026-06-01", type: "holiday" },
+  { title: "Awal Muharram", start: "2026-06-16", type: "holiday" },
+  { title: "Hari Kebangsaan", start: "2026-08-31", type: "holiday" },
+  { title: "Maulidur Rasul", start: "2026-08-26", type: "holiday" },
+  { title: "Hari Malaysia", start: "2026-09-16", type: "holiday" },
+  { title: "Deepavali", start: "2026-11-08", type: "holiday" },
+  { title: "Krismas", start: "2026-12-25", type: "holiday" },
+  { title: "Tahun Baru", start: "2027-01-01", type: "holiday" },
+];
+
 export default function LandingPage() {
   const { user, role, loading, isRecovery } = useAuth();
   const router = useRouter();
@@ -51,18 +69,45 @@ export default function LandingPage() {
         const localDate = new Date(today.getTime() - offset);
         const todayStr = localDate.toISOString().split('T')[0];
 
-        localDate.setDate(localDate.getDate() + 7); // Exactly next 7 days
-        const nextWeekStr = localDate.toISOString().split('T')[0];
+        const nextWeekDate = new Date(localDate);
+        nextWeekDate.setDate(nextWeekDate.getDate() + 7);
+        const nextWeekStr = nextWeekDate.toISOString().split('T')[0];
 
+        // Fetch all programs to cover overlap accurately
         const { data, error } = await supabase
           .from('programs')
-          .select('*')
-          .gte('tarikh_mula', todayStr)
-          .lte('tarikh_mula', nextWeekStr)
-          .order('tarikh_mula', { ascending: true });
+          .select('*');
 
         if (!error && data) {
-          setUpcomingPrograms(data);
+          // Filter programs based on overlap logic
+          const filteredPrograms = data.filter(p => {
+            if (!p.tarikh_mula) return false;
+            const startDateStr = p.tarikh_mula;
+            const endDateStr = (p.tarikh_tamat && p.tarikh_tamat.trim() !== '') ? p.tarikh_tamat : p.tarikh_mula;
+            return endDateStr >= todayStr && startDateStr <= nextWeekStr;
+          }).map(p => ({ ...p, itemType: 'program' }));
+
+          // Include public holidays
+          const filteredHolidays = PUBLIC_HOLIDAYS.filter(h => {
+            const hEnd = h.end || h.start;
+            return hEnd >= todayStr && h.start <= nextWeekStr;
+          }).map(h => ({
+            id: `holiday-${h.start}-${h.title}`,
+            nama_program: `🎉 ${h.title}`,
+            tarikh_mula: h.start,
+            tarikh_tamat: h.end || null,
+            itemType: 'holiday',
+            status_program: 'Public Holiday'
+          }));
+
+          // Combine and sort
+          const combined = [...filteredPrograms, ...filteredHolidays].sort((a, b) => {
+            const dateA = a.tarikh_mula;
+            const dateB = b.tarikh_mula;
+            return dateA.localeCompare(dateB);
+          });
+
+          setUpcomingPrograms(combined);
         }
       } catch (err) {
         console.error("Error fetching upcoming programs:", err);
@@ -427,6 +472,9 @@ export default function LandingPage() {
                                   <div className="flex items-center text-[11px] text-white/80 shrink-0">
                                     <CalendarCheck className="w-3.5 h-3.5 mr-1.5 text-yellow-400" />
                                     {prog.tarikh_mula}
+                                    {prog.tarikh_tamat && prog.tarikh_tamat !== prog.tarikh_mula && (
+                                      <span className="ml-1 opacity-75">- {prog.tarikh_tamat}</span>
+                                    )}
                                   </div>
                                   {(prog.masa_mula || prog.masa_tamat) && (
                                     <div className="flex items-center text-[11px] text-white/80 shrink-0 border-l border-white/20 pl-3">
@@ -449,6 +497,15 @@ export default function LandingPage() {
 
                             {/* Badges Right Aligned */}
                             <div className="flex flex-col items-end gap-1.5 shrink-0 mt-0.5 ml-2">
+                              {prog.status_program && (
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border whitespace-nowrap ${prog.status_program === 'Public Holiday' ? 'bg-amber-500/30 text-amber-200 border-amber-500/40' :
+                                    prog.status_program.toLowerCase() === 'selesai' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' :
+                                      prog.status_program.toLowerCase() === 'batal' ? 'bg-red-500/20 text-red-300 border-red-500/30' :
+                                        'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
+                                  }`}>
+                                  {prog.status_program}
+                                </span>
+                              )}
                               {prog.kategori_utama && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-500/20 text-indigo-200 border border-indigo-500/30 whitespace-nowrap">
                                   <Tag className="w-3 h-3 mr-1" />

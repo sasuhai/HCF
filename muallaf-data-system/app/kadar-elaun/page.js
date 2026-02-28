@@ -17,7 +17,7 @@ import { DollarSign, Plus, Edit2, Trash2, X, AlertCircle } from 'lucide-react';
 
 export default function RatesPage() {
     const { user, role } = useAuth();
-    const { showAlert, showSuccess, showError, showConfirm } = useModal();
+    const { showAlert, showSuccess, showError, showConfirm, showDestructiveConfirm } = useModal();
 
     // Data State
     const [rates, setRates] = useState([]);
@@ -89,15 +89,22 @@ export default function RatesPage() {
     };
 
     const handleDelete = async (id) => {
-        showConfirm('Sahkan Padam', 'Adakah anda pasti mahu memadam kadar elaun ini?', async () => {
-            const { error } = await deleteRateCategory(id);
-            if (error) {
-                showError('Ralat Padam', error);
-            } else {
-                loadRates();
-                showSuccess('Berjaya', 'Kadar elaun telah dipadam.');
+        const rate = rates.find(r => r.id === id);
+        if (!rate) return;
+
+        showDestructiveConfirm(
+            'Sahkan Padam Kadar Elaun',
+            `Adakah anda pasti mahu memadam kadar elaun berikut?\n\n• Kategori: ${rate.kategori}\n• Jumlah: RM ${rate.jumlahElaun.toFixed(2)}\n• Jenis: ${rate.jenis === 'petugas' ? 'Petugas' : 'Mualaf'}\n\n\nTindakan ini tidak boleh dikembalikan semula.`,
+            async () => {
+                const { error } = await deleteRateCategory(id);
+                if (error) {
+                    showError('Ralat Padam', error);
+                } else {
+                    loadRates();
+                    showSuccess('Berjaya', 'Kadar elaun telah dipadam.');
+                }
             }
-        });
+        );
     };
 
     const openModal = (rate = null) => {

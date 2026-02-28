@@ -563,7 +563,7 @@ function AttendanceDashboardContent() {
         if (wIdsArray.length > 0) {
             const { data: wData } = await supabase
                 .from('workers')
-                .select('id, bank, noAkaun, noKP, nama, namaAsal, namaDiBank')
+                .select('id, bank, noAkaun, noKP, nama')
                 .in('id', wIdsArray);
 
             wData?.forEach(d => {
@@ -571,7 +571,7 @@ function AttendanceDashboardContent() {
                     bank: d.bank,
                     noAkaun: d.noAkaun,
                     noIc: d.noKP,
-                    namaDiBank: d.namaDiBank || d.nama || d.namaAsal
+                    namaDiBank: d.nama // Workers typically use their legal name
                 });
             });
         }
@@ -579,15 +579,18 @@ function AttendanceDashboardContent() {
         // 3. Fetch Students (with batching to avoid URL limit)
         const sIdsArray = Array.from(studentIds);
         if (sIdsArray.length > 0) {
-            const batchSize = 500;
+            const batchSize = 100; // Smaller batch size to be safer with URL length
             for (let i = 0; i < sIdsArray.length; i += batchSize) {
                 const batchIds = sIdsArray.slice(i, i + batchSize);
                 const { data: sData, error: sError } = await supabase
-                    .from('submissions')
+                    .from('mualaf')
                     .select('id, bank, noAkaun, noKP, namaIslam, namaAsal, namaDiBank, namaPenuh')
                     .in('id', batchIds);
 
-                if (sError) console.error("Error fetching students for report:", sError);
+                if (sError) {
+                    console.error("Error fetching students for report:", sError);
+                    continue; // Continue to next batch instead of breaking entirely
+                }
 
                 sData?.forEach(d => {
                     detailsMap.set(d.id, {

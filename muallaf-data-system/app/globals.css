@@ -14,7 +14,7 @@
 
 html,
 body {
-  overscroll-behavior: none;
+  overscroll-behavior-x: none;
 }
 
 body {
@@ -181,7 +181,7 @@ body {
 .overflow-auto,
 .overflow-x-auto,
 .overflow-y-auto {
-  overscroll-behavior: none;
+  overscroll-behavior-x: none;
 }
 
 /* Ensure sticky headers work with border-separate */

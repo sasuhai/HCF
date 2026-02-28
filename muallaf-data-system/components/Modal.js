@@ -39,6 +39,14 @@ export default function Modal({
         confirm: 'bg-emerald-600 hover:bg-emerald-700'
     };
 
+    const shadowColors = {
+        info: 'shadow-blue-200/50',
+        success: 'shadow-emerald-200/50',
+        warning: 'shadow-amber-200/50',
+        error: 'shadow-red-200/50',
+        confirm: 'shadow-emerald-200/50'
+    };
+
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
             <div
@@ -59,11 +67,31 @@ export default function Modal({
                     </div>
 
                     <h3 className="text-xl font-bold text-slate-900 mb-2">{title}</h3>
-                    <p className="text-slate-600 leading-relaxed">{message}</p>
+                    <div className="text-slate-600 leading-relaxed break-words whitespace-pre-wrap">
+                        {(() => {
+                            if (typeof message !== 'string') return message;
+
+                            const warningText = "Tindakan ini tidak boleh dikembalikan semula.";
+                            if (!message.includes(warningText)) return message;
+
+                            const parts = message.split(warningText);
+                            return parts.map((part, i) => (
+                                <span key={i}>
+                                    {part}
+                                    {i < parts.length - 1 && (
+                                        <span className="text-red-600 font-bold underline decoration-red-200 underline-offset-4 bg-red-50/50 px-1 rounded">
+                                            {warningText}
+                                        </span>
+                                    )}
+                                </span>
+                            ));
+                        })()}
+                    </div>
                 </div>
 
                 <div className="bg-slate-50 p-4 px-6 flex flex-col sm:flex-row-reverse gap-2">
                     <button
+                        id="modal-confirm-button"
                         onClick={async () => {
                             if (onConfirm) {
                                 await onConfirm();
@@ -71,7 +99,7 @@ export default function Modal({
                             onClose();
                         }}
                         disabled={loading}
-                        className={`inline-flex items-center justify-center px-6 py-2.5 rounded-xl text-white font-bold text-sm shadow-lg shadow-emerald-200/50 transition-all active:scale-95 disabled:opacity-50 ${buttonColors[type]}`}
+                        className={`inline-flex items-center justify-center px-6 py-2.5 rounded-xl text-white font-bold text-sm shadow-lg ${shadowColors[type]} transition-all active:scale-95 disabled:opacity-50 ${buttonColors[type]}`}
                     >
                         {loading && (
                             <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
@@ -82,8 +110,9 @@ export default function Modal({
                         {confirmText}
                     </button>
 
-                    {type === 'confirm' && (
+                    {(type === 'confirm' || (type === 'error' && onConfirm)) && (
                         <button
+                            id="modal-cancel-button"
                             onClick={onClose}
                             className="inline-flex items-center justify-center px-6 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all active:scale-95"
                         >

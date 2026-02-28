@@ -32,7 +32,7 @@ const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
 
 export default function ClassesPage() {
     const { user, role, profile, loading: authLoading } = useAuth();
-    const { showAlert, showSuccess, showError, showConfirm } = useModal();
+    const { showAlert, showSuccess, showError, showConfirm, showDestructiveConfirm } = useModal();
     const router = useRouter();
 
     const [classes, setClasses] = useState([]);
@@ -152,19 +152,26 @@ export default function ClassesPage() {
     };
 
     const handleDelete = async (id) => {
-        showConfirm('Sahkan Padam', 'Adakah anda pasti mahu memadam kelas ini?', async () => {
-            const { error } = await supabase
-                .from('classes')
-                .delete()
-                .eq('id', id);
+        const cls = classes.find(c => c.id === id);
+        if (!cls) return;
 
-            if (error) {
-                showError('Ralat Padam', error.message);
-            } else {
-                fetchClasses();
-                showSuccess('Berjaya', 'Kelas telah dipadam.');
+        showDestructiveConfirm(
+            'Sahkan Padam Kelas',
+            `Adakah anda pasti mahu memadam rekod kelas berikut?\n\n• Nama: ${cls.nama}\n• Lokasi: ${cls.lokasi}\n• Tahap: ${cls.tahap}\n\n\nTindakan ini tidak boleh dikembalikan semula.`,
+            async () => {
+                const { error } = await supabase
+                    .from('classes')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) {
+                    showError('Ralat Padam', error.message);
+                } else {
+                    fetchClasses();
+                    showSuccess('Berjaya', 'Kelas telah dipadam.');
+                }
             }
-        });
+        );
     };
 
     const openModal = (cls = null) => {

@@ -7,7 +7,7 @@ import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useModal } from '@/contexts/ModalContext';
 import { useData } from '@/contexts/DataContext';
-import { getSubmissions, deleteSubmission } from '@/lib/supabase/database';
+import { getSubmissions, deleteSubmission, getLookupData } from '@/lib/supabase/database';
 import { Search, Eye, Edit, Trash2, Download, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, RefreshCw, Loader2 } from 'lucide-react';
 
 // Helper component for filter inputs - Moved outside to prevent re-renders
@@ -31,7 +31,7 @@ const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
 
 export default function SenaraiPage() {
     const { mualaf: submissions, setMualaf: setSubmissions, needsRefresh, markAsClean, markAsDirty } = useData();
-    const { showAlert, showSuccess, showError, showConfirm } = useModal();
+    const { showAlert, showSuccess, showError, showConfirm, showDestructiveConfirm } = useModal();
     const [loading, setLoading] = useState(false);
     const [columnFilters, setColumnFilters] = useState({});
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -51,33 +51,52 @@ export default function SenaraiPage() {
 
     const loadSubmissions = async () => {
         setLoading(true);
-        const { data, error } = await getSubmissions({});
+        const [submissionsRes, usersRes] = await Promise.all([
+            getSubmissions({}),
+            getLookupData('users', ['email'])
+        ]);
 
-        if (!error && data) {
+        if (!submissionsRes.error && submissionsRes.data) {
+            const usersMap = {};
+            if (usersRes.data) {
+                usersRes.data.forEach(u => {
+                    usersMap[u.id] = u.email;
+                });
+            }
+
+            const processedData = submissionsRes.data.map(sub => ({
+                ...sub,
+                createdByEmail: usersMap[sub.createdBy] || sub.createdBy,
+                updatedByEmail: usersMap[sub.updatedBy] || sub.updatedBy
+            }));
+
             if (role !== 'admin' && profile?.assignedLocations && !profile.assignedLocations.includes('All')) {
-                const allowedData = data.filter(sub => profile.assignedLocations.includes(sub.lokasi));
+                const allowedData = processedData.filter(sub => profile.assignedLocations.includes(sub.lokasi));
                 setSubmissions(allowedData);
             } else {
-                setSubmissions(data);
+                setSubmissions(processedData);
             }
             markAsClean('mualaf');
         }
         setLoading(false);
     };
 
-    const handleDelete = async (id) => {
-        showConfirm('Sahkan Padam', 'Adakah anda pasti ingin memadam rekod ini?', async () => {
-            const { error } = await deleteSubmission(id);
-            if (!error) {
-                // Instead of loadSubmissions(), just mark as dirty and let user refresh
-                // OR we can update local state to keep it snappy
-                setSubmissions(prev => prev.filter(s => s.id !== id));
-                markAsDirty('mualaf');
-                showSuccess('Berjaya', 'Rekod telah dipadam.');
-            } else {
-                showError('Ralat Padam', error);
+    const handleDelete = async (submission) => {
+        const { id, namaAsal, noStaf, noKP, lokasi } = submission;
+        showDestructiveConfirm(
+            'Sahkan Padam Rekod',
+            `Adakah anda pasti ingin memadam rekod berikut?\n\n• Nama: ${namaAsal}\n• No Staf: ${noStaf}\n• No KP: ${noKP}\n• Lokasi: ${lokasi}\n\n\nTindakan ini tidak boleh dikembalikan semula.`,
+            async () => {
+                const { error } = await deleteSubmission(id);
+                if (!error) {
+                    setSubmissions(prev => prev.filter(s => s.id !== id));
+                    markAsDirty('mualaf');
+                    showSuccess('Berjaya', 'Rekod telah dipadam.');
+                } else {
+                    showError('Ralat Padam', error);
+                }
             }
-        });
+        );
     };
 
     // Get unique values for a column, respecting other filters
@@ -165,6 +184,8 @@ export default function SenaraiPage() {
         const headers = [
             'No Staf',
             'Didaftarkan Oleh',
+            'Dicipta Oleh (Email)',
+            'Dikemaskini Oleh (Email)',
             'Nama Asal',
             'Nama Penuh',
             'Nama Islam',
@@ -215,6 +236,8 @@ export default function SenaraiPage() {
             ...filteredSubmissions.map(sub => [
                 sub.noStaf,
                 sub.registeredByName || '',
+                sub.createdByEmail || '',
+                sub.updatedByEmail || '',
                 sub.namaAsal,
                 sub.namaPenuh || '',
                 sub.namaIslam || '',
@@ -256,8 +279,6 @@ export default function SenaraiPage() {
                 sub.catatanAudit || '',
                 sub.createdAt,
                 sub.updatedAt,
-                sub.createdBy,
-                sub.updatedBy
             ].map(val => `"${(val || '').toString().replace(/"/g, '""')}"`).join(','))
         ].join('\n');
 
@@ -549,8 +570,8 @@ export default function SenaraiPage() {
                                             { id: 'catatanAudit', label: 'Catatan Audit', width: 'min-w-[200px]' },
                                             { id: 'createdAt', label: 'Dicipta Pada', width: 'min-w-[150px]' },
                                             { id: 'updatedAt', label: 'Dikemaskini Pada', width: 'min-w-[150px]' },
-                                            { id: 'createdBy', label: 'Dicipta Oleh', width: 'min-w-[150px]' },
-                                            { id: 'updatedBy', label: 'Dikemaskini Oleh', width: 'min-w-[150px]' },
+                                            { id: 'createdByEmail', label: 'Dicipta Oleh', width: 'min-w-[150px]' },
+                                            { id: 'updatedByEmail', label: 'Dikemaskini Oleh', width: 'min-w-[150px]' },
                                         ].map((col) => (
                                             <th key={col.id} className={`sticky top-0 z-30 text-left py-1 px-2 font-semibold text-gray-700 bg-emerald-100 border-r border-gray-200 border-b-2 border-emerald-500 ${col.width} align-top`}>
                                                 <div
@@ -606,7 +627,7 @@ export default function SenaraiPage() {
                                                     </Link>
                                                     {role === 'admin' && (
                                                         <button
-                                                            onClick={() => handleDelete(submission.id)}
+                                                            onClick={() => handleDelete(submission)}
                                                             className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors"
                                                             title="Padam"
                                                         >
@@ -721,10 +742,10 @@ export default function SenaraiPage() {
                                             <td className="py-1 px-2 bg-white border-r border-gray-200 whitespace-nowrap min-w-[150px]">{formatDate(submission.createdAt)}</td>
                                             <td className="py-1 px-2 bg-white border-r border-gray-200 whitespace-nowrap min-w-[150px]">{formatDate(submission.updatedAt)}</td>
                                             <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[150px]">
-                                                <div className="max-w-[150px] truncate text-[9px] text-gray-500" title={submission.createdBy}>{submission.createdBy || '-'}</div>
+                                                <div className="max-w-[150px] truncate text-[9px] text-gray-500" title={submission.createdByEmail}>{submission.createdByEmail || '-'}</div>
                                             </td>
                                             <td className="py-1 px-2 bg-white border-r border-gray-200 min-w-[150px]">
-                                                <div className="max-w-[150px] truncate text-[9px] text-gray-500" title={submission.updatedBy}>{submission.updatedBy || '-'}</div>
+                                                <div className="max-w-[150px] truncate text-[9px] text-gray-500" title={submission.updatedByEmail}>{submission.updatedByEmail || '-'}</div>
                                             </td>
                                         </tr>
                                     ))}

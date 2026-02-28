@@ -114,7 +114,7 @@ const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
 
 export default function WorkersPage() {
     const { user, role, profile, loading: authLoading } = useAuth();
-    const { showAlert, showSuccess, showError, showConfirm } = useModal();
+    const { showAlert, showSuccess, showError, showConfirm, showDestructiveConfirm } = useModal();
     const router = useRouter();
 
     // Data State
@@ -225,12 +225,23 @@ export default function WorkersPage() {
     };
 
     const handleDelete = useCallback(async (id) => {
-        showConfirm('Sahkan Padam', 'Padam pekerja ini?', async () => {
-            await supabase.from('workers').delete().eq('id', id);
-            fetchWorkers();
-            showSuccess('Berjaya', 'Petugas telah dipadam.');
-        });
-    }, [fetchWorkers, showConfirm, showSuccess]);
+        const worker = workers.find(w => w.id === id);
+        if (!worker) return;
+
+        showDestructiveConfirm(
+            'Sahkan Padam Petugas',
+            `Adakah anda pasti mahu memadam rekod petugas berikut?\n\n• Nama: ${worker.nama}\n• S-ID: ${worker.staff_id || '-'}\n• No KP: ${worker.noKP || '-'}\n• Lokasi: ${worker.lokasi || '-'}\n\n\nTindakan ini tidak boleh dikembalikan semula.`,
+            async () => {
+                const { error } = await supabase.from('workers').delete().eq('id', id);
+                if (!error) {
+                    fetchWorkers();
+                    showSuccess('Berjaya', 'Petugas telah dipadam.');
+                } else {
+                    showError('Ralat Padam', error.message);
+                }
+            }
+        );
+    }, [workers, fetchWorkers, showDestructiveConfirm, showSuccess, showError]);
 
     const openModal = useCallback((worker = null) => {
         if (worker) {

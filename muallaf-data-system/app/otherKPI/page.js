@@ -106,7 +106,7 @@ const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
 
 export default function OtherKPIPage() {
     const { role } = useAuth();
-    const { showAlert, showSuccess, showError, showConfirm } = useModal();
+    const { showAlert, showSuccess, showError, showConfirm, showDestructiveConfirm } = useModal();
     const [activeTab, setActiveTab] = useState(TABS[0].id);
     const [kpiData, setKpiData] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -239,15 +239,27 @@ export default function OtherKPIPage() {
     };
 
     const handleDelete = async (id) => {
-        showConfirm('Sahkan Padam', 'Adakah anda pasti ingin memadam rekod ini?', async () => {
-            const { error } = await supabase.from('other_kpis').delete().eq('id', id);
-            if (!error) {
-                setKpiData(prev => prev.filter(p => p.id !== id));
-                showSuccess('Berjaya', 'Rekod telah dipadam.');
-            } else {
-                showError('Ralat Padam', error.message);
+        const row = kpiData.find(p => p.id === id);
+        if (!row) return;
+
+        let displayInfo = `• Tahun: ${row.year}\n• Negeri: ${row.state}`;
+        if (activeTab === 'kpi_utama') displayInfo += `\n• KPI: ${row.kpi || '-'}`;
+        else if (activeTab === 'crs' || activeTab === 'organisasi_nm') displayInfo += `\n• Organisasi: ${row.nama_organisasi || '-'}`;
+        else if (row.nama_mualaf) displayInfo += `\n• Mualaf: ${row.nama_mualaf}`;
+
+        showDestructiveConfirm(
+            'Sahkan Padam Rekod',
+            `Adakah anda pasti ingin memadam rekod KPI berikut?\n\n${displayInfo}\n\n\nTindakan ini tidak boleh dikembalikan semula.`,
+            async () => {
+                const { error } = await supabase.from('other_kpis').delete().eq('id', id);
+                if (!error) {
+                    setKpiData(prev => prev.filter(p => p.id !== id));
+                    showSuccess('Berjaya', 'Rekod telah dipadam.');
+                } else {
+                    showError('Ralat Padam', error.message);
+                }
             }
-        });
+        );
     };
 
     const handleAddRow = async () => {

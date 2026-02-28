@@ -30,7 +30,7 @@ const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
 
 export default function ProgramPage() {
     const { role } = useAuth();
-    const { showAlert, showSuccess, showError, showConfirm } = useModal();
+    const { showAlert, showSuccess, showError, showConfirm, showDestructiveConfirm } = useModal();
     const [programs, setPrograms] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -118,15 +118,22 @@ export default function ProgramPage() {
     }, [selectedYear, selectedMonth, selectedState]);
 
     const handleDelete = async (id) => {
-        showConfirm('Sahkan Padam', 'Adakah anda pasti ingin memadam rekod program ini?', async () => {
-            const { error } = await supabase.from('programs').delete().eq('id', id);
-            if (!error) {
-                setPrograms(prev => prev.filter(p => p.id !== id));
-                showSuccess('Berjaya', 'Rekod program telah dipadam.');
-            } else {
-                showError('Ralat Padam', error.message);
+        const prog = programs.find(p => p.id === id);
+        if (!prog) return;
+
+        showDestructiveConfirm(
+            'Sahkan Padam Program',
+            `Adakah anda pasti ingin memadam rekod program berikut?\n\n• Nama: ${prog.nama_program}\n• Tarikh: ${prog.tarikh_mula || '-'}\n• Lokasi: ${prog.tempat || '-'}\n\n\nTindakan ini tidak boleh dikembalikan semula.`,
+            async () => {
+                const { error } = await supabase.from('programs').delete().eq('id', id);
+                if (!error) {
+                    setPrograms(prev => prev.filter(p => p.id !== id));
+                    showSuccess('Berjaya', 'Rekod program telah dipadam.');
+                } else {
+                    showError('Ralat Padam', error.message);
+                }
             }
-        });
+        );
     };
 
     const getUniqueValues = (field) => {

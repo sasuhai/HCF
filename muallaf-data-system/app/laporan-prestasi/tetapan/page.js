@@ -31,7 +31,7 @@ const SOURCES = [
 const CATEGORIES = ['Outreach', 'Mualaf', 'PDS/Pasukan RH', 'Umum'];
 
 export default function KPISettingsPage() {
-    const { showAlert, showSuccess, showError, showConfirm } = useModal();
+    const { showAlert, showSuccess, showError, showConfirm, showDestructiveConfirm } = useModal();
     const [settings, setSettings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -80,20 +80,27 @@ export default function KPISettingsPage() {
     };
 
     const handleDelete = async (id) => {
-        showConfirm('Sahkan Padam', 'Adakah anda pasti ingin memadam tetapan ini?', async () => {
-            if (id.toString().startsWith('temp-')) {
-                setSettings(settings.filter(s => s.id !== id));
-                return;
-            }
+        const item = settings.find(s => s.id === id);
+        if (!item) return;
 
-            const { error } = await supabase.from('kpi_settings').delete().eq('id', id);
-            if (!error) {
-                setSettings(settings.filter(s => s.id !== id));
-                showSuccess('Berjaya', 'Tetapan telah dipadam.');
-            } else {
-                showError('Ralat Padam', error.message);
+        showDestructiveConfirm(
+            'Sahkan Padam Tetapan KPI',
+            `Adakah anda pasti ingin memadam tetapan KPI berikut?\n\n• Perkara: ${item.perkara}\n• Kategori: ${item.category}\n• Sumber: ${item.source}\n\n\nTindakan ini tidak boleh dikembalikan semula.`,
+            async () => {
+                if (id.toString().startsWith('temp-')) {
+                    setSettings(settings.filter(s => s.id !== id));
+                    return;
+                }
+
+                const { error } = await supabase.from('kpi_settings').delete().eq('id', id);
+                if (!error) {
+                    setSettings(settings.filter(s => s.id !== id));
+                    showSuccess('Berjaya', 'Tetapan telah dipadam.');
+                } else {
+                    showError('Ralat Padam', error.message);
+                }
             }
-        });
+        );
     };
 
     const handleSave = async () => {

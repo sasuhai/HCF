@@ -7,7 +7,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useModal } from '@/contexts/ModalContext';
-import { getSubmission, deleteSubmission } from '@/lib/supabase/database';
+import { getSubmission, deleteSubmission, getLookupData } from '@/lib/supabase/database';
 import { ArrowLeft, Edit, Trash2, User, Calendar, MapPin, Phone, Mail, Briefcase, Activity, CheckCircle, XCircle } from 'lucide-react';
 
 function RekodDetailContent() {
@@ -15,9 +15,18 @@ function RekodDetailContent() {
     const id = searchParams.get('id');
     const router = useRouter();
     const { role, profile, loading: authLoading } = useAuth();
-    const { showAlert, showSuccess, showError, showConfirm } = useModal();
+    const { showAlert, showSuccess, showError, showConfirm, showDestructiveConfirm } = useModal();
     const [submission, setSubmission] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [users, setUsers] = useState([]);
+
+    useEffect(() => {
+        const fetchUsers = async () => {
+            const { data } = await getLookupData('users', ['email']);
+            if (data) setUsers(data);
+        };
+        fetchUsers();
+    }, []);
 
     useEffect(() => {
         if (authLoading) return;
@@ -48,15 +57,20 @@ function RekodDetailContent() {
     };
 
     const handleDelete = async () => {
-        showConfirm('Sahkan Padam', 'Adakah anda pasti ingin memadam rekod ini?', async () => {
-            const { error } = await deleteSubmission(id);
-            if (!error) {
-                showSuccess('Berjaya', 'Rekod telah dipadam.');
-                router.push('/senarai');
-            } else {
-                showError('Ralat Padam', 'Ralat memadam rekod: ' + error);
+        const { id, namaAsal, noStaf, noKP, lokasi } = submission;
+        showDestructiveConfirm(
+            'Sahkan Padam Rekod',
+            `Adakah anda pasti ingin memadam rekod berikut?\n\n• Nama: ${namaAsal}\n• No Staf: ${noStaf}\n• No KP: ${noKP}\n• Lokasi: ${lokasi}\n\n\nTindakan ini tidak boleh dikembalikan semula.`,
+            async () => {
+                const { error } = await deleteSubmission(id);
+                if (!error) {
+                    showSuccess('Berjaya', 'Rekod telah dipadam.');
+                    router.push('/senarai');
+                } else {
+                    showError('Ralat Padam', 'Ralat memadam rekod: ' + error);
+                }
             }
-        });
+        );
     };
 
     const handlePrint = () => {
@@ -411,12 +425,12 @@ function RekodDetailContent() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[10px] text-gray-500 uppercase">
                                 <div className="space-y-1">
                                     <div className="flex items-center space-x-2">
-                                        <span className="font-bold text-gray-400">DICIUPTA:</span>
+                                        <span className="font-bold text-gray-400">DICIPTA:</span>
                                         <span>{submission.createdAt}</span>
                                     </div>
                                     <div className="flex items-center space-x-2">
                                         <span className="font-bold text-gray-400">OLEH:</span>
-                                        <span className="truncate">{submission.createdBy || '-'}</span>
+                                        <span className="truncate">{users.find(u => u.id === submission.createdBy)?.email || submission.createdBy || '-'}</span>
                                     </div>
                                 </div>
                                 {submission.updatedAt && (
@@ -427,7 +441,7 @@ function RekodDetailContent() {
                                         </div>
                                         <div className="flex items-center space-x-2">
                                             <span className="font-bold text-gray-400">OLEH:</span>
-                                            <span className="truncate">{submission.updatedBy || '-'}</span>
+                                            <span className="truncate">{users.find(u => u.id === submission.updatedBy)?.email || submission.updatedBy || '-'}</span>
                                         </div>
                                     </div>
                                 )}

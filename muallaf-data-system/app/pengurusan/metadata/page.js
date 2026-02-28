@@ -52,7 +52,7 @@ const TABS = [
 
 export default function MetadataManagementPage() {
     const { role } = useAuth();
-    const { showAlert, showSuccess, showError, showConfirm } = useModal();
+    const { showAlert, showSuccess, showError, showConfirm, showDestructiveConfirm } = useModal();
     const [activeTab, setActiveTab] = useState(TABS[0]);
     const [items, setItems] = useState([]);
     const [statesList, setStatesList] = useState([]);
@@ -142,17 +142,24 @@ export default function MetadataManagementPage() {
     };
 
     const handleDelete = async (id) => {
-        showConfirm('Sahkan Padam', 'Adakah anda pasti ingin memadam data ini? Ia mungkin menjejaskan rekod sedia ada.', async () => {
-            setActionLoading(true);
-            const { error } = await deleteLookupItem(activeTab.table, id);
-            if (!error) {
-                fetchData();
-                showSuccess('Berjaya', 'Data telah dipadam.');
-            } else {
-                showError('Ralat Padam', error);
+        const item = items.find(i => i.id === id);
+        if (!item) return;
+
+        showDestructiveConfirm(
+            `Padam ${activeTab.name}`,
+            `Adakah anda pasti ingin memadam "${item.name}" daripada pangkalan data?\n\nTindakan ini mungkin menjejaskan rekod sedia ada yang menggunakan data rujukan ini.\n\n\nTindakan ini tidak boleh dikembalikan semula.`,
+            async () => {
+                setActionLoading(true);
+                const { error } = await deleteLookupItem(activeTab.table, id);
+                if (!error) {
+                    fetchData();
+                    showSuccess('Berjaya', 'Data telah dipadam.');
+                } else {
+                    showError('Ralat Padam', error);
+                }
+                setActionLoading(false);
             }
-            setActionLoading(false);
-        });
+        );
     };
 
     if (role !== 'admin') {

@@ -47,9 +47,10 @@ export function ModalProvider({ children }) {
     const showError = (title, message) => showModal({ title, message, type: 'error' });
     const showWarning = (title, message) => showModal({ title, message, type: 'warning' });
     const showConfirm = (title, message, onConfirm) => showModal({ title, message, type: 'confirm', onConfirm });
+    const showDestructiveConfirm = (title, message, onConfirm) => showModal({ title, message, type: 'error', onConfirm, confirmText: 'Ya, Padam' });
 
     return (
-        <ModalContext.Provider value={{ showAlert, showInfo, showSuccess, showError, showWarning, showConfirm, hideModal }}>
+        <ModalContext.Provider value={{ showAlert, showInfo, showSuccess, showError, showWarning, showConfirm, showDestructiveConfirm, hideModal }}>
             {children}
             <Modal
                 {...modalConfig}

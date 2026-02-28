@@ -14,7 +14,7 @@ function AttendancePageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user, role, profile, loading: authLoading } = useAuth();
-    const { showAlert, showSuccess, showError, showConfirm } = useModal();
+    const { showAlert, showSuccess, showError, showConfirm, showDestructiveConfirm } = useModal();
 
     // Selection state
     const [selectedLocation, setSelectedLocation] = useState('');
@@ -49,6 +49,7 @@ function AttendancePageContent() {
     const [allWorkers, setAllWorkers] = useState([]);
     const [allStudents, setAllStudents] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [rateCategories, setRateCategories] = useState([]); // Added for kategoriElaun dropdown
     const [classInfoForm, setClassInfoForm] = useState({
         bahasa: 'Bahasa Melayu',
         hariMasa: '',
@@ -104,6 +105,15 @@ function AttendancePageContent() {
         };
         fetchClasses();
     }, [authLoading]);
+
+    // Fetch Rate Categories for Allowance Dropdown
+    useEffect(() => {
+        const fetchRates = async () => {
+            const { data } = await supabase.from('rateCategories').select('kategori, jenis').order('kategori');
+            if (data) setRateCategories(data);
+        };
+        fetchRates();
+    }, []);
 
     // Derived State: Available Locations & Classes
     const availableLocations = (role === 'admin' || profile?.assignedLocations?.includes('All'))
@@ -308,6 +318,22 @@ function AttendancePageContent() {
         saveAttendance({ [listName]: list });
     };
 
+    // Handle Kategori Elaun Change
+    const handleKategoriElaunChange = (type, personId, value) => {
+        if (!attendanceRecord) return;
+
+        const listName = type === 'worker' ? 'workers' : 'students';
+        const list = [...(attendanceRecord[listName] || [])];
+        const personIndex = list.findIndex(p => p.id === personId);
+
+        if (personIndex === -1) return;
+
+        list[personIndex] = { ...list[personIndex], kategoriElaun: value };
+
+        // Save to DB
+        saveAttendance({ [listName]: list });
+    };
+
     // Add Functions
     const handleAddWorker = async (worker) => {
         const currentList = attendanceRecord?.workers || [];
@@ -350,12 +376,20 @@ function AttendancePageContent() {
     };
 
     const handleRemovePerson = async (type, personId) => {
-        showConfirm('Sahkan Buang', "Buang dari senarai kehadiran bulan ini?", async () => {
-            const listName = type === 'worker' ? 'workers' : 'students';
-            const list = attendanceRecord[listName].filter(p => p.id !== personId);
-            await saveAttendance({ [listName]: list });
-            showSuccess('Berjaya', 'Rekod telah dibuang.');
-        });
+        const listName = type === 'worker' ? 'workers' : 'students';
+        const person = attendanceRecord[listName].find(p => p.id === personId);
+        const name = person?.nama || 'rekod ini';
+        const idLabel = person?.idMualaf || person?.noStaf || person?.id || '-';
+
+        showDestructiveConfirm(
+            'Sahkan Keluarkan Nama',
+            `Keluarkan "${name}" (ID: ${idLabel}) dari senarai kehadiran bulan ini?\n\nRekod kehadiran untuk bulan ini akan dipadamkan bagi individu tersebut.\n\n\nTindakan ini tidak boleh dikembalikan semula.`,
+            async () => {
+                const list = attendanceRecord[listName].filter(p => p.id !== personId);
+                await saveAttendance({ [listName]: list });
+                showSuccess('Berjaya', 'Rekod telah dibuang.');
+            }
+        );
     };
 
     // Navigation for month
@@ -761,7 +795,7 @@ function AttendancePageContent() {
                                             <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase">
                                                 <th className="p-3 text-left sticky left-0 bg-gray-50 z-10 w-48 font-semibold border-r border-gray-200 shadow-[1px_0_0_0_rgba(229,231,235,1)]">Nama</th>
                                                 <th className="p-3 text-left w-24 font-semibold border-r border-gray-200">Peranan</th>
-                                                <th className="p-3 text-left w-24 font-semibold border-r border-gray-200 text-[10px]">Kategori Elaun</th>
+                                                <th className="p-3 text-left w-36 font-semibold border-r border-gray-200 text-[10px]">Kategori Elaun</th>
                                                 {daysArray.map(d => (
                                                     <th key={d} className="p-1 w-9 text-center border-r border-gray-100 font-normal">
                                                         <div className="font-bold text-gray-700">{d}</div>
@@ -784,15 +818,24 @@ function AttendancePageContent() {
                                                         </td>
                                                         <td className="p-2.5 border-r border-gray-100 text-gray-600">{worker.role}</td>
                                                         <td className="p-2.5 border-r border-gray-100">
-                                                            {worker.kategoriElaun ? (
-                                                                <span className="bg-yellow-50 text-yellow-700 border border-yellow-200 px-1.5 py-0.5 rounded text-[9px] font-medium leading-tight inline-block text-center min-w-[50px]">
-                                                                    {worker.kategoriElaun}
-                                                                </span>
-                                                            ) : (
-                                                                <div className="flex items-center justify-center text-amber-500" title="Kategori Elaun tiada. Sila kemaskini profil untuk pengiraan tepat.">
-                                                                    <AlertCircle className="h-4 w-4" />
-                                                                </div>
-                                                            )}
+                                                            <div className="relative">
+                                                                <select
+                                                                    value={worker.kategoriElaun || ''}
+                                                                    onChange={(e) => handleKategoriElaunChange('worker', worker.id, e.target.value)}
+                                                                    className={`w-full text-[9px] font-bold py-1 px-1 rounded border transition-all appearance-none pr-4 ${worker.kategoriElaun
+                                                                        ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                                                        : 'bg-red-50 text-red-700 border-red-200'}`}
+                                                                >
+                                                                    <option value="">- Tiada -</option>
+                                                                    {rateCategories
+                                                                        .filter(r => r.jenis === 'petugas')
+                                                                        .map(r => (
+                                                                            <option key={r.kategori} value={r.kategori}>{r.kategori}</option>
+                                                                        ))
+                                                                    }
+                                                                </select>
+                                                                <ChevronDown className="h-3 w-3 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-40" />
+                                                            </div>
                                                         </td>
                                                         {daysArray.map(d => {
                                                             const isChecked = worker.attendance?.includes(d);
@@ -847,7 +890,7 @@ function AttendancePageContent() {
                                             <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase">
                                                 <th className="p-3 text-left sticky left-0 bg-gray-50 z-10 w-48 font-semibold border-r border-gray-200 shadow-[1px_0_0_0_rgba(229,231,235,1)]">Nama</th>
                                                 <th className="p-3 text-left w-24 font-semibold border-r border-gray-200">Staf ID</th>
-                                                <th className="p-3 text-left w-24 font-semibold border-r border-gray-200 text-[10px]">Kategori Elaun</th>
+                                                <th className="p-3 text-left w-36 font-semibold border-r border-gray-200 text-[10px]">Kategori Elaun</th>
                                                 {daysArray.map(d => (
                                                     <th key={d} className="p-1 w-9 text-center border-r border-gray-100 font-normal">
                                                         <div className="font-bold text-gray-700">{d}</div>
@@ -870,15 +913,24 @@ function AttendancePageContent() {
                                                         </td>
                                                         <td className="p-2.5 border-r border-gray-100 text-gray-600 font-mono">{student.stafId || student.noStaf || '-'}</td>
                                                         <td className="p-2.5 border-r border-gray-100">
-                                                            {student.kategoriElaun ? (
-                                                                <span className="bg-yellow-50 text-yellow-700 border border-yellow-200 px-1.5 py-0.5 rounded text-[9px] font-medium leading-tight inline-block text-center min-w-[50px]">
-                                                                    {student.kategoriElaun}
-                                                                </span>
-                                                            ) : (
-                                                                <div className="flex items-center justify-center text-amber-500" title="Kategori Elaun tiada. Sila kemaskini profil untuk pengiraan tepat.">
-                                                                    <AlertCircle className="h-4 w-4" />
-                                                                </div>
-                                                            )}
+                                                            <div className="relative">
+                                                                <select
+                                                                    value={student.kategoriElaun || ''}
+                                                                    onChange={(e) => handleKategoriElaunChange('student', student.id, e.target.value)}
+                                                                    className={`w-full text-[9px] font-bold py-1 px-1 rounded border transition-all appearance-none pr-4 ${student.kategoriElaun
+                                                                        ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                                                        : 'bg-amber-50 text-amber-700 border-amber-200'}`}
+                                                                >
+                                                                    <option value="">- Tiada -</option>
+                                                                    {rateCategories
+                                                                        .filter(r => r.jenis === 'mualaf')
+                                                                        .map(r => (
+                                                                            <option key={r.kategori} value={r.kategori}>{r.kategori}</option>
+                                                                        ))
+                                                                    }
+                                                                </select>
+                                                                <ChevronDown className="h-3 w-3 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-40" />
+                                                            </div>
                                                         </td>
                                                         {daysArray.map(d => {
                                                             const isChecked = student.attendance?.includes(d);

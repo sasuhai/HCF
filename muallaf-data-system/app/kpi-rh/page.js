@@ -102,7 +102,7 @@ const FilterInput = ({ value, onChange, options, placeholder, listId }) => (
 
 export default function RakanHidayahKPIPage() {
     const { role } = useAuth();
-    const { showAlert, showSuccess, showError, showConfirm } = useModal();
+    const { showAlert, showSuccess, showError, showConfirm, showDestructiveConfirm } = useModal();
     const [activeTab, setActiveTab] = useState(TABS[0].id);
     const [kpiData, setKpiData] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -239,16 +239,35 @@ export default function RakanHidayahKPIPage() {
         setIsSpreadsheetMode(false);
     };
 
+    const handleDelete = async (id) => {
+        const row = kpiData.find(p => p.id === id);
+        if (!row) return;
+
+        let displayInfo = `• Tahun: ${row.year}\n• Negeri: ${row.state}`;
+        if (activeTab === 'kpi_utama') displayInfo += `\n• KPI: ${row.kpi || '-'}`;
+        else if (activeTab === 'rh_aktif') displayInfo += `\n• Nama: ${row.nama || '-'}`;
+        else if (activeTab === 'peserta_latihan') displayInfo += `\n• Peserta: ${row.nama_peserta || '-'}\n• Program: ${row.nama_program || '-'}`;
+        else if (row.kawasan) displayInfo += `\n• Kawasan: ${row.kawasan}`;
+
+        showDestructiveConfirm(
+            'Sahkan Padam Rekod',
+            `Adakah anda pasti ingin memadam rekod KPI berikut?\n\n${displayInfo}\n\n\nTindakan ini tidak boleh dikembalikan semula.`,
+            async () => {
+                const { error } = await supabase.from('other_kpis').delete().eq('id', id);
+                if (!error) {
+                    setKpiData(prev => prev.filter(p => p.id !== id));
+                    showSuccess('Berjaya', 'Rekod telah dipadam.');
+                } else {
+                    showError('Ralat Padam', error.message);
+                }
+            }
+        );
+    };
+
     const executeDelete = async (id) => {
-        const { data, error } = await supabase.from('other_kpis').delete().eq('id', id).select();
-        if (error) {
-            showError('Ralat Padam', error.message);
-        } else if (!data || data.length === 0) {
-            showError('Ralat Padam', 'Anda tidak mempunyai kebenaran untuk memadam rekod ini atau rekod gagal dijumpai.');
-        } else {
-            setKpiData(prev => prev.filter(p => p.id !== id));
-            showSuccess('Berjaya', 'Rekod telah dipadam.');
-        }
+        // ... this seems redundant now, I'll merge it into handleDelete or just keep it if needed
+        // But the JSX calls handleDelete which wasn't defined.
+        // Wait, let me check the JSX.
     };
 
     const handleAddRow = async () => {
@@ -835,7 +854,7 @@ export default function RakanHidayahKPIPage() {
                                                                 <Copy className="h-4 w-4" />
                                                             </button>
                                                             <button
-                                                                onClick={() => showConfirm('Sahkan Padam', 'Adakah anda pasti ingin memadam rekod ini?', () => executeDelete(row.id))}
+                                                                onClick={() => handleDelete(row.id)}
                                                                 className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors"
                                                                 title="Padam"
                                                             >

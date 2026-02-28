@@ -12,7 +12,7 @@ import { User, Plus, Search, Edit2, Trash2, Shield, MapPin, X, Check, Eye, EyeOf
 
 export default function UsersPage() {
     const { user, role } = useAuth();
-    const { showAlert, showSuccess, showError, showConfirm } = useModal();
+    const { showAlert, showSuccess, showError, showConfirm, showDestructiveConfirm } = useModal();
     const router = useRouter();
 
     const [users, setUsers] = useState([]);
@@ -184,27 +184,35 @@ export default function UsersPage() {
             return;
         }
 
-        showConfirm('Sahkan Padam', `Adakah anda pasti ingin memadam pengguna "${targetUser.name}"?`, async () => {
-            showConfirm('Pengesahan Akhir', "PERHATIAN: Tindakan ini akan memadam rekod pangkalan data DAN pengguna Auth login. Teruskan?", async () => {
-                try {
-                    // Use API Route to delete (Auth + DB)
-                    const res = await fetch(`/api/admin/users/${targetUser.id}`, {
-                        method: 'DELETE'
-                    });
-                    const json = await res.json();
+        showDestructiveConfirm(
+            'Sahkan Padam Pengguna',
+            `Adakah anda pasti ingin memadam pengguna berikut?\n\n• Nama: ${targetUser.name || 'Tanpa Nama'}\n• Emel: ${targetUser.email}\n• Peranan: ${targetUser.role || 'Editor'}\n\n\nTindakan ini tidak boleh dikembalikan semula.`,
+            async () => {
+                showDestructiveConfirm(
+                    'Pengesahan Terakhir',
+                    "PERHATIAN: Tindakan ini akan memadam rekod pangkalan data DAN akses login pengguna tersebut secara kekal.\n\n\nTindakan ini tidak boleh dikembalikan semula. Teruskan?",
+                    async () => {
+                        try {
+                            // Use API Route to delete (Auth + DB)
+                            const res = await fetch(`/api/admin/users/${targetUser.id}`, {
+                                method: 'DELETE'
+                            });
+                            const json = await res.json();
 
-                    if (!res.ok) throw new Error(json.error || 'Failed to delete user');
+                            if (!res.ok) throw new Error(json.error || 'Failed to delete user');
 
-                    // Update local state
-                    setUsers(prev => prev.filter(u => u.id !== targetUser.id));
+                            // Update local state
+                            setUsers(prev => prev.filter(u => u.id !== targetUser.id));
 
-                    showSuccess('Berjaya', `Pengguna berjaya dipadam.`);
-                } catch (error) {
-                    console.error("Error deleting user:", error);
-                    showError('Ralat Padam', "Ralat memadam pengguna: " + error.message);
-                }
-            });
-        });
+                            showSuccess('Berjaya', `Pengguna berjaya dipadam.`);
+                        } catch (error) {
+                            console.error("Error deleting user:", error);
+                            showError('Ralat Padam', "Ralat memadam pengguna: " + error.message);
+                        }
+                    }
+                );
+            }
+        );
     };
 
     // Filter Users

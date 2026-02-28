@@ -48,6 +48,13 @@ function EditRekodContent() {
     const [races, setRaces] = useState([]);
     const [religions, setReligions] = useState([]);
     const [banks, setBanks] = useState([]);
+    const [users, setUsers] = useState([]);
+
+    useEffect(() => {
+        getLookupData('users', ['email']).then(({ data }) => {
+            if (data) setUsers(data);
+        });
+    }, []);
 
     useEffect(() => {
         if (authLoading) return;
@@ -923,12 +930,12 @@ function EditRekodContent() {
                             <div className="pt-4 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] text-gray-400 italic">
                                 <div>
                                     <p>Dicipta: {submission.createdAt ? new Date(submission.createdAt).toLocaleString('ms-MY') : '-'}</p>
-                                    <p>Oleh: {submission.createdBy || '-'}</p>
+                                    <p>Oleh: {users.find(u => u.id === submission.createdBy)?.email || submission.createdBy || '-'}</p>
                                 </div>
                                 {submission.updatedAt && (
                                     <div className="sm:text-right">
                                         <p>Dikemaskini: {new Date(submission.updatedAt).toLocaleString('ms-MY')}</p>
-                                        <p>Oleh: {submission.updatedBy || '-'}</p>
+                                        <p>Oleh: {users.find(u => u.id === submission.updatedBy)?.email || submission.updatedBy || '-'}</p>
                                     </div>
                                 )}
                             </div>
