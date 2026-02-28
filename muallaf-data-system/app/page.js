@@ -51,18 +51,22 @@ export default function LandingPage() {
         const localDate = new Date(today.getTime() - offset);
         const todayStr = localDate.toISOString().split('T')[0];
 
-        localDate.setDate(localDate.getDate() + 14); // 14 days just in case to show more upcoming
+        localDate.setDate(localDate.getDate() + 7); // Exactly next 7 days
         const nextWeekStr = localDate.toISOString().split('T')[0];
 
         const { data, error } = await supabase
           .from('programs')
           .select('*')
-          .gte('tarikh_mula', todayStr)
-          .lte('tarikh_mula', nextWeekStr)
-          .order('tarikh_mula', { ascending: true });
+          .or(`tarikh_tamat.gte.${todayStr},tarikh_mula.gte.${todayStr}`);
 
         if (!error && data) {
-          setUpcomingPrograms(data);
+          const upcoming = data.filter(p => {
+            const startDate = p.tarikh_mula;
+            const endDate = p.tarikh_tamat || p.tarikh_mula;
+            return startDate <= nextWeekStr && endDate >= todayStr;
+          }).sort((a, b) => new Date(a.tarikh_mula) - new Date(b.tarikh_mula));
+
+          setUpcomingPrograms(upcoming);
         }
       } catch (err) {
         console.error("Error fetching upcoming programs:", err);
