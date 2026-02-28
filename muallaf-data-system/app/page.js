@@ -57,16 +57,12 @@ export default function LandingPage() {
         const { data, error } = await supabase
           .from('programs')
           .select('*')
-          .or(`tarikh_tamat.gte.${todayStr},tarikh_mula.gte.${todayStr}`);
+          .gte('tarikh_mula', todayStr)
+          .lte('tarikh_mula', nextWeekStr)
+          .order('tarikh_mula', { ascending: true });
 
         if (!error && data) {
-          const upcoming = data.filter(p => {
-            const startDate = p.tarikh_mula;
-            const endDate = p.tarikh_tamat || p.tarikh_mula;
-            return startDate <= nextWeekStr && endDate >= todayStr;
-          }).sort((a, b) => new Date(a.tarikh_mula) - new Date(b.tarikh_mula));
-
-          setUpcomingPrograms(upcoming);
+          setUpcomingPrograms(data);
         }
       } catch (err) {
         console.error("Error fetching upcoming programs:", err);
