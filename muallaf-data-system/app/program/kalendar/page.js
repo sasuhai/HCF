@@ -10,7 +10,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import multiMonthPlugin from '@fullcalendar/multimonth';
-import { MapPin, Clock, Users, FileText, X, Filter, Calendar } from 'lucide-react';
+import { MapPin, Clock, Users, FileText, X, Filter, Calendar, Search } from 'lucide-react';
 import Link from 'next/link';
 import Select from 'react-select';
 
@@ -42,6 +42,7 @@ export default function KalendarProgram() {
     const [selectedKategori, setSelectedKategori] = useState(null);
     const [selectedAnjuran, setSelectedAnjuran] = useState(null);
     const [selectedStatus, setSelectedStatus] = useState(null);
+    const [selectedProgramTitles, setSelectedProgramTitles] = useState(null);
     const [showHolidays, setShowHolidays] = useState(true);
 
     // Modal State
@@ -115,16 +116,19 @@ export default function KalendarProgram() {
     const kategoriOptions = Array.from(new Set(programs.map(p => p.kategori_utama).filter(Boolean))).map(k => ({ value: k, label: k }));
     const statusOptions = Array.from(new Set(programs.map(p => p.status_program).filter(Boolean))).map(s => ({ value: s, label: s }));
     const anjuranOptions = Array.from(new Set(programs.flatMap(p => Array.isArray(p.anjuran) ? p.anjuran : (p.anjuran ? [p.anjuran] : [])))).filter(Boolean).map(a => ({ value: a, label: a }));
+    const programTitleOptions = Array.from(new Set(programs.map(p => p.nama_program).filter(Boolean))).map(t => ({ value: t, label: t }));
 
     const stateFilters = selectedStates ? selectedStates.map(s => s.value) : [];
     const kategoriFilters = selectedKategori ? selectedKategori.map(s => s.value) : [];
     const anjuranFilters = selectedAnjuran ? selectedAnjuran.map(s => s.value) : [];
     const statusFilters = selectedStatus ? selectedStatus.map(s => s.value) : [];
+    const programTitleFilters = selectedProgramTitles ? selectedProgramTitles.map(s => s.value) : [];
 
     const filteredPrograms = programs.filter(prog => {
         if (stateFilters.length > 0 && !stateFilters.includes(prog.negeri)) return false;
         if (kategoriFilters.length > 0 && !kategoriFilters.includes(prog.kategori_utama)) return false;
         if (statusFilters.length > 0 && !statusFilters.includes(prog.status_program)) return false;
+        if (programTitleFilters.length > 0 && !programTitleFilters.includes(prog.nama_program)) return false;
 
         if (anjuranFilters.length > 0) {
             const progAnjuran = Array.isArray(prog.anjuran) ? prog.anjuran : (prog.anjuran ? [prog.anjuran] : []);
@@ -355,70 +359,87 @@ export default function KalendarProgram() {
                             </div>
 
                             {/* Filters Row */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="flex flex-col gap-4">
                                 <div className="w-full">
                                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center">
-                                        <Filter className="w-3.5 h-3.5 mr-1 text-yellow-500" /> Negeri
+                                        <Search className="w-3.5 h-3.5 mr-1 text-yellow-500" /> Carian Nama Program
                                     </label>
                                     <Select
                                         isMulti
-                                        options={states}
-                                        value={selectedStates}
-                                        onChange={setSelectedStates}
-                                        placeholder="Semua Negeri"
+                                        options={programTitleOptions}
+                                        value={selectedProgramTitles}
+                                        onChange={setSelectedProgramTitles}
+                                        placeholder="Taip untuk mencari nama program..."
                                         className="text-sm shadow-lg rounded-xl border-0 text-slate-800"
                                         styles={customSelectStyles}
                                         menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                        formatOptionLabel={formatOptionLabel('negeri')}
                                     />
                                 </div>
-                                <div className="w-full">
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center">
-                                        <Filter className="w-3.5 h-3.5 mr-1 text-yellow-500" /> Kategori
-                                    </label>
-                                    <Select
-                                        isMulti
-                                        options={kategoriOptions}
-                                        value={selectedKategori}
-                                        onChange={setSelectedKategori}
-                                        placeholder="Semua Kategori"
-                                        className="text-sm shadow-lg rounded-xl border-0 text-slate-800"
-                                        styles={customSelectStyles}
-                                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                        formatOptionLabel={formatOptionLabel('kategori')}
-                                    />
-                                </div>
-                                <div className="w-full">
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center">
-                                        <Filter className="w-3.5 h-3.5 mr-1 text-yellow-500" /> Anjuran
-                                    </label>
-                                    <Select
-                                        isMulti
-                                        options={anjuranOptions}
-                                        value={selectedAnjuran}
-                                        onChange={setSelectedAnjuran}
-                                        placeholder="Semua Anjuran"
-                                        className="text-sm shadow-lg rounded-xl border-0 text-slate-800"
-                                        styles={customSelectStyles}
-                                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                        formatOptionLabel={formatOptionLabel('anjuran')}
-                                    />
-                                </div>
-                                <div className="w-full">
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center">
-                                        <Filter className="w-3.5 h-3.5 mr-1 text-yellow-500" /> Status
-                                    </label>
-                                    <Select
-                                        isMulti
-                                        options={statusOptions}
-                                        value={selectedStatus}
-                                        onChange={setSelectedStatus}
-                                        placeholder="Semua Status"
-                                        className="text-sm shadow-lg rounded-xl border-0 text-slate-800"
-                                        styles={customSelectStyles}
-                                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                        formatOptionLabel={formatOptionLabel('status')}
-                                    />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div className="w-full">
+                                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center">
+                                            <Filter className="w-3.5 h-3.5 mr-1 text-yellow-500" /> Negeri
+                                        </label>
+                                        <Select
+                                            isMulti
+                                            options={states}
+                                            value={selectedStates}
+                                            onChange={setSelectedStates}
+                                            placeholder="Semua Negeri"
+                                            className="text-sm shadow-lg rounded-xl border-0 text-slate-800"
+                                            styles={customSelectStyles}
+                                            menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                            formatOptionLabel={formatOptionLabel('negeri')}
+                                        />
+                                    </div>
+                                    <div className="w-full">
+                                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center">
+                                            <Filter className="w-3.5 h-3.5 mr-1 text-yellow-500" /> Kategori
+                                        </label>
+                                        <Select
+                                            isMulti
+                                            options={kategoriOptions}
+                                            value={selectedKategori}
+                                            onChange={setSelectedKategori}
+                                            placeholder="Semua Kategori"
+                                            className="text-sm shadow-lg rounded-xl border-0 text-slate-800"
+                                            styles={customSelectStyles}
+                                            menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                            formatOptionLabel={formatOptionLabel('kategori')}
+                                        />
+                                    </div>
+                                    <div className="w-full">
+                                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center">
+                                            <Filter className="w-3.5 h-3.5 mr-1 text-yellow-500" /> Anjuran
+                                        </label>
+                                        <Select
+                                            isMulti
+                                            options={anjuranOptions}
+                                            value={selectedAnjuran}
+                                            onChange={setSelectedAnjuran}
+                                            placeholder="Semua Anjuran"
+                                            className="text-sm shadow-lg rounded-xl border-0 text-slate-800"
+                                            styles={customSelectStyles}
+                                            menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                            formatOptionLabel={formatOptionLabel('anjuran')}
+                                        />
+                                    </div>
+                                    <div className="w-full">
+                                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center">
+                                            <Filter className="w-3.5 h-3.5 mr-1 text-yellow-500" /> Status
+                                        </label>
+                                        <Select
+                                            isMulti
+                                            options={statusOptions}
+                                            value={selectedStatus}
+                                            onChange={setSelectedStatus}
+                                            placeholder="Semua Status"
+                                            className="text-sm shadow-lg rounded-xl border-0 text-slate-800"
+                                            styles={customSelectStyles}
+                                            menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                            formatOptionLabel={formatOptionLabel('status')}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
