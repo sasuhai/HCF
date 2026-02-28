@@ -13,6 +13,7 @@ import multiMonthPlugin from '@fullcalendar/multimonth';
 import { MapPin, Clock, Users, FileText, X, Filter, Calendar, Search } from 'lucide-react';
 import Link from 'next/link';
 import Select from 'react-select';
+import CreatableSelect from 'react-select/creatable';
 
 // Approximate major public holidays for Malaysia (2026/2027)
 const PUBLIC_HOLIDAYS = [
@@ -128,7 +129,14 @@ export default function KalendarProgram() {
         if (stateFilters.length > 0 && !stateFilters.includes(prog.negeri)) return false;
         if (kategoriFilters.length > 0 && !kategoriFilters.includes(prog.kategori_utama)) return false;
         if (statusFilters.length > 0 && !statusFilters.includes(prog.status_program)) return false;
-        if (programTitleFilters.length > 0 && !programTitleFilters.includes(prog.nama_program)) return false;
+
+        if (programTitleFilters.length > 0) {
+            const progName = (prog.nama_program || '').toLowerCase();
+            const matchesTitle = programTitleFilters.some(filter =>
+                progName.includes(filter.toLowerCase())
+            );
+            if (!matchesTitle) return false;
+        }
 
         if (anjuranFilters.length > 0) {
             const progAnjuran = Array.isArray(prog.anjuran) ? prog.anjuran : (prog.anjuran ? [prog.anjuran] : []);
@@ -145,10 +153,16 @@ export default function KalendarProgram() {
                 const k = kategoriFilters;
                 const a = anjuranFilters;
                 const st = statusFilters;
+                const pt = programTitleFilters;
 
                 if (filterType !== 'negeri' && s.length > 0 && !s.includes(p.negeri)) return false;
                 if (filterType !== 'kategori' && k.length > 0 && !k.includes(p.kategori_utama)) return false;
                 if (filterType !== 'status' && st.length > 0 && !st.includes(p.status_program)) return false;
+                if (pt.length > 0) {
+                    const pName = (p.nama_program || '').toLowerCase();
+                    const matchesTitle = pt.some(filter => pName.includes(filter.toLowerCase()));
+                    if (!matchesTitle) return false;
+                }
                 if (filterType !== 'anjuran' && a.length > 0) {
                     const pA = Array.isArray(p.anjuran) ? p.anjuran : (p.anjuran ? [p.anjuran] : []);
                     if (!a.some(val => pA.includes(val))) return false;
@@ -364,12 +378,13 @@ export default function KalendarProgram() {
                                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center">
                                         <Search className="w-3.5 h-3.5 mr-1 text-yellow-500" /> Carian Nama Program
                                     </label>
-                                    <Select
+                                    <CreatableSelect
                                         isMulti
                                         options={programTitleOptions}
                                         value={selectedProgramTitles}
                                         onChange={setSelectedProgramTitles}
                                         placeholder="Taip untuk mencari nama program..."
+                                        formatCreateLabel={(inputValue) => `Cari "${inputValue}"`}
                                         className="text-sm shadow-lg rounded-xl border-0 text-slate-800"
                                         styles={customSelectStyles}
                                         menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
