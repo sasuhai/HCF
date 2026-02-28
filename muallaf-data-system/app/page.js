@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase/client';
 import {
   LayoutDashboard,
   Users,
@@ -32,6 +33,36 @@ export default function LandingPage() {
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [upcomingPrograms, setUpcomingPrograms] = useState([]);
+  const [loadingPrograms, setLoadingPrograms] = useState(true);
+
+  // Fetch upcoming programs for the hero section
+  useEffect(() => {
+    async function fetchUpcomingPrograms() {
+      if (!user) {
+        setLoadingPrograms(false);
+        return;
+      }
+      try {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const { data, error } = await supabase
+          .from('programs')
+          .select('*')
+          .gte('tarikh_mula', todayStr)
+          .order('tarikh_mula', { ascending: true })
+          .limit(4);
+
+        if (!error && data) {
+          setUpcomingPrograms(data);
+        }
+      } catch (err) {
+        console.error("Error fetching upcoming programs:", err);
+      } finally {
+        setLoadingPrograms(false);
+      }
+    }
+    fetchUpcomingPrograms();
+  }, [user]);
 
   // Handle Password Recovery Redirect
   useEffect(() => {
@@ -325,31 +356,76 @@ export default function LandingPage() {
             {/* Right Side Visual Element - Glass Card */}
             <div className="hidden lg:block relative animate-fade-in-up delay-200">
               <div className="absolute -inset-4 bg-yellow-500/30 rounded-[2rem] blur-2xl"></div>
-              <div className="relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-[2rem] p-8 shadow-2xl">
-                <div className="flex items-center space-x-4 mb-8">
+              <div className="relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-[2rem] p-8 shadow-2xl h-[450px] flex flex-col">
+                <div className="flex items-center space-x-4 mb-6 shrink-0">
                   <div className="bg-white p-3 rounded-xl shadow-lg">
                     <img src="https://hidayahcentre.org.my/wp-content/uploads/2021/06/logo-web2.png" alt="HCF" className="h-8 w-auto" />
                   </div>
                   <div>
-                    <div className="h-2 w-32 bg-white/50 rounded mb-2"></div>
-                    <div className="h-2 w-20 bg-white/30 rounded"></div>
+                    <h3 className="text-xl font-bold text-white drop-shadow-md">Program Akan Datang</h3>
+                    <p className="text-xs text-yellow-300 font-medium">Takwim Terkini</p>
                   </div>
                 </div>
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex items-center space-x-4 p-4 bg-black/20 rounded-xl border border-white/5">
-                      <div className="h-10 w-10 rounded-full bg-yellow-500/50 flex items-center justify-center text-white">
-                        <Users className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="h-2 w-full bg-white/40 rounded mb-2"></div>
-                        <div className="h-2 w-2/3 bg-white/20 rounded"></div>
-                      </div>
+
+                <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+                  {!user ? (
+                    <div className="flex flex-col items-center text-center p-8 bg-black/20 rounded-xl border border-white/10 h-full justify-center">
+                      <ShieldCheck className="w-12 h-12 text-yellow-400 mb-4 opacity-80" />
+                      <h4 className="text-white font-bold mb-2">Maklumat Terlindung</h4>
+                      <p className="text-white/70 text-sm mb-6">Sila log masuk untuk melihat senarai program dan takwim yang akan datang.</p>
+                      <Link href="/login">
+                        <button className="px-6 py-2 bg-yellow-500 text-slate-900 rounded-lg text-sm font-bold shadow-lg transition-transform hover:-translate-y-0.5 flex items-center mx-auto">
+                          <LogIn className="w-4 h-4 mr-2" /> Log Masuk
+                        </button>
+                      </Link>
                     </div>
-                  ))}
+                  ) : loadingPrograms ? (
+                    [1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center space-x-4 p-4 bg-black/20 rounded-xl border border-white/5 animate-pulse">
+                        <div className="h-10 w-10 rounded-full bg-yellow-500/20 flex items-center justify-center text-white/50 shrink-0">
+                          <CalendarCheck className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="h-2 w-full bg-white/40 rounded mb-2"></div>
+                          <div className="h-2 w-2/3 bg-white/20 rounded"></div>
+                        </div>
+                      </div>
+                    ))
+                  ) : upcomingPrograms.length === 0 ? (
+                    <div className="flex flex-col items-center text-center p-8 bg-black/20 rounded-xl border border-white/10 h-full justify-center">
+                      <Calendar className="w-10 h-10 text-white/40 mb-3" />
+                      <p className="text-white/70 text-sm">Tiada program akan datang pada masa ini.</p>
+                    </div>
+                  ) : (
+                    upcomingPrograms.map((prog) => (
+                      <div key={prog.id} className="group p-4 bg-black/20 hover:bg-black/30 rounded-xl border border-white/10 transition-all transform hover:-translate-y-0.5 cursor-pointer">
+                        <div className="flex flex-col">
+                          <h4 className="text-white font-bold text-sm leading-snug mb-2 group-hover:text-yellow-300 transition-colors line-clamp-2">
+                            {prog.nama_program || 'Tiada Nama'}
+                          </h4>
+                          <div className="flex items-center flex-wrap gap-3">
+                            <div className="flex items-center text-[11px] text-white/80 shrink-0">
+                              <CalendarCheck className="w-3.5 h-3.5 mr-1.5 text-yellow-400" />
+                              {prog.tarikh_mula}
+                            </div>
+                            {prog.negeri && (
+                              <div className="flex items-center text-[11px] text-white/80 shrink-0 border-l border-white/20 pl-3">
+                                <MapPin className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
+                                {prog.negeri}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
-                <div className="mt-8 pt-6 border-t border-white/10 flex justify-between items-center text-white/60 text-sm">
-                  <span>Data Terkini</span>
+
+                <div className="mt-4 pt-4 border-t border-white/10 flex justify-between items-center text-white/60 text-sm shrink-0">
+                  <Link href="/program/kalendar" className="hover:text-white transition-colors flex items-center">
+                    <span className="border-b border-transparent hover:border-white">Lihat Kalendar Penuh</span>
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Link>
                   <div className="flex items-center text-yellow-300">
                     <span className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></span>
                     Online
